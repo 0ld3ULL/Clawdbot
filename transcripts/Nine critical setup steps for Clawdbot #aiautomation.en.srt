@@ -1,0 +1,104 @@
+1
+00:00:00,000 --> 00:00:03,919
+Here are the nine things you must do
+
+2
+00:00:01,760 --> 00:00:06,240
+when first setting up Cloudbot. First is
+
+3
+00:00:03,919 --> 00:00:08,400
+lock your project isolation. You must
+
+4
+00:00:06,240 --> 00:00:11,120
+force every project to have a project
+
+5
+00:00:08,400 --> 00:00:13,360
+ID. Second is create a master project
+
+6
+00:00:11,120 --> 00:00:16,000
+and this is your operating system. Next
+
+7
+00:00:13,360 --> 00:00:18,000
+is write project charters before you do
+
+8
+00:00:16,000 --> 00:00:20,800
+anything. That's your objective, your
+
+9
+00:00:18,000 --> 00:00:24,080
+scope in out guard rails and definitions
+
+10
+00:00:20,800 --> 00:00:26,800
+of success. Next, enforce no project ID,
+
+11
+00:00:24,080 --> 00:00:28,320
+no work. That is essential to make sure
+
+12
+00:00:26,800 --> 00:00:31,279
+it doesn't go off the rails. Number
+
+13
+00:00:28,320 --> 00:00:33,680
+five, install conflict detection so
+
+14
+00:00:31,279 --> 00:00:35,760
+it'll block if there is conflict
+
+15
+00:00:33,680 --> 00:00:38,559
+detected. Next, turn those conflicts
+
+16
+00:00:35,760 --> 00:00:40,480
+into log files in your conflicts folder.
+
+17
+00:00:38,559 --> 00:00:42,559
+Then pipe those errors directly into
+
+18
+00:00:40,480 --> 00:00:44,719
+your Messengerbot. I use Slack. Number
+
+19
+00:00:42,559 --> 00:00:46,879
+eight, define your severity levels up
+
+20
+00:00:44,719 --> 00:00:48,960
+front. Info, warn, block, reject,
+
+21
+00:00:46,879 --> 00:00:50,800
+critical. Lastly, kill anything that's
+
+22
+00:00:48,960 --> 00:00:53,039
+fast but wrong. We don't need that
+
+23
+00:00:50,800 --> 00:00:55,280
+behavior. We need safety over speed. If
+
+24
+00:00:53,039 --> 00:00:56,719
+you treat Cloudbot like Chat GPT, it's
+
+25
+00:00:55,280 --> 00:01:00,480
+going to burn you. If you treat it like
+
+26
+00:00:56,719 --> 00:01:00,480
+an operating system, it scales.
+

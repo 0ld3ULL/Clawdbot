@@ -1,0 +1,46 @@
+# Master Project Charter - The "Operating System"
+# Ganzak Rule 2: Create a master project
+
+project_id: master
+name: "Clawdbot Master"
+description: "Core agent system - the operating system that all projects run on"
+
+objective: >
+  Provide the foundational infrastructure for autonomous AI agents including
+  model routing, tool execution, approval queues, memory management,
+  security enforcement, and monitoring.
+
+scope:
+  in:
+    - Core engine (tool loop, model routing, context management)
+    - Approval queue and human-in-the-loop enforcement
+    - Token budget tracking and cost control
+    - Activity logging and audit trail
+    - Kill switch and emergency shutdown
+    - Credential management
+    - Prompt injection defense
+  out:
+    - Direct social media posting (delegated to project agents)
+    - Content creation (delegated to project agents)
+    - Any financial transactions
+    - Any actions without human approval
+
+guardrails:
+  - No outbound actions without approval
+  - No financial access of any kind
+  - No credential exposure in logs
+  - Maximum daily budget enforced per project
+  - Kill switch always available
+
+severity_levels:
+  info: "Informational - logged only"
+  warn: "Warning - logged + continue"
+  block: "Blocked - logged + paused, recoverable"
+  reject: "Rejected - logged + user intervention required"
+  critical: "STOP EVERYTHING - alert immediately"
+
+success_metrics:
+  - System uptime > 99%
+  - Zero unauthorized outbound actions
+  - Token costs within daily budget
+  - All actions logged in audit trail

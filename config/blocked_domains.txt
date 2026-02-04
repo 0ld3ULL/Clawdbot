@@ -1,0 +1,37 @@
+# Blocked Domains - Financial / Payment / Shopping
+# These domains must NEVER be accessed by the agent system
+
+# Banking
+*.bank.com
+*.chase.com
+*.wellsfargo.com
+*.bankofamerica.com
+*.citi.com
+*.hsbc.com
+*.barclays.com
+
+# Payment Processors
+*.paypal.com
+*.stripe.com
+*.square.com
+*.venmo.com
+
+# Crypto Exchanges (no trading)
+*.binance.com
+*.coinbase.com
+*.kraken.com
+*.kucoin.com
+*.bybit.com
+*.okx.com
+
+# Shopping
+*.amazon.com
+*.ebay.com
+*.walmart.com
+*.alibaba.com
+
+# Investment
+*.robinhood.com
+*.etrade.com
+*.fidelity.com
+*.schwab.com

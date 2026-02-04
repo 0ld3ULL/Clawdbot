@@ -1,0 +1,4028 @@
+1
+00:00:00,160 --> 00:00:04,560
+Hey, this is Matt Ganzac and in this
+
+2
+00:00:02,080 --> 00:00:07,200
+video we are going over the AI software
+
+3
+00:00:04,560 --> 00:00:10,320
+blueprint. Creating prototypes in days,
+
+4
+00:00:07,200 --> 00:00:11,679
+not months, leveraging AI. First, a
+
+5
+00:00:10,320 --> 00:00:13,519
+little disclaimer we have to get out of
+
+6
+00:00:11,679 --> 00:00:15,599
+the way. Just by watching this video,
+
+7
+00:00:13,519 --> 00:00:17,680
+you are not guaranteed success by
+
+8
+00:00:15,599 --> 00:00:20,560
+implementing this training. You are not
+
+9
+00:00:17,680 --> 00:00:23,439
+guaranteed success. Results are not
+
+10
+00:00:20,560 --> 00:00:25,279
+always typical and nine out of 10en
+
+11
+00:00:23,439 --> 00:00:27,359
+software ventures fail in the first 18
+
+12
+00:00:25,279 --> 00:00:29,359
+months. According to Forbes.com,
+
+13
+00:00:27,359 --> 00:00:31,679
+business is risky. Always consult your
+
+14
+00:00:29,359 --> 00:00:33,760
+attorney and your accountant. All case
+
+15
+00:00:31,679 --> 00:00:36,000
+studies are true to the best of my
+
+16
+00:00:33,760 --> 00:00:38,960
+knowledge. Don't purchase anything from
+
+17
+00:00:36,000 --> 00:00:41,520
+me if you cannot afford it. Starting a
+
+18
+00:00:38,960 --> 00:00:44,920
+business is an investment and it takes
+
+19
+00:00:41,520 --> 00:00:48,640
+time. Software is not a get-richqu
+
+20
+00:00:44,920 --> 00:00:51,840
+scheme. Okay? It was all a dream. I
+
+21
+00:00:48,640 --> 00:00:54,399
+won't do any impersonations or anything,
+
+22
+00:00:51,840 --> 00:00:58,640
+but I built my first software platform
+
+23
+00:00:54,399 --> 00:01:00,719
+in 2006 and it sucked. But I'm pretty
+
+24
+00:00:58,640 --> 00:01:02,960
+sure it's still online today, exactly
+
+25
+00:01:00,719 --> 00:01:04,799
+how I originally built it in 2006. So
+
+26
+00:01:02,960 --> 00:01:05,720
+that must say something, right? I still
+
+27
+00:01:04,799 --> 00:01:09,280
+think it
+
+28
+00:01:05,720 --> 00:01:11,840
+sucked. Between 2008 and 2015, I worked
+
+29
+00:01:09,280 --> 00:01:15,920
+for one of the top 100 most visited
+
+30
+00:01:11,840 --> 00:01:18,880
+apps. Um, later on, like 2013, 2014, I
+
+31
+00:01:15,920 --> 00:01:21,840
+think we dropped to like top 500. But
+
+32
+00:01:18,880 --> 00:01:24,680
+when I got started in 2008, we built up
+
+33
+00:01:21,840 --> 00:01:27,360
+to be one of the most 100 most visited
+
+34
+00:01:24,680 --> 00:01:28,799
+websites, which is insane. like millions
+
+35
+00:01:27,360 --> 00:01:30,720
+and millions and millions and millions
+
+36
+00:01:28,799 --> 00:01:32,960
+of visitors every single day. It was
+
+37
+00:01:30,720 --> 00:01:35,439
+nuts. Since then, I've been launching
+
+38
+00:01:32,960 --> 00:01:39,040
+new software platforms and I never
+
+39
+00:01:35,439 --> 00:01:41,200
+dreamt in my wildest dreams that AI
+
+40
+00:01:39,040 --> 00:01:43,439
+would be writing software and writing
+
+41
+00:01:41,200 --> 00:01:45,200
+code. It's absolutely insane. Today, you
+
+42
+00:01:43,439 --> 00:01:47,920
+can get a software platform online in
+
+43
+00:01:45,200 --> 00:01:50,560
+days, not months. And the time to strike
+
+44
+00:01:47,920 --> 00:01:53,040
+is now, not tomorrow. The speed of which
+
+45
+00:01:50,560 --> 00:01:55,119
+if you're sitting on an idea right now,
+
+46
+00:01:53,040 --> 00:01:59,360
+the speed of which people are moving on
+
+47
+00:01:55,119 --> 00:02:02,560
+your ideas is insane. Like I can have an
+
+48
+00:01:59,360 --> 00:02:04,960
+idea in the morning by lunch I can have
+
+49
+00:02:02,560 --> 00:02:07,680
+it all validated and smoke test and
+
+50
+00:02:04,960 --> 00:02:11,200
+whatnot and by the end of the day I can
+
+51
+00:02:07,680 --> 00:02:14,160
+have it live people are using it. It's
+
+52
+00:02:11,200 --> 00:02:16,800
+insane. In a single day it's nuts. So
+
+53
+00:02:14,160 --> 00:02:19,760
+you need to get moving on this. Now, all
+
+54
+00:02:16,800 --> 00:02:24,080
+of this starts with a problem. All too
+
+55
+00:02:19,760 --> 00:02:26,800
+often, too many people think about way
+
+56
+00:02:24,080 --> 00:02:29,520
+too many things. And the only thing that
+
+57
+00:02:26,800 --> 00:02:32,239
+you need to focus on at the beginning
+
+58
+00:02:29,520 --> 00:02:35,200
+steps of your software venture, SAS,
+
+59
+00:02:32,239 --> 00:02:37,440
+app, whatever you want to call it, is a
+
+60
+00:02:35,200 --> 00:02:39,840
+problem. Solving a problem is essential
+
+61
+00:02:37,440 --> 00:02:42,920
+to successful software businesses.
+
+62
+00:02:39,840 --> 00:02:46,000
+Starting with the problem, you are
+
+63
+00:02:42,920 --> 00:02:49,280
+solving. Period. End of story.
+
+64
+00:02:46,000 --> 00:02:52,959
+Everything else is just trying to solve
+
+65
+00:02:49,280 --> 00:02:55,440
+the problem, but focus on the problem. I
+
+66
+00:02:52,959 --> 00:02:57,840
+cannot reiterate like people reach out
+
+67
+00:02:55,440 --> 00:03:00,879
+to me. Oh, I got this great idea. I
+
+68
+00:02:57,840 --> 00:03:04,159
+secured the domain and I have the
+
+69
+00:03:00,879 --> 00:03:05,840
+trademark pending and D and we got to do
+
+70
+00:03:04,159 --> 00:03:09,200
+this. We got to move on this. Well, what
+
+71
+00:03:05,840 --> 00:03:11,040
+problem are you solving? Problem? I just
+
+72
+00:03:09,200 --> 00:03:12,800
+have a great name. I bought a great
+
+73
+00:03:11,040 --> 00:03:15,760
+domain. We should build a product around
+
+74
+00:03:12,800 --> 00:03:18,800
+it. It's going to fail. That venture is
+
+75
+00:03:15,760 --> 00:03:22,400
+going to fail. I can guarantee you out
+
+76
+00:03:18,800 --> 00:03:24,239
+of the, you know, one out of 10
+
+77
+00:03:22,400 --> 00:03:27,840
+businesses that succeed, they're
+
+78
+00:03:24,239 --> 00:03:29,680
+focusing on the problem. Do not focus on
+
+79
+00:03:27,840 --> 00:03:33,040
+making money. That is not a problem.
+
+80
+00:03:29,680 --> 00:03:35,120
+Like your bank account reading very
+
+81
+00:03:33,040 --> 00:03:37,760
+little amount of money is not the
+
+82
+00:03:35,120 --> 00:03:40,000
+problem. It is not the problem. The
+
+83
+00:03:37,760 --> 00:03:42,560
+problem needs to be other people's bank
+
+84
+00:03:40,000 --> 00:03:45,680
+accounts that have money that are
+
+85
+00:03:42,560 --> 00:03:47,920
+willing to pay to solve a problem.
+
+86
+00:03:45,680 --> 00:03:50,400
+That's how you solve things. Money comes
+
+87
+00:03:47,920 --> 00:03:52,480
+after you solve the problem. You are
+
+88
+00:03:50,400 --> 00:03:55,440
+paid in direct proportion to the
+
+89
+00:03:52,480 --> 00:03:58,640
+difficulty of the problems you solve.
+
+90
+00:03:55,440 --> 00:04:00,879
+That's Elon Musk. I would listen to that
+
+91
+00:03:58,640 --> 00:04:03,360
+guy. He uh definitely knows what he's
+
+92
+00:04:00,879 --> 00:04:04,720
+talking about. I wrote a book in 2016. I
+
+93
+00:04:03,360 --> 00:04:07,599
+mentioned him several times. I've
+
+94
+00:04:04,720 --> 00:04:09,599
+always, you know, looked at the things
+
+95
+00:04:07,599 --> 00:04:11,920
+that he's built and the problems that
+
+96
+00:04:09,599 --> 00:04:14,239
+he's solved and the things that he's
+
+97
+00:04:11,920 --> 00:04:17,359
+tried to tackle. Regardless of what you
+
+98
+00:04:14,239 --> 00:04:20,160
+think of him, I think that it's insane.
+
+99
+00:04:17,359 --> 00:04:23,360
+I think it's insane. And I think that
+
+100
+00:04:20,160 --> 00:04:26,160
+going forward in thinking like people
+
+101
+00:04:23,360 --> 00:04:28,639
+like Elon Musk or thinking like you know
+
+102
+00:04:26,160 --> 00:04:31,040
+Richard Branson or thinking about things
+
+103
+00:04:28,639 --> 00:04:34,000
+in the way that other people that have
+
+104
+00:04:31,040 --> 00:04:36,639
+been very successful in solving problems
+
+105
+00:04:34,000 --> 00:04:38,560
+the way they think that's the way we
+
+106
+00:04:36,639 --> 00:04:40,840
+need to think that's how we need to move
+
+107
+00:04:38,560 --> 00:04:45,360
+so let's solve a problem we use chat
+
+108
+00:04:40,840 --> 00:04:48,080
+GPT03 to research problems chat GPT03 is
+
+109
+00:04:45,360 --> 00:04:50,160
+the model that uses reasoning the some
+
+110
+00:04:48,080 --> 00:04:52,240
+of the other models that are out there
+
+111
+00:04:50,160 --> 00:04:54,240
+are not using reasoning. And if you're
+
+112
+00:04:52,240 --> 00:04:57,440
+watching this years down the road and
+
+113
+00:04:54,240 --> 00:05:00,240
+they've updated, the key thing is we
+
+114
+00:04:57,440 --> 00:05:01,919
+want the advanced reasoning. We want it
+
+115
+00:05:00,240 --> 00:05:03,919
+to think. We just don't want it to read
+
+116
+00:05:01,919 --> 00:05:06,320
+the internet and just spit things back
+
+117
+00:05:03,919 --> 00:05:10,320
+out to us. We want it to read things on
+
+118
+00:05:06,320 --> 00:05:12,960
+the internet, analyze it, use reasoning,
+
+119
+00:05:10,320 --> 00:05:14,720
+and then give a response back. Uh I just
+
+120
+00:05:12,960 --> 00:05:17,840
+don't want things just spit out from the
+
+121
+00:05:14,720 --> 00:05:21,600
+internet. Right? So currently as I'm
+
+122
+00:05:17,840 --> 00:05:24,639
+making this video, chat GP03 is the
+
+123
+00:05:21,600 --> 00:05:27,680
+model that uses advanced reasoning. If
+
+124
+00:05:24,639 --> 00:05:30,720
+you do not have a problem worth solving
+
+125
+00:05:27,680 --> 00:05:32,880
+in your mind right now, use this prompt.
+
+126
+00:05:30,720 --> 00:05:35,440
+Give me 10 businesses and industries
+
+127
+00:05:32,880 --> 00:05:38,000
+that have huge problems that could be
+
+128
+00:05:35,440 --> 00:05:41,680
+solved using AI and they would be
+
+129
+00:05:38,000 --> 00:05:43,759
+willing to pay for these solutions. So,
+
+130
+00:05:41,680 --> 00:05:45,360
+if you don't want just 10 businesses,
+
+131
+00:05:43,759 --> 00:05:47,440
+you have a specific business that you
+
+132
+00:05:45,360 --> 00:05:51,520
+want to work on, just replace 10
+
+133
+00:05:47,440 --> 00:05:53,840
+businesses with give me 10 problems that
+
+134
+00:05:51,520 --> 00:05:56,000
+are worth solving in X business. So, you
+
+135
+00:05:53,840 --> 00:05:58,080
+can edit that prompt a little bit based
+
+136
+00:05:56,000 --> 00:06:00,800
+upon what you have. But if you have no
+
+137
+00:05:58,080 --> 00:06:02,800
+idea, you're starting at absolutely no
+
+138
+00:06:00,800 --> 00:06:04,960
+idea, you just know that you want to be
+
+139
+00:06:02,800 --> 00:06:07,120
+in the software business because it does
+
+140
+00:06:04,960 --> 00:06:08,720
+have great margins because you can have
+
+141
+00:06:07,120 --> 00:06:11,280
+great exits and you can make good money
+
+142
+00:06:08,720 --> 00:06:14,000
+from it if you do things correctly and
+
+143
+00:06:11,280 --> 00:06:16,919
+be part of that 10% of success. You can
+
+144
+00:06:14,000 --> 00:06:19,919
+be successful with it. But the key thing
+
+145
+00:06:16,919 --> 00:06:22,400
+is you need to ask it the right
+
+146
+00:06:19,919 --> 00:06:25,520
+questions. So let's review these
+
+147
+00:06:22,400 --> 00:06:27,919
+together. Okay, so I asked a question,
+
+148
+00:06:25,520 --> 00:06:30,800
+give me 10 businesses and industries
+
+149
+00:06:27,919 --> 00:06:33,199
+that have huge problems that could be
+
+150
+00:06:30,800 --> 00:06:35,120
+solved using AI and they would be
+
+151
+00:06:33,199 --> 00:06:37,840
+willing to pay for those. So it thinks
+
+152
+00:06:35,120 --> 00:06:41,400
+about it and it's like uh below or 10
+
+153
+00:06:37,840 --> 00:06:45,919
+gap analysis targets. Um number one,
+
+154
+00:06:41,400 --> 00:06:48,160
+hospital revenue, right? Um property and
+
+155
+00:06:45,919 --> 00:06:50,960
+casualty insurers. I'm actually building
+
+156
+00:06:48,160 --> 00:06:53,039
+software for I've already built it.
+
+157
+00:06:50,960 --> 00:06:56,319
+We're to market. were um valued at an
+
+158
+00:06:53,039 --> 00:06:59,599
+eight figureure company already and um I
+
+159
+00:06:56,319 --> 00:07:02,639
+literally did this one and I did this
+
+160
+00:06:59,599 --> 00:07:06,639
+one too. So this one's in development.
+
+161
+00:07:02,639 --> 00:07:08,800
+But point is like this is exactly how I
+
+162
+00:07:06,639 --> 00:07:11,440
+realize the opportunities that are out
+
+163
+00:07:08,800 --> 00:07:15,520
+there. So go find them. Go research. You
+
+164
+00:07:11,440 --> 00:07:17,919
+know, you can respond give me 10 more.
+
+165
+00:07:15,520 --> 00:07:20,400
+Like you can literally talk to this.
+
+166
+00:07:17,919 --> 00:07:22,240
+It'll respond back. It'll be smart.
+
+167
+00:07:20,400 --> 00:07:24,479
+It'll come up with ideas. It'll use some
+
+168
+00:07:22,240 --> 00:07:26,479
+reasoning, come up with some ideas and
+
+169
+00:07:24,479 --> 00:07:28,960
+so forth. Drill down, have a whole
+
+170
+00:07:26,479 --> 00:07:31,280
+conversation about it, and you're just
+
+171
+00:07:28,960 --> 00:07:33,520
+drilling down and trying to find
+
+172
+00:07:31,280 --> 00:07:35,880
+problems and solutions, and you can
+
+173
+00:07:33,520 --> 00:07:38,880
+develop those solutions. So, all too
+
+174
+00:07:35,880 --> 00:07:41,960
+often, people look at, you know, what
+
+175
+00:07:38,880 --> 00:07:45,360
+are the top 10 highest grossing software
+
+176
+00:07:41,960 --> 00:07:47,520
+businesses? Make me uh, you know,
+
+177
+00:07:45,360 --> 00:07:50,400
+duplicate. You know, I want to compete
+
+178
+00:07:47,520 --> 00:07:52,479
+with Mailchimp, for example. That's a
+
+179
+00:07:50,400 --> 00:07:55,759
+terrible way of going about this. You
+
+180
+00:07:52,479 --> 00:07:57,840
+are going to fail if you do that. Like
+
+181
+00:07:55,759 --> 00:07:59,840
+you have to look at problems that are
+
+182
+00:07:57,840 --> 00:08:01,599
+out there that are not currently solved.
+
+183
+00:07:59,840 --> 00:08:03,680
+If you're saying Mailchimp is too
+
+184
+00:08:01,599 --> 00:08:05,840
+expensive, I could build something that
+
+185
+00:08:03,680 --> 00:08:07,680
+you know is far less expensive and
+
+186
+00:08:05,840 --> 00:08:11,360
+people will switch from Mailchimp to me.
+
+187
+00:08:07,680 --> 00:08:14,639
+They will not. They will not. They will
+
+188
+00:08:11,360 --> 00:08:16,080
+not. Like it's a total waste of time and
+
+189
+00:08:14,639 --> 00:08:17,440
+you're going to waste money. You're
+
+190
+00:08:16,080 --> 00:08:19,599
+going to waste time. You're going to
+
+191
+00:08:17,440 --> 00:08:22,240
+waste your resources. is you're going to
+
+192
+00:08:19,599 --> 00:08:24,720
+waste everything trying to just rebuild
+
+193
+00:08:22,240 --> 00:08:28,080
+Mailchimp. It's a total waste of time.
+
+194
+00:08:24,720 --> 00:08:30,160
+Or the other idea is, well, you know, I
+
+195
+00:08:28,080 --> 00:08:32,240
+use this app for this and I use this app
+
+196
+00:08:30,160 --> 00:08:34,560
+for this and I use this app for this.
+
+197
+00:08:32,240 --> 00:08:37,279
+That should all be in one. Again,
+
+198
+00:08:34,560 --> 00:08:40,000
+terrible idea. It's a terrible idea
+
+199
+00:08:37,279 --> 00:08:42,320
+because you not only said you want to
+
+200
+00:08:40,000 --> 00:08:44,399
+recreate one app, but you want to
+
+201
+00:08:42,320 --> 00:08:46,800
+recreate three, four, five different
+
+202
+00:08:44,399 --> 00:08:48,640
+apps. All the features that are in all
+
+203
+00:08:46,800 --> 00:08:51,920
+these different apps and consolidated
+
+204
+00:08:48,640 --> 00:08:54,080
+into one. So companies are paying for,
+
+205
+00:08:51,920 --> 00:08:57,120
+you know, product A, product B, product
+
+206
+00:08:54,080 --> 00:08:58,640
+C, product D, and it's all integrated.
+
+207
+00:08:57,120 --> 00:09:02,399
+It's all working and, you know, they're
+
+208
+00:08:58,640 --> 00:09:04,240
+using it. Why would you try to compete
+
+209
+00:09:02,399 --> 00:09:08,000
+with four different products? That's
+
+210
+00:09:04,240 --> 00:09:10,399
+like you going and fighting four
+
+211
+00:09:08,000 --> 00:09:12,160
+different fights at the same time. It's
+
+212
+00:09:10,399 --> 00:09:16,000
+a terrible idea. It's a terrible waste
+
+213
+00:09:12,160 --> 00:09:19,279
+of time. So, the point is use this and
+
+214
+00:09:16,000 --> 00:09:20,800
+validate the idea. Come up with what it
+
+215
+00:09:19,279 --> 00:09:22,640
+is that you're solving, the problem
+
+216
+00:09:20,800 --> 00:09:24,000
+you're solving, and then from there,
+
+217
+00:09:22,640 --> 00:09:25,600
+like look at this thing. Like, it's
+
+218
+00:09:24,000 --> 00:09:28,880
+thinking. It's coming up with all these
+
+219
+00:09:25,600 --> 00:09:30,959
+different ideas. Here's some things.
+
+220
+00:09:28,880 --> 00:09:34,399
+Here's some things you can do, and
+
+221
+00:09:30,959 --> 00:09:37,120
+here's why they'll pay for it. So use
+
+222
+00:09:34,399 --> 00:09:39,760
+this brainstorm like instead of just
+
+223
+00:09:37,120 --> 00:09:42,240
+scrolling on Instagram or YouTube or
+
+224
+00:09:39,760 --> 00:09:45,440
+wherever Tik Tok you're scrolling open
+
+225
+00:09:42,240 --> 00:09:48,800
+up Chat GPT download it on your phone
+
+226
+00:09:45,440 --> 00:09:50,800
+switch over to the 03 model and ask it
+
+227
+00:09:48,800 --> 00:09:53,120
+questions just talk to it in the middle
+
+228
+00:09:50,800 --> 00:09:55,760
+of night when I can't fall asleep I'll
+
+229
+00:09:53,120 --> 00:09:58,880
+just open chat GPT and just brainstorm
+
+230
+00:09:55,760 --> 00:10:01,120
+and just come up with ideas. And this is
+
+231
+00:09:58,880 --> 00:10:03,760
+the best use of time when you have
+
+232
+00:10:01,120 --> 00:10:07,920
+downtime. It's not scrolling through
+
+233
+00:10:03,760 --> 00:10:09,440
+your, you know, feed just mindless. It's
+
+234
+00:10:07,920 --> 00:10:11,760
+brainstorming. It's coming up with
+
+235
+00:10:09,440 --> 00:10:13,680
+ideas. It's thinking about things. It's,
+
+236
+00:10:11,760 --> 00:10:16,959
+you know, challenging. So, you could
+
+237
+00:10:13,680 --> 00:10:20,160
+take one of these ideas like this idea
+
+238
+00:10:16,959 --> 00:10:22,079
+and you could challenge chat GPT. Like,
+
+239
+00:10:20,160 --> 00:10:24,320
+I don't think that this really is that
+
+240
+00:10:22,079 --> 00:10:26,560
+big of an opportunity. please explain
+
+241
+00:10:24,320 --> 00:10:29,440
+that opportunity scale to me a little
+
+242
+00:10:26,560 --> 00:10:31,600
+bit more so I better understand it and
+
+243
+00:10:29,440 --> 00:10:33,360
+it can drill down and and then you can
+
+244
+00:10:31,600 --> 00:10:36,240
+argue with it like this is the best
+
+245
+00:10:33,360 --> 00:10:38,880
+thing and then you could say long haul
+
+246
+00:10:36,240 --> 00:10:41,519
+trucking fleets and 3PL's
+
+247
+00:10:38,880 --> 00:10:44,079
+um I want to take this on but tell me
+
+248
+00:10:41,519 --> 00:10:46,480
+all the reasons why this is a bad idea
+
+249
+00:10:44,079 --> 00:10:48,800
+and it'll tell you what are the biggest
+
+250
+00:10:46,480 --> 00:10:52,000
+challenges that I'm going to face when
+
+251
+00:10:48,800 --> 00:10:53,440
+trying to you know take this on what are
+
+252
+00:10:52,000 --> 00:10:54,800
+some of the big challenges I'm going to
+
+253
+00:10:53,440 --> 00:10:57,680
+face here. What are the some of the big
+
+254
+00:10:54,800 --> 00:11:01,839
+challenges I'm going to face here? Like
+
+255
+00:10:57,680 --> 00:11:04,480
+ask it questions. Right? So often times
+
+256
+00:11:01,839 --> 00:11:08,079
+in in looking at these, you don't have a
+
+257
+00:11:04,480 --> 00:11:10,640
+ton of people to sell to, right? But if
+
+258
+00:11:08,079 --> 00:11:13,200
+they all have this problem that you're
+
+259
+00:11:10,640 --> 00:11:15,680
+trying to solve and they're willing to
+
+260
+00:11:13,200 --> 00:11:18,320
+pay for it and they're willing the the
+
+261
+00:11:15,680 --> 00:11:20,640
+problem cost them a lot of money, they
+
+262
+00:11:18,320 --> 00:11:23,680
+might be willing to pay a lot of money
+
+263
+00:11:20,640 --> 00:11:26,800
+for the service. So instead of having,
+
+264
+00:11:23,680 --> 00:11:29,440
+you know, one or two, you know, people
+
+265
+00:11:26,800 --> 00:11:31,200
+signing up per day at 30 bucks a month,
+
+266
+00:11:29,440 --> 00:11:33,279
+you could have one signing up every
+
+267
+00:11:31,200 --> 00:11:35,360
+quarter and they're paying you half
+
+268
+00:11:33,279 --> 00:11:38,399
+million to a million dollars a year per
+
+269
+00:11:35,360 --> 00:11:40,800
+client, per deal. Really makes a
+
+270
+00:11:38,399 --> 00:11:43,440
+difference as you can, you know, as you
+
+271
+00:11:40,800 --> 00:11:45,120
+can see here. Okay. So next, you have an
+
+272
+00:11:43,440 --> 00:11:47,200
+idea like you've done your research.
+
+273
+00:11:45,120 --> 00:11:48,560
+Let's just fast forward and say you've
+
+274
+00:11:47,200 --> 00:11:50,959
+done all this research and you feel
+
+275
+00:11:48,560 --> 00:11:53,360
+really good about something. What is a
+
+276
+00:11:50,959 --> 00:11:55,519
+good next step? If you do not want to go
+
+277
+00:11:53,360 --> 00:11:57,600
+at this alone, partner with somebody who
+
+278
+00:11:55,519 --> 00:11:59,519
+is an expert in that field. Somebody
+
+279
+00:11:57,600 --> 00:12:01,760
+that maybe works in the field, somebody
+
+280
+00:11:59,519 --> 00:12:04,480
+that has the problem, maybe a company
+
+281
+00:12:01,760 --> 00:12:06,639
+that's willing to pay for the software
+
+282
+00:12:04,480 --> 00:12:08,320
+development and then want to partner on
+
+283
+00:12:06,639 --> 00:12:10,360
+selling it to their competitors,
+
+284
+00:12:08,320 --> 00:12:13,920
+whatever. Be creative, come up with
+
+285
+00:12:10,360 --> 00:12:16,160
+ideas. And also another idea is perhaps
+
+286
+00:12:13,920 --> 00:12:18,240
+to attract partners, you could create
+
+287
+00:12:16,160 --> 00:12:20,320
+content talking about solutions and
+
+288
+00:12:18,240 --> 00:12:22,720
+talking about how you can create
+
+289
+00:12:20,320 --> 00:12:24,079
+solutions that you can create apps in
+
+290
+00:12:22,720 --> 00:12:26,399
+days, not months. You could create
+
+291
+00:12:24,079 --> 00:12:29,279
+content, put it out there and make a
+
+292
+00:12:26,399 --> 00:12:31,360
+call to action like if you're having a
+
+293
+00:12:29,279 --> 00:12:33,360
+problem in your current business and you
+
+294
+00:12:31,360 --> 00:12:36,079
+want to solve it with tech, message me
+
+295
+00:12:33,360 --> 00:12:38,399
+and let's talk about how we can solve
+
+296
+00:12:36,079 --> 00:12:41,519
+problems together. So, if you don't want
+
+297
+00:12:38,399 --> 00:12:43,760
+to go at this alone, then that's fine.
+
+298
+00:12:41,519 --> 00:12:46,480
+If you do want to go at this alone, then
+
+299
+00:12:43,760 --> 00:12:48,560
+do it. That's fine, too. But I found
+
+300
+00:12:46,480 --> 00:12:50,240
+that partnering in ventures, like I
+
+301
+00:12:48,560 --> 00:12:52,880
+said, I have a doctor. We're building
+
+302
+00:12:50,240 --> 00:12:54,240
+hospital software. I have a restaurant
+
+303
+00:12:52,880 --> 00:12:56,639
+owner. We're building restaurant
+
+304
+00:12:54,240 --> 00:12:59,680
+software. I have a sales professional.
+
+305
+00:12:56,639 --> 00:13:01,120
+We're building sales software. Um, when
+
+306
+00:12:59,680 --> 00:13:02,480
+you partner with people that are already
+
+307
+00:13:01,120 --> 00:13:04,399
+in the field, that already have the
+
+308
+00:13:02,480 --> 00:13:06,959
+problem, that already have people to
+
+309
+00:13:04,399 --> 00:13:10,399
+sell to and have the capital to put up
+
+310
+00:13:06,959 --> 00:13:12,560
+to do it, it really brings that capital,
+
+311
+00:13:10,399 --> 00:13:14,880
+knowledge, and connections all to the
+
+312
+00:13:12,560 --> 00:13:17,839
+table, which can really fast forward
+
+313
+00:13:14,880 --> 00:13:19,600
+your venture and the successes of your
+
+314
+00:13:17,839 --> 00:13:22,160
+venture is directly tied to those three
+
+315
+00:13:19,600 --> 00:13:23,680
+assets. So otherwise, you're looking for
+
+316
+00:13:22,160 --> 00:13:24,800
+the capital yourself, you're looking for
+
+317
+00:13:23,680 --> 00:13:26,320
+the knowledge yourself, and you're
+
+318
+00:13:24,800 --> 00:13:28,399
+looking for the connections yourself.
+
+319
+00:13:26,320 --> 00:13:30,880
+So, I like partnering with people, but
+
+320
+00:13:28,399 --> 00:13:32,880
+again, that's totally up to you. I like
+
+321
+00:13:30,880 --> 00:13:35,200
+asking experts what their problems are
+
+322
+00:13:32,880 --> 00:13:37,200
+facing and brainstorming ideas. So, if
+
+323
+00:13:35,200 --> 00:13:38,880
+you are going at this alone, you can
+
+324
+00:13:37,200 --> 00:13:40,480
+always do that and gain knowledge and
+
+325
+00:13:38,880 --> 00:13:42,480
+capital and so forth. Maybe give them
+
+326
+00:13:40,480 --> 00:13:44,959
+some equity in the deal. Structure a
+
+327
+00:13:42,480 --> 00:13:47,200
+deal, make it make sense, but know these
+
+328
+00:13:44,959 --> 00:13:49,519
+three assets, capital, knowledge, and
+
+329
+00:13:47,200 --> 00:13:53,240
+connections are essential to having a
+
+330
+00:13:49,519 --> 00:13:55,839
+successful software business. again use
+
+331
+00:13:53,240 --> 00:13:58,399
+chatb03 to come up with solutions to
+
+332
+00:13:55,839 --> 00:13:59,920
+these problems. So we go in there, we
+
+333
+00:13:58,399 --> 00:14:02,000
+focus on the problem solution, the
+
+334
+00:13:59,920 --> 00:14:03,680
+avatar and the TAM. So we're going to
+
+335
+00:14:02,000 --> 00:14:06,480
+talk about each one of those. We're
+
+336
+00:14:03,680 --> 00:14:09,360
+going to break those all down. Um first
+
+337
+00:14:06,480 --> 00:14:11,199
+ideal customer profile, ICP. Don't try
+
+338
+00:14:09,360 --> 00:14:14,240
+to reach everyone with what it is that
+
+339
+00:14:11,199 --> 00:14:16,639
+you're doing. Focus on a core customer
+
+340
+00:14:14,240 --> 00:14:18,639
+needs. For example, like I said, we're
+
+341
+00:14:16,639 --> 00:14:21,360
+building software for salespeople. We
+
+342
+00:14:18,639 --> 00:14:23,440
+niched down. We didn't say every
+
+343
+00:14:21,360 --> 00:14:25,519
+salesperson in the world, there are 5
+
+344
+00:14:23,440 --> 00:14:27,360
+million salespeople in the United States
+
+345
+00:14:25,519 --> 00:14:30,560
+alone and every single one could use our
+
+346
+00:14:27,360 --> 00:14:33,839
+software. No, we niche down. We say what
+
+347
+00:14:30,560 --> 00:14:36,880
+is my partner? What is your direct need?
+
+348
+00:14:33,839 --> 00:14:38,880
+He tells me and I said okay, what do we
+
+349
+00:14:36,880 --> 00:14:43,040
+need to build in order to make this
+
+350
+00:14:38,880 --> 00:14:46,320
+successful for you? Now, who else has
+
+351
+00:14:43,040 --> 00:14:48,639
+the specific problems that you have that
+
+352
+00:14:46,320 --> 00:14:51,040
+would be willing to pay for this? that
+
+353
+00:14:48,639 --> 00:14:54,000
+is kind of similar to what you're doing.
+
+354
+00:14:51,040 --> 00:14:56,560
+So, we picked two other verticals that
+
+355
+00:14:54,000 --> 00:14:59,839
+are so similar that the app doesn't need
+
+356
+00:14:56,560 --> 00:15:02,480
+to change. It can be one app. It doesn't
+
+357
+00:14:59,839 --> 00:15:03,839
+change. We don't have like complex
+
+358
+00:15:02,480 --> 00:15:05,920
+features to try to reach every
+
+359
+00:15:03,839 --> 00:15:08,480
+salesperson. We're focusing on people
+
+360
+00:15:05,920 --> 00:15:10,320
+that do high ticket sales. So, we niche
+
+361
+00:15:08,480 --> 00:15:13,519
+down to people that do high ticket
+
+362
+00:15:10,320 --> 00:15:16,160
+sales. Period. End of story. Right? Find
+
+363
+00:15:13,519 --> 00:15:19,279
+out what they are doing now to solve
+
+364
+00:15:16,160 --> 00:15:22,000
+their problem. So go do some research on
+
+365
+00:15:19,279 --> 00:15:25,519
+those people. Ask them questions like,
+
+366
+00:15:22,000 --> 00:15:27,199
+"Hey, what do you use now to solve XYZ
+
+367
+00:15:25,519 --> 00:15:29,040
+problem?" So now you kind of know what
+
+368
+00:15:27,199 --> 00:15:31,279
+your problem is. You kind of know who
+
+369
+00:15:29,040 --> 00:15:33,760
+your customer is. Interview a few other
+
+370
+00:15:31,279 --> 00:15:35,839
+people in that market and ask them the
+
+371
+00:15:33,760 --> 00:15:39,120
+question, what are you doing to solve
+
+372
+00:15:35,839 --> 00:15:42,000
+this problem? Now then do some research
+
+373
+00:15:39,120 --> 00:15:44,240
+on those competitors and ask them, hey,
+
+374
+00:15:42,000 --> 00:15:46,959
+are you using X software? X software. X
+
+375
+00:15:44,240 --> 00:15:50,639
+software. No, I'm not. Okay. Why don't
+
+376
+00:15:46,959 --> 00:15:53,839
+you use XYZ software for this problem?
+
+377
+00:15:50,639 --> 00:15:56,639
+Is it cost? Is it ease of use? Is it
+
+378
+00:15:53,839 --> 00:15:59,440
+lack of features? Or did you just not
+
+379
+00:15:56,639 --> 00:16:01,040
+know about that other software? If you
+
+380
+00:15:59,440 --> 00:16:03,440
+didn't know about it, then the problem
+
+381
+00:16:01,040 --> 00:16:06,800
+might not be big enough to search for a
+
+382
+00:16:03,440 --> 00:16:08,560
+solution in order to solve that problem.
+
+383
+00:16:06,800 --> 00:16:10,639
+So therefore, the problem might not
+
+384
+00:16:08,560 --> 00:16:12,240
+actually be big enough than what it is
+
+385
+00:16:10,639 --> 00:16:16,720
+that you're making it out to be in your
+
+386
+00:16:12,240 --> 00:16:20,399
+mind. So this is such an essential slide
+
+387
+00:16:16,720 --> 00:16:22,720
+in this entire process and by far one of
+
+388
+00:16:20,399 --> 00:16:23,920
+the most overlooked slides. So maybe you
+
+389
+00:16:22,720 --> 00:16:26,079
+thought about the problem, you thought
+
+390
+00:16:23,920 --> 00:16:28,000
+about the solution and and then you go
+
+391
+00:16:26,079 --> 00:16:29,759
+right to development. You go right to
+
+392
+00:16:28,000 --> 00:16:31,199
+hey, I need to hire somebody. We need to
+
+393
+00:16:29,759 --> 00:16:33,040
+start working and blah blah blah blah
+
+394
+00:16:31,199 --> 00:16:35,600
+blah blah blah. Skipping all these
+
+395
+00:16:33,040 --> 00:16:38,399
+essential steps along the way. But this
+
+396
+00:16:35,600 --> 00:16:40,160
+one slide could have saved you months
+
+397
+00:16:38,399 --> 00:16:42,959
+allowed you to pivot to a different
+
+398
+00:16:40,160 --> 00:16:44,560
+idea. And in those 3 months that you're
+
+399
+00:16:42,959 --> 00:16:46,639
+struggling to build something that no
+
+400
+00:16:44,560 --> 00:16:48,160
+one wants, you could otherwise be
+
+401
+00:16:46,639 --> 00:16:50,160
+working on something that people do
+
+402
+00:16:48,160 --> 00:16:52,240
+want, that you're solving a problem,
+
+403
+00:16:50,160 --> 00:16:55,040
+gets you closer to money faster, closer
+
+404
+00:16:52,240 --> 00:16:57,959
+to revenue faster, and really closes the
+
+405
+00:16:55,040 --> 00:17:01,279
+gap on what it takes to be successful in
+
+406
+00:16:57,959 --> 00:17:05,120
+software, right? So, if these answers
+
+407
+00:17:01,279 --> 00:17:07,520
+tell you what you need to know and if
+
+408
+00:17:05,120 --> 00:17:11,520
+it's successful, you should build the
+
+409
+00:17:07,520 --> 00:17:13,520
+solution. So answer those questions.
+
+410
+00:17:11,520 --> 00:17:15,120
+Period. End of story. If you're not
+
+411
+00:17:13,520 --> 00:17:16,959
+interviewing people, if you're not
+
+412
+00:17:15,120 --> 00:17:18,640
+willing to interview people, you
+
+413
+00:17:16,959 --> 00:17:21,679
+shouldn't get in the software business
+
+414
+00:17:18,640 --> 00:17:24,400
+because you need to understand if the
+
+415
+00:17:21,679 --> 00:17:27,079
+problem is actually worth solving. Do
+
+416
+00:17:24,400 --> 00:17:29,760
+that first. Tam
+
+417
+00:17:27,079 --> 00:17:32,240
+Sam, what does it mean? Why is it
+
+418
+00:17:29,760 --> 00:17:36,000
+important? Why should you care? Total
+
+419
+00:17:32,240 --> 00:17:39,120
+addressable market. That's TAM. So, like
+
+420
+00:17:36,000 --> 00:17:40,320
+I said, 5 million salespeople in the
+
+421
+00:17:39,120 --> 00:17:42,200
+United States. I don't know how many
+
+422
+00:17:40,320 --> 00:17:44,320
+sales people there are. 20 million
+
+423
+00:17:42,200 --> 00:17:47,039
+salespeople coming out of the womb
+
+424
+00:17:44,320 --> 00:17:49,039
+selling something like I don't know, but
+
+425
+00:17:47,039 --> 00:17:52,559
+that's total addressable market. So,
+
+426
+00:17:49,039 --> 00:17:54,400
+take your ICP and put it into chat GPT
+
+427
+00:17:52,559 --> 00:17:57,360
+and ask what the total addressable
+
+428
+00:17:54,400 --> 00:18:00,240
+market for a problem that you're solving
+
+429
+00:17:57,360 --> 00:18:02,400
+to an ICP. What is a total addressable
+
+430
+00:18:00,240 --> 00:18:04,480
+market? Next one is serviceable
+
+431
+00:18:02,400 --> 00:18:07,679
+addressable market like if they're
+
+432
+00:18:04,480 --> 00:18:10,480
+already paying for something total is
+
+433
+00:18:07,679 --> 00:18:12,640
+everybody and then serviceable is
+
+434
+00:18:10,480 --> 00:18:15,039
+they're paying for your competitors and
+
+435
+00:18:12,640 --> 00:18:17,640
+then your share of the market is the
+
+436
+00:18:15,039 --> 00:18:21,200
+smallest number. So if we say 100% is
+
+437
+00:18:17,640 --> 00:18:23,760
+total, serviceable is maybe 30%, 40%
+
+438
+00:18:21,200 --> 00:18:25,520
+that are paying for something else and
+
+439
+00:18:23,760 --> 00:18:29,039
+share of the market maybe you can
+
+440
+00:18:25,520 --> 00:18:32,160
+capture a fraction of a percent of that
+
+441
+00:18:29,039 --> 00:18:36,480
+marketplace and that would be your share
+
+442
+00:18:32,160 --> 00:18:38,640
+of market. Make sense? Again, chat GP03
+
+443
+00:18:36,480 --> 00:18:40,720
+breaks all this down for you and then
+
+444
+00:18:38,640 --> 00:18:42,720
+from there you can plug in what people
+
+445
+00:18:40,720 --> 00:18:44,559
+would be willing to pay for it. You can
+
+446
+00:18:42,720 --> 00:18:46,880
+start building out some financial models
+
+447
+00:18:44,559 --> 00:18:49,400
+of what you could potentially do in your
+
+448
+00:18:46,880 --> 00:18:52,240
+share of the market share. You can tell
+
+449
+00:18:49,400 --> 00:18:54,400
+chatb03 to be aggressive. You can tell
+
+450
+00:18:52,240 --> 00:18:56,640
+it to be conservative. You can tell it
+
+451
+00:18:54,400 --> 00:18:59,640
+to give you low-end numbers. You can
+
+452
+00:18:56,640 --> 00:19:01,440
+tell it whatever you want to create your
+
+453
+00:18:59,640 --> 00:19:03,760
+projections. But you could basically
+
+454
+00:19:01,440 --> 00:19:05,320
+build projections based upon TAM, SAM,
+
+455
+00:19:03,760 --> 00:19:08,799
+and SAM.
+
+456
+00:19:05,320 --> 00:19:10,880
+Cool. All right. So what somebody is
+
+457
+00:19:08,799 --> 00:19:14,080
+willing to pay for an app interview
+
+458
+00:19:10,880 --> 00:19:17,600
+people and say if I solve this problem
+
+459
+00:19:14,080 --> 00:19:19,440
+would you be willing to pay X is that
+
+460
+00:19:17,600 --> 00:19:22,480
+worth it to you and you need to
+
+461
+00:19:19,440 --> 00:19:25,600
+understand that what is the value that
+
+462
+00:19:22,480 --> 00:19:27,200
+you're bringing with the solution again
+
+463
+00:19:25,600 --> 00:19:30,559
+we're building we have we have software
+
+464
+00:19:27,200 --> 00:19:33,520
+for hospitals and um some of our tickets
+
+465
+00:19:30,559 --> 00:19:36,240
+are quite high in the millions but the
+
+466
+00:19:33,520 --> 00:19:38,799
+problem that we're solving is well
+
+467
+00:19:36,240 --> 00:19:41,679
+beyond ond what it is that we are
+
+468
+00:19:38,799 --> 00:19:44,799
+offering. In some cases, uh we actually
+
+469
+00:19:41,679 --> 00:19:47,919
+built a um uh return on investment
+
+470
+00:19:44,799 --> 00:19:50,000
+calculator on our website. And in some
+
+471
+00:19:47,919 --> 00:19:54,240
+cases, some of the people that we've
+
+472
+00:19:50,000 --> 00:19:56,799
+gotten started with have 600% ROI even
+
+473
+00:19:54,240 --> 00:19:59,799
+at spending millions of dollars using
+
+474
+00:19:56,799 --> 00:20:02,160
+our software. So, take that in
+
+475
+00:19:59,799 --> 00:20:04,559
+consideration. See if people are willing
+
+476
+00:20:02,160 --> 00:20:07,120
+to pay for the solution. Build a landing
+
+477
+00:20:04,559 --> 00:20:09,039
+page. get people willing to pay for it.
+
+478
+00:20:07,120 --> 00:20:11,120
+Validate your idea before you start
+
+479
+00:20:09,039 --> 00:20:12,960
+building your idea. So, not only do we
+
+480
+00:20:11,120 --> 00:20:15,520
+interview people, but I'll actually put
+
+481
+00:20:12,960 --> 00:20:17,120
+up a landing page and validate to see if
+
+482
+00:20:15,520 --> 00:20:19,919
+people would actually pay for it. Either
+
+483
+00:20:17,120 --> 00:20:22,880
+getting them to opt in for a wait list
+
+484
+00:20:19,919 --> 00:20:25,039
+or actually pay for something and call
+
+485
+00:20:22,880 --> 00:20:26,960
+it a pre-sale product or just refund
+
+486
+00:20:25,039 --> 00:20:29,360
+them and say, "Hey, it's not ready yet.
+
+487
+00:20:26,960 --> 00:20:31,440
+I'll let you know when it is." All this
+
+488
+00:20:29,360 --> 00:20:34,240
+is covered in great detail in our
+
+489
+00:20:31,440 --> 00:20:36,880
+ideation course at macanzac.com, by the
+
+490
+00:20:34,240 --> 00:20:39,840
+way. So I go through this. Every single
+
+491
+00:20:36,880 --> 00:20:42,799
+one of these slides is an entire video
+
+492
+00:20:39,840 --> 00:20:44,400
+with additional insights and steps and
+
+493
+00:20:42,799 --> 00:20:47,600
+walkthroughs and so forth. This would be
+
+494
+00:20:44,400 --> 00:20:49,480
+a 8 hour video if I just record this all
+
+495
+00:20:47,600 --> 00:20:52,320
+together. So everything's over in
+
+496
+00:20:49,480 --> 00:20:53,919
+macans.com. You can go check it out.
+
+497
+00:20:52,320 --> 00:20:56,000
+Building your prototype in days, not
+
+498
+00:20:53,919 --> 00:20:58,120
+months. Once you build out your entire
+
+499
+00:20:56,000 --> 00:21:00,640
+plan, put this into
+
+500
+00:20:58,120 --> 00:21:02,480
+chatg03. You are an expert developer.
+
+501
+00:21:00,640 --> 00:21:05,440
+Build me a plan on how to create a
+
+502
+00:21:02,480 --> 00:21:09,520
+prototype that solves fill-in- thelank
+
+503
+00:21:05,440 --> 00:21:11,679
+for ICP fill-in- thelank using Replet. I
+
+504
+00:21:09,520 --> 00:21:13,840
+love Replet. I've been very successful
+
+505
+00:21:11,679 --> 00:21:16,960
+with it. I've used like eight different
+
+506
+00:21:13,840 --> 00:21:19,440
+AI building apps and I think Replet is
+
+507
+00:21:16,960 --> 00:21:21,440
+putting out the best results personally.
+
+508
+00:21:19,440 --> 00:21:23,039
+So, that's the one I'm using, but I put
+
+509
+00:21:21,440 --> 00:21:24,880
+it in quotations. If you use something
+
+510
+00:21:23,039 --> 00:21:27,600
+else, you use something else. Whatever.
+
+511
+00:21:24,880 --> 00:21:29,120
+Use the same format. If you are an
+
+512
+00:21:27,600 --> 00:21:32,039
+expert developer, build me a plan of how
+
+513
+00:21:29,120 --> 00:21:37,360
+to create a prototype that solves
+
+514
+00:21:32,039 --> 00:21:40,159
+problem for ICP using platform in days,
+
+515
+00:21:37,360 --> 00:21:42,320
+not months. That's key because the first
+
+516
+00:21:40,159 --> 00:21:45,280
+thing it's going to build out for you is
+
+517
+00:21:42,320 --> 00:21:48,000
+some 6 to 12 month plan, but then you
+
+518
+00:21:45,280 --> 00:21:50,799
+say in days, not months. Then it starts
+
+519
+00:21:48,000 --> 00:21:54,400
+really bringing down to get a prototype
+
+520
+00:21:50,799 --> 00:21:56,559
+online and it starts refining that plan.
+
+521
+00:21:54,400 --> 00:21:58,640
+From there, you can further refine the
+
+522
+00:21:56,559 --> 00:22:00,559
+plan by responding back and saying,
+
+523
+00:21:58,640 --> 00:22:02,159
+"Hey, that's not quite the feature that
+
+524
+00:22:00,559 --> 00:22:04,640
+I had in mind. That's not quite the
+
+525
+00:22:02,159 --> 00:22:07,280
+thing that I had in mind. Add this, take
+
+526
+00:22:04,640 --> 00:22:09,360
+that away, do this, do that." Have a
+
+527
+00:22:07,280 --> 00:22:11,840
+conversation with ChatGpt back and forth
+
+528
+00:22:09,360 --> 00:22:15,120
+to really refine that plan. Once you
+
+529
+00:22:11,840 --> 00:22:17,840
+have your plan together, use chat GP03
+
+530
+00:22:15,120 --> 00:22:19,600
+and put this in. Using the plan above,
+
+531
+00:22:17,840 --> 00:22:22,480
+or you can copy and paste the plan in,
+
+532
+00:22:19,600 --> 00:22:24,720
+whatever. using a plan above, build me a
+
+533
+00:22:22,480 --> 00:22:27,679
+replet or whichever platform you're
+
+534
+00:22:24,720 --> 00:22:29,840
+using, a replet prompt to start the
+
+535
+00:22:27,679 --> 00:22:33,280
+development of this app to build the
+
+536
+00:22:29,840 --> 00:22:36,320
+prototype in days, not months. Again, I
+
+537
+00:22:33,280 --> 00:22:39,360
+tell it really fast. I'm not trying to
+
+538
+00:22:36,320 --> 00:22:42,400
+be over complicated with this. it could
+
+539
+00:22:39,360 --> 00:22:45,200
+find opportunities to not necessarily
+
+540
+00:22:42,400 --> 00:22:47,679
+shortcut but you know kind of omit some
+
+541
+00:22:45,200 --> 00:22:50,880
+features like hey maybe we shouldn't do
+
+542
+00:22:47,679 --> 00:22:52,799
+this piece yet just for the prototype or
+
+543
+00:22:50,880 --> 00:22:55,600
+hey maybe we should use a third party
+
+544
+00:22:52,799 --> 00:22:58,880
+connection for this instead of doing it
+
+545
+00:22:55,600 --> 00:23:02,000
+this way it's a great way to make chat
+
+546
+00:22:58,880 --> 00:23:04,400
+GPT reason and come up with faster
+
+547
+00:23:02,000 --> 00:23:07,360
+prototype delivery so that's a really
+
+548
+00:23:04,400 --> 00:23:09,760
+key essential here okay prompting and
+
+549
+00:23:07,360 --> 00:23:11,760
+replet After you add the promplet into
+
+550
+00:23:09,760 --> 00:23:13,520
+Replet, it will start building the
+
+551
+00:23:11,760 --> 00:23:16,400
+prototype and this is free to get
+
+552
+00:23:13,520 --> 00:23:18,320
+started. I think I pay like 50 75 bucks
+
+553
+00:23:16,400 --> 00:23:20,720
+a month now, whatever I'm paying them.
+
+554
+00:23:18,320 --> 00:23:22,960
+Um, but I've built so many different
+
+555
+00:23:20,720 --> 00:23:24,720
+things and we're hosting and or
+
+556
+00:23:22,960 --> 00:23:26,880
+whatever, doing so many things through
+
+557
+00:23:24,720 --> 00:23:29,280
+the platform. But getting started, it's
+
+558
+00:23:26,880 --> 00:23:31,280
+free. There could be some errors on
+
+559
+00:23:29,280 --> 00:23:33,919
+screen as it starts kicking it out. When
+
+560
+00:23:31,280 --> 00:23:36,640
+they come up, just copy the error, feed
+
+561
+00:23:33,919 --> 00:23:38,559
+it right back into Replet. After an hour
+
+562
+00:23:36,640 --> 00:23:39,840
+or so, you should have an app that you
+
+563
+00:23:38,559 --> 00:23:42,080
+can click through and you can start
+
+564
+00:23:39,840 --> 00:23:44,640
+messing with and you can drill down. But
+
+565
+00:23:42,080 --> 00:23:47,120
+if errors are persistent, go back to
+
+566
+00:23:44,640 --> 00:23:51,280
+chat GPTO3, take the error, put it in
+
+567
+00:23:47,120 --> 00:23:53,919
+there, and ask chat GPTO3 for how to fix
+
+568
+00:23:51,280 --> 00:23:56,080
+that bug in Replet, and it'll give you a
+
+569
+00:23:53,919 --> 00:23:58,400
+better prompt to respond back to Replet.
+
+570
+00:23:56,080 --> 00:23:59,679
+So, really smart thing. Um, I'll take
+
+571
+00:23:58,400 --> 00:24:01,440
+you through one of my Replet builds.
+
+572
+00:23:59,679 --> 00:24:04,159
+Let's do it. Okay, so this is one of my
+
+573
+00:24:01,440 --> 00:24:07,760
+Replet builds, and I pasted in to get
+
+574
+00:24:04,159 --> 00:24:09,760
+started. exactly what came from chatb3.
+
+575
+00:24:07,760 --> 00:24:12,559
+It said exactly what it is that I'm
+
+576
+00:24:09,760 --> 00:24:14,799
+building. It gives this full kick out
+
+577
+00:24:12,559 --> 00:24:17,679
+and I just copied and pasted it directly
+
+578
+00:24:14,799 --> 00:24:20,000
+in. No editing at all. It just totally
+
+579
+00:24:17,679 --> 00:24:22,120
+just kicked it out. So, it started
+
+580
+00:24:20,000 --> 00:24:26,559
+thinking and uh let's look at the
+
+581
+00:24:22,120 --> 00:24:29,120
+timestamps. So, uh 10:06 a.m. on April
+
+582
+00:24:26,559 --> 00:24:31,440
+21st, I started working on it. So, it's
+
+583
+00:24:29,120 --> 00:24:34,799
+kicking it out and it builds this thing
+
+584
+00:24:31,440 --> 00:24:38,640
+and it looks terrible, but it's a
+
+585
+00:24:34,799 --> 00:24:41,440
+website, right? And that took how long?
+
+586
+00:24:38,640 --> 00:24:44,400
+That took
+
+587
+00:24:41,440 --> 00:24:46,240
+uh what was it? 06. So, it took 20
+
+588
+00:24:44,400 --> 00:24:48,480
+minutes, less than 20 minutes, like 15
+
+589
+00:24:46,240 --> 00:24:50,559
+minutes, whatever it is. Um, and then I
+
+590
+00:24:48,480 --> 00:24:53,039
+was like, "Hey, here's my logo, here's
+
+591
+00:24:50,559 --> 00:24:54,960
+my contact information, here's, you
+
+592
+00:24:53,039 --> 00:24:56,400
+know, my social media information. Go
+
+593
+00:24:54,960 --> 00:24:58,640
+ahead and update that." So, I just gave
+
+594
+00:24:56,400 --> 00:25:01,440
+it back and it updates some things.
+
+595
+00:24:58,640 --> 00:25:03,960
+uh going through when the logo is on a
+
+596
+00:25:01,440 --> 00:25:07,520
+dark background. Use this version. Okay.
+
+597
+00:25:03,960 --> 00:25:09,919
+Updated. Um also it started looking a
+
+598
+00:25:07,520 --> 00:25:12,960
+little bit better because I prompted it
+
+599
+00:25:09,919 --> 00:25:14,240
+to uh what was that prompt? Uh design
+
+600
+00:25:12,960 --> 00:25:16,159
+the landing page to look more like a
+
+601
+00:25:14,240 --> 00:25:18,400
+billion-dollar software company. So it
+
+602
+00:25:16,159 --> 00:25:20,159
+took that literally and it said
+
+603
+00:25:18,400 --> 00:25:21,919
+developing billion-dollar technology.
+
+604
+00:25:20,159 --> 00:25:25,440
+That's really not what I wanted to say,
+
+605
+00:25:21,919 --> 00:25:27,279
+but whatever. Let's just keep going. Uh
+
+606
+00:25:25,440 --> 00:25:29,520
+the header starts scrolling down. it
+
+607
+00:25:27,279 --> 00:25:31,520
+needs to use dark etc. you know just
+
+608
+00:25:29,520 --> 00:25:33,760
+kind of giving it some natural you know
+
+609
+00:25:31,520 --> 00:25:36,240
+verbiage. Uh remove the section where
+
+610
+00:25:33,760 --> 00:25:39,080
+product projects launched uh partner
+
+611
+00:25:36,240 --> 00:25:42,400
+with industry leaders go ahead and add
+
+612
+00:25:39,080 --> 00:25:44,799
+those. So yeah point is just flowing
+
+613
+00:25:42,400 --> 00:25:48,480
+through this thing just you know talking
+
+614
+00:25:44,799 --> 00:25:50,880
+to it asking questions talking. It's
+
+615
+00:25:48,480 --> 00:25:53,200
+11-1ven. It's been 1 hour. I mean I got
+
+616
+00:25:50,880 --> 00:25:54,880
+something pretty decent. I mean, I could
+
+617
+00:25:53,200 --> 00:25:56,720
+literally go live with something like
+
+618
+00:25:54,880 --> 00:25:58,640
+this, but I I want to refine it a little
+
+619
+00:25:56,720 --> 00:26:01,919
+bit more. I keep going. Now, it looks
+
+620
+00:25:58,640 --> 00:26:03,760
+good. Let's work on the dashboard, etc.
+
+621
+00:26:01,919 --> 00:26:05,400
+So, it starts kicking out some more
+
+622
+00:26:03,760 --> 00:26:08,559
+things for
+
+623
+00:26:05,400 --> 00:26:11,960
+me. And we just go and go and, you know,
+
+624
+00:26:08,559 --> 00:26:14,000
+it creates a uh login
+
+625
+00:26:11,960 --> 00:26:16,320
+authentication, and it just keeps going
+
+626
+00:26:14,000 --> 00:26:18,240
+down. We just keep uh so error on
+
+627
+00:26:16,320 --> 00:26:20,880
+dashboard, page, runtime, whatever, it
+
+628
+00:26:18,240 --> 00:26:23,679
+starts fixing it. So yeah, just
+
+629
+00:26:20,880 --> 00:26:27,480
+scrolling down, you know, just going
+
+630
+00:26:23,679 --> 00:26:30,400
+through it. Um 108. So it started at
+
+631
+00:26:27,480 --> 00:26:33,440
+10:06, it's 108. I probably took a break
+
+632
+00:26:30,400 --> 00:26:35,679
+for lunch. Um I don't know what I was
+
+633
+00:26:33,440 --> 00:26:38,880
+doing. Like probably took a couple phone
+
+634
+00:26:35,679 --> 00:26:40,960
+calls, let it kind of run, do something
+
+635
+00:26:38,880 --> 00:26:43,200
+else, multitask,
+
+636
+00:26:40,960 --> 00:26:44,559
+etc. Uh, so now I'm drilling down a
+
+637
+00:26:43,200 --> 00:26:47,279
+little bit further, like this needs to
+
+638
+00:26:44,559 --> 00:26:49,679
+do this, this needs to do that, and I'm
+
+639
+00:26:47,279 --> 00:26:51,840
+just feeding in the URLs to tell it what
+
+640
+00:26:49,679 --> 00:26:55,440
+it needs to do. Uh, it's starting to
+
+641
+00:26:51,840 --> 00:26:58,159
+create, uh, some pages here. Um, so
+
+642
+00:26:55,440 --> 00:27:00,799
+that's inside a membership area. And
+
+643
+00:26:58,159 --> 00:27:04,400
+really what this app does, it allows
+
+644
+00:27:00,799 --> 00:27:06,720
+people to go to the app and kind of
+
+645
+00:27:04,400 --> 00:27:08,240
+validate your idea, kind of talk about
+
+646
+00:27:06,720 --> 00:27:10,000
+your idea, talk about what you're trying
+
+647
+00:27:08,240 --> 00:27:11,520
+to solve, and then you can literally
+
+648
+00:27:10,000 --> 00:27:13,840
+connect with my developers. They'll help
+
+649
+00:27:11,520 --> 00:27:16,880
+you answer questions, move along the
+
+650
+00:27:13,840 --> 00:27:18,799
+process, etc. If you want to hire us to
+
+651
+00:27:16,880 --> 00:27:20,720
+do something that's kind of complicated,
+
+652
+00:27:18,799 --> 00:27:23,200
+you can hire us right inside the app.
+
+653
+00:27:20,720 --> 00:27:26,000
+We'll work for hourly rate in order to
+
+654
+00:27:23,200 --> 00:27:28,159
+deliver the results, etc. So I wanted to
+
+655
+00:27:26,000 --> 00:27:30,400
+have an app an easy way that I can
+
+656
+00:27:28,159 --> 00:27:33,440
+manage all my projects all from one
+
+657
+00:27:30,400 --> 00:27:36,000
+place. So the problem I was solving all
+
+658
+00:27:33,440 --> 00:27:39,200
+my communication is so disjointed for my
+
+659
+00:27:36,000 --> 00:27:42,080
+business. I need to have a single place
+
+660
+00:27:39,200 --> 00:27:43,760
+where I can do all of my work and have
+
+661
+00:27:42,080 --> 00:27:46,559
+my developers communicate and me
+
+662
+00:27:43,760 --> 00:27:49,039
+communicate and we can work through and
+
+663
+00:27:46,559 --> 00:27:50,880
+develop projects very easily. a really
+
+664
+00:27:49,039 --> 00:27:54,320
+easy onboarding process for new
+
+665
+00:27:50,880 --> 00:27:56,640
+business. And I needed something complex
+
+666
+00:27:54,320 --> 00:27:59,039
+but simple. And that was essentially
+
+667
+00:27:56,640 --> 00:28:01,679
+what it is that uh Replet built for me
+
+668
+00:27:59,039 --> 00:28:04,080
+was an app that is really simple to
+
+669
+00:28:01,679 --> 00:28:05,760
+manage projects and um you know get
+
+670
+00:28:04,080 --> 00:28:07,760
+things moving along and have a nice
+
+671
+00:28:05,760 --> 00:28:11,679
+onboarding wizard and all those other
+
+672
+00:28:07,760 --> 00:28:14,320
+things. Um so yeah, fixing a login page,
+
+673
+00:28:11,679 --> 00:28:18,799
+fixing more things. Uh let's see where
+
+674
+00:28:14,320 --> 00:28:20,880
+we're at. Uh 728. So, at this point, go
+
+675
+00:28:18,799 --> 00:28:24,159
+and pick my kids up, you know, come
+
+676
+00:28:20,880 --> 00:28:26,240
+home, make dinner, get back on, prompt
+
+677
+00:28:24,159 --> 00:28:30,480
+it a couple more times. There's probably
+
+678
+00:28:26,240 --> 00:28:33,159
+a bedtime in here. Um, probably put them
+
+679
+00:28:30,480 --> 00:28:36,240
+to bed, and then working on a little bit
+
+680
+00:28:33,159 --> 00:28:37,279
+more. Uh, started working on confetti. I
+
+681
+00:28:36,240 --> 00:28:41,320
+don't know why I was working on
+
+682
+00:28:37,279 --> 00:28:46,559
+confetti, but 9:32. So, I started at
+
+683
+00:28:41,320 --> 00:28:49,360
+10:06 and I deployed the app at 9:32. So
+
+684
+00:28:46,559 --> 00:28:51,200
+that's what less than 12 hours I had an
+
+685
+00:28:49,360 --> 00:28:54,520
+app ready to go live that solved a huge
+
+686
+00:28:51,200 --> 00:28:58,880
+problem for me and it looks great like
+
+687
+00:28:54,520 --> 00:29:03,919
+up it's awesome like what could have
+
+688
+00:28:58,880 --> 00:29:06,240
+been developed for this in 12 hours. I I
+
+689
+00:29:03,919 --> 00:29:10,039
+you know put the video placeholder there
+
+690
+00:29:06,240 --> 00:29:13,760
+but literally 12 hours built something
+
+691
+00:29:10,039 --> 00:29:17,440
+that was a serious problem for me. I was
+
+692
+00:29:13,760 --> 00:29:21,120
+able to build this in hours, not weeks,
+
+693
+00:29:17,440 --> 00:29:24,000
+not months, hours. It It's absolutely
+
+694
+00:29:21,120 --> 00:29:26,240
+insane. So, I love this app. I love
+
+695
+00:29:24,000 --> 00:29:28,960
+building web apps with this app. It
+
+696
+00:29:26,240 --> 00:29:31,440
+doesn't really make native iOS apps, but
+
+697
+00:29:28,960 --> 00:29:34,000
+you could still build your prototype on
+
+698
+00:29:31,440 --> 00:29:37,799
+a web base and then give it over to a
+
+699
+00:29:34,000 --> 00:29:41,600
+developer to then turn it into a React
+
+700
+00:29:37,799 --> 00:29:44,000
+iOS app if you want uh an app to be
+
+701
+00:29:41,600 --> 00:29:46,799
+delivered on phones. But point is
+
+702
+00:29:44,000 --> 00:29:50,320
+prototype here easy. Took me less than
+
+703
+00:29:46,799 --> 00:29:52,480
+12 hours. Prototype done. Period. People
+
+704
+00:29:50,320 --> 00:29:55,360
+could be signing up less than 12 hours
+
+705
+00:29:52,480 --> 00:29:57,679
+later. So let's hop back to the slides.
+
+706
+00:29:55,360 --> 00:29:59,520
+Okay, so you have your prototype built.
+
+707
+00:29:57,679 --> 00:30:01,919
+Again, took less than 12 hours to build
+
+708
+00:29:59,520 --> 00:30:03,600
+that app. If everything is working, you
+
+709
+00:30:01,919 --> 00:30:05,760
+could publish it right through Replet.
+
+710
+00:30:03,600 --> 00:30:07,600
+If you need assistance with deploying,
+
+711
+00:30:05,760 --> 00:30:09,679
+you can contact me, message me,
+
+712
+00:30:07,600 --> 00:30:12,000
+whatever. Let's talk about it. Or go
+
+713
+00:30:09,679 --> 00:30:13,919
+hire somebody on Upwork. Get the bugs
+
+714
+00:30:12,000 --> 00:30:16,240
+all sorted out, get your security all
+
+715
+00:30:13,919 --> 00:30:18,720
+buttoned up, and then get a few beta
+
+716
+00:30:16,240 --> 00:30:21,039
+testers on board, test the prototype,
+
+717
+00:30:18,720 --> 00:30:22,799
+fix the bugs as they start sharing those
+
+718
+00:30:21,039 --> 00:30:25,440
+bugs with you. Then you can start
+
+719
+00:30:22,799 --> 00:30:27,120
+improving the UI, which is called user
+
+720
+00:30:25,440 --> 00:30:29,200
+interface. That's basically the design
+
+721
+00:30:27,120 --> 00:30:30,960
+and so forth, and the user experience
+
+722
+00:30:29,200 --> 00:30:33,840
+like, hey, when I click on this, it
+
+723
+00:30:30,960 --> 00:30:36,399
+should go to a wizard and not go to, you
+
+724
+00:30:33,840 --> 00:30:39,039
+know, some long form. It should be a
+
+725
+00:30:36,399 --> 00:30:41,760
+step-by-step wizard. Whatever, whatever
+
+726
+00:30:39,039 --> 00:30:43,200
+bugs or ideas they bring you. You could
+
+727
+00:30:41,760 --> 00:30:45,039
+kind of take that and just kind of plan
+
+728
+00:30:43,200 --> 00:30:47,520
+out how to fix that. Now, you have a
+
+729
+00:30:45,039 --> 00:30:49,200
+working prototype. It's live. You could
+
+730
+00:30:47,520 --> 00:30:50,559
+literally have something that people are
+
+731
+00:30:49,200 --> 00:30:53,200
+using and they're giving you feedback
+
+732
+00:30:50,559 --> 00:30:56,000
+on. Congratulations. I mean, you're
+
+733
+00:30:53,200 --> 00:30:58,159
+pre-revenue, but you're in business and
+
+734
+00:30:56,000 --> 00:31:00,559
+it could be a couple hours. Sales
+
+735
+00:30:58,159 --> 00:31:02,720
+commitments. This is the next big step.
+
+736
+00:31:00,559 --> 00:31:05,360
+Again, this is something that I don't
+
+737
+00:31:02,720 --> 00:31:07,440
+see people too often doing, but it's so
+
+738
+00:31:05,360 --> 00:31:10,240
+essential. So, at this point, your app
+
+739
+00:31:07,440 --> 00:31:12,520
+might not have billing integration, like
+
+740
+00:31:10,240 --> 00:31:15,520
+the one I showed you did no billing
+
+741
+00:31:12,520 --> 00:31:18,039
+integration. Okay, that's fine. get
+
+742
+00:31:15,520 --> 00:31:20,720
+written commitments, non-binding
+
+743
+00:31:18,039 --> 00:31:23,840
+agreements from companies, people that
+
+744
+00:31:20,720 --> 00:31:25,919
+would be willing to use that technology
+
+745
+00:31:23,840 --> 00:31:28,720
+either in their business if you're
+
+746
+00:31:25,919 --> 00:31:31,919
+deploying a white label solution or if
+
+747
+00:31:28,720 --> 00:31:34,640
+it's a you know billing type thing that
+
+748
+00:31:31,919 --> 00:31:37,440
+um you know they would pay for access to
+
+749
+00:31:34,640 --> 00:31:40,000
+the software then get commitments. If I
+
+750
+00:31:37,440 --> 00:31:41,760
+built this out in the next 6 months
+
+751
+00:31:40,000 --> 00:31:43,600
+would you be willing to pay for it? Yes
+
+752
+00:31:41,760 --> 00:31:45,760
+or no? be transparent with those
+
+753
+00:31:43,600 --> 00:31:48,320
+timelines and go to live in production
+
+754
+00:31:45,760 --> 00:31:50,559
+and try to get at least 100,000 to
+
+755
+00:31:48,320 --> 00:31:54,559
+200,000 in annual recurring revenue
+
+756
+00:31:50,559 --> 00:31:56,880
+commitments. It's a pretty big job to do
+
+757
+00:31:54,559 --> 00:31:58,480
+that, but like I said, if you're solving
+
+758
+00:31:56,880 --> 00:32:00,240
+big enough problems with your
+
+759
+00:31:58,480 --> 00:32:02,320
+technology, you should be able to get
+
+760
+00:32:00,240 --> 00:32:04,159
+that from just a couple clients for them
+
+761
+00:32:02,320 --> 00:32:06,000
+to say, "Yeah, if you could solve this,
+
+762
+00:32:04,159 --> 00:32:09,600
+I would go ahead and pay for it because
+
+763
+00:32:06,000 --> 00:32:12,240
+my problem is worth far more than 50,000
+
+764
+00:32:09,600 --> 00:32:15,600
+or $100,000 a year. my problem is worth
+
+765
+00:32:12,240 --> 00:32:18,320
+$500,000 a year and time and money and
+
+766
+00:32:15,600 --> 00:32:20,640
+all all those things and then all your
+
+767
+00:32:18,320 --> 00:32:23,200
+other features become those ancillary
+
+768
+00:32:20,640 --> 00:32:25,360
+benefits that you're adding in. Take
+
+769
+00:32:23,200 --> 00:32:28,320
+those commitments and then let's go
+
+770
+00:32:25,360 --> 00:32:29,880
+raise some capital. That's it. So, how
+
+771
+00:32:28,320 --> 00:32:32,799
+fast can this
+
+772
+00:32:29,880 --> 00:32:36,159
+happen? How fast can it how fast can you
+
+773
+00:32:32,799 --> 00:32:38,960
+get through this? So, example, a friend
+
+774
+00:32:36,159 --> 00:32:40,399
+of mine uh sales guy says, "Hey, come
+
+775
+00:32:38,960 --> 00:32:42,559
+have coffee with me." It was a Friday
+
+776
+00:32:40,399 --> 00:32:44,000
+morning. I had coffee with him and he
+
+777
+00:32:42,559 --> 00:32:45,919
+pitched me his idea and I was like,
+
+778
+00:32:44,000 --> 00:32:49,120
+"Wow, that's insane." I came home, did
+
+779
+00:32:45,919 --> 00:32:52,080
+the research on Chat GPT and I was like,
+
+780
+00:32:49,120 --> 00:32:53,919
+"Uh, I'm building this. This is this is
+
+781
+00:32:52,080 --> 00:32:55,760
+awesome. I'm building it." So,
+
+782
+00:32:53,919 --> 00:32:57,760
+literally, I had the prototype by that
+
+783
+00:32:55,760 --> 00:33:00,240
+night, uh, coffee in the morning,
+
+784
+00:32:57,760 --> 00:33:03,600
+prototype at night. I had it on, uh,
+
+785
+00:33:00,240 --> 00:33:05,279
+sales professionals phones that weekend.
+
+786
+00:33:03,600 --> 00:33:07,440
+I send it over to him. He starts using
+
+787
+00:33:05,279 --> 00:33:09,120
+it. All these sales pros start using it.
+
+788
+00:33:07,440 --> 00:33:11,279
+And then they start saying, "Hey, if
+
+789
+00:33:09,120 --> 00:33:13,039
+this could connect to my CRM and then
+
+790
+00:33:11,279 --> 00:33:14,880
+call things up from my CRM, that would
+
+791
+00:33:13,039 --> 00:33:16,399
+be amazing. Could you do that?" Yeah,
+
+792
+00:33:14,880 --> 00:33:19,200
+cool. Yeah, I can do that. It's a great
+
+793
+00:33:16,399 --> 00:33:21,440
+idea. Right. So, we start working
+
+794
+00:33:19,200 --> 00:33:23,679
+through the features and working through
+
+795
+00:33:21,440 --> 00:33:26,360
+the things of which they start asking
+
+796
+00:33:23,679 --> 00:33:29,039
+for and then we start getting some
+
+797
+00:33:26,360 --> 00:33:32,240
+commitments and we're raising capital on
+
+798
+00:33:29,039 --> 00:33:35,919
+a $10 million valuation. That's it.
+
+799
+00:33:32,240 --> 00:33:37,919
+Raising capital. Ask chat GPT03 what a
+
+800
+00:33:35,919 --> 00:33:40,000
+fair market valuation would be for your
+
+801
+00:33:37,919 --> 00:33:41,519
+product. Again, total addressable
+
+802
+00:33:40,000 --> 00:33:44,399
+market, what people are willing to pay
+
+803
+00:33:41,519 --> 00:33:46,640
+for it. Feed it in that information if
+
+804
+00:33:44,399 --> 00:33:49,120
+it doesn't already have it and let it
+
+805
+00:33:46,640 --> 00:33:51,360
+base your valuation based upon also
+
+806
+00:33:49,120 --> 00:33:54,399
+those commitment letters that you have.
+
+807
+00:33:51,360 --> 00:33:56,559
+Again, before taking any next steps in
+
+808
+00:33:54,399 --> 00:33:58,159
+raising capital or anything like that,
+
+809
+00:33:56,559 --> 00:34:00,519
+consult your attorney before taking
+
+810
+00:33:58,159 --> 00:34:02,799
+these next steps. just to give you an
+
+811
+00:34:00,519 --> 00:34:06,080
+understanding of what the next steps
+
+812
+00:34:02,799 --> 00:34:07,440
+are. Not to say that you should circumn
+
+813
+00:34:06,080 --> 00:34:08,960
+your attorney. You should always talk to
+
+814
+00:34:07,440 --> 00:34:10,560
+your attorney about raising capital.
+
+815
+00:34:08,960 --> 00:34:13,760
+There's so many, you know, different
+
+816
+00:34:10,560 --> 00:34:15,760
+nuances of raising capital that need to
+
+817
+00:34:13,760 --> 00:34:17,919
+be handled by an attorney and I am not
+
+818
+00:34:15,760 --> 00:34:20,879
+an attorney. So therefore, I cannot give
+
+819
+00:34:17,919 --> 00:34:23,200
+you legal advice. However, the best
+
+820
+00:34:20,879 --> 00:34:26,800
+legal advice I can give you is consult
+
+821
+00:34:23,200 --> 00:34:29,520
+an attorney who is authorized and
+
+822
+00:34:26,800 --> 00:34:34,280
+accredited and has all those things to
+
+823
+00:34:29,520 --> 00:34:37,079
+give you legal advice. Cool. Do that.
+
+824
+00:34:34,280 --> 00:34:40,079
+But for knowledge
+
+825
+00:34:37,079 --> 00:34:42,639
+purposes, it would be a safe round. That
+
+826
+00:34:40,079 --> 00:34:44,720
+is a great way to proceed forward. So,
+
+827
+00:34:42,639 --> 00:34:47,760
+you can ask your attorney what a safe
+
+828
+00:34:44,720 --> 00:34:49,599
+note is. It is a simple agreement for
+
+829
+00:34:47,760 --> 00:34:52,599
+future equity. That's what SAFE stands
+
+830
+00:34:49,599 --> 00:34:55,679
+for. Do some research yourself. Ask Chat
+
+831
+00:34:52,599 --> 00:34:58,160
+GPT, whatever. Ask your attorney if you
+
+832
+00:34:55,679 --> 00:35:00,400
+should offer discounts on future rounds.
+
+833
+00:34:58,160 --> 00:35:03,680
+Talk about it. Talk to Chhat GPT. Talk
+
+834
+00:35:00,400 --> 00:35:06,800
+to your attorney. Figure it out. So, I
+
+835
+00:35:03,680 --> 00:35:09,359
+like using Chat GPT to research and you
+
+836
+00:35:06,800 --> 00:35:12,560
+can research what a safe note is to see
+
+837
+00:35:09,359 --> 00:35:15,280
+if it would be a good solution for you
+
+838
+00:35:12,560 --> 00:35:17,839
+to raise money on a safe note. However,
+
+839
+00:35:15,280 --> 00:35:20,480
+I can tell you that a lot of investors
+
+840
+00:35:17,839 --> 00:35:23,760
+do like safe notes and you can look into
+
+841
+00:35:20,480 --> 00:35:26,480
+that. Again, consult an attorney. I
+
+842
+00:35:23,760 --> 00:35:28,000
+don't know how much many times I need to
+
+843
+00:35:26,480 --> 00:35:29,280
+say that. You need to talk to an
+
+844
+00:35:28,000 --> 00:35:32,560
+attorney when you're raising money.
+
+845
+00:35:29,280 --> 00:35:34,320
+Period. So, use of funds. take the
+
+846
+00:35:32,560 --> 00:35:37,200
+capital that you raise, build the
+
+847
+00:35:34,320 --> 00:35:39,920
+prototype, say three months to market,
+
+848
+00:35:37,200 --> 00:35:41,520
+um $50,000, a little less than 50,000,
+
+849
+00:35:39,920 --> 00:35:43,839
+maybe a little bit more than 50,000 if
+
+850
+00:35:41,520 --> 00:35:45,680
+it's got real complex features or
+
+851
+00:35:43,839 --> 00:35:49,200
+security or things like that that need
+
+852
+00:35:45,680 --> 00:35:51,760
+to be developed or you know multi- uh
+
+853
+00:35:49,200 --> 00:35:54,400
+application like you know iOS app,
+
+854
+00:35:51,760 --> 00:35:55,920
+Android app, web app, desktop app. If
+
+855
+00:35:54,400 --> 00:35:58,640
+you have to have all those things, you
+
+856
+00:35:55,920 --> 00:36:00,640
+can basically add 10 to $15,000 per
+
+857
+00:35:58,640 --> 00:36:02,560
+integration that you need to add. So you
+
+858
+00:36:00,640 --> 00:36:04,480
+can kind of plan those features and plan
+
+859
+00:36:02,560 --> 00:36:06,640
+what needs to be built based upon that
+
+860
+00:36:04,480 --> 00:36:09,839
+model. Again, you can take that, put it
+
+861
+00:36:06,640 --> 00:36:12,400
+into chat GP03 and say, "Hey, if I
+
+862
+00:36:09,839 --> 00:36:14,000
+raise, you know, $50,000, what would be
+
+863
+00:36:12,400 --> 00:36:16,240
+the best use of money to get this
+
+864
+00:36:14,000 --> 00:36:18,640
+product closer to market?" Right? So we
+
+865
+00:36:16,240 --> 00:36:20,320
+use that a lot. Use the rest of the
+
+866
+00:36:18,640 --> 00:36:23,520
+capital that you have left over. So say
+
+867
+00:36:20,320 --> 00:36:25,200
+you raise $250,000, 50,000 of that goes
+
+868
+00:36:23,520 --> 00:36:28,400
+towards building out the product. The
+
+869
+00:36:25,200 --> 00:36:31,839
+other 200 should go towards paid ads or
+
+870
+00:36:28,400 --> 00:36:33,839
+other marketing influencer content
+
+871
+00:36:31,839 --> 00:36:36,480
+things like that. You should be creating
+
+872
+00:36:33,839 --> 00:36:40,079
+marketing materials. Again, I cover all
+
+873
+00:36:36,480 --> 00:36:42,880
+this in great detail in our course that
+
+874
+00:36:40,079 --> 00:36:45,200
+is inside the AI course. The prototype
+
+875
+00:36:42,880 --> 00:36:47,680
+is in the prototype course, but this is
+
+876
+00:36:45,200 --> 00:36:50,400
+in the AI marketing course. I go through
+
+877
+00:36:47,680 --> 00:36:52,640
+this in great detail at macansacc.com.
+
+878
+00:36:50,400 --> 00:36:55,040
+You can hop on there. drive clicks to
+
+879
+00:36:52,640 --> 00:36:58,560
+high converting pages for demos or
+
+880
+00:36:55,040 --> 00:37:01,520
+orders. So if the order is say less than
+
+881
+00:36:58,560 --> 00:37:03,359
+50 bucks per month, you can just drive
+
+882
+00:37:01,520 --> 00:37:05,920
+them right to an order page. They can
+
+883
+00:37:03,359 --> 00:37:08,160
+sign up and um you know pay for it right
+
+884
+00:37:05,920 --> 00:37:10,400
+there. If it's an expensive software,
+
+885
+00:37:08,160 --> 00:37:13,359
+you might want to do demos uh and do
+
+886
+00:37:10,400 --> 00:37:16,000
+that. Start scaling your ads. Move over
+
+887
+00:37:13,359 --> 00:37:18,880
+to a priced valuation round. Again,
+
+888
+00:37:16,000 --> 00:37:21,280
+consult your attorney about fundraising
+
+889
+00:37:18,880 --> 00:37:24,000
+and all of that. But once you do have
+
+890
+00:37:21,280 --> 00:37:26,480
+paying customers and it starts scaling,
+
+891
+00:37:24,000 --> 00:37:29,480
+it's time to do another capital raise on
+
+892
+00:37:26,480 --> 00:37:32,800
+a valued round. So say you raise
+
+893
+00:37:29,480 --> 00:37:35,359
+$250,000 on a $10 million valuation.
+
+894
+00:37:32,800 --> 00:37:37,680
+Then you can move into depending on the
+
+895
+00:37:35,359 --> 00:37:39,599
+valuation of the company, use a fair
+
+896
+00:37:37,680 --> 00:37:41,680
+valuation based upon your forecast and
+
+897
+00:37:39,599 --> 00:37:44,079
+all your models. Let's say it's a $50
+
+898
+00:37:41,680 --> 00:37:45,920
+million valuation at a priced round.
+
+899
+00:37:44,079 --> 00:37:49,440
+Then you can raise some additional money
+
+900
+00:37:45,920 --> 00:37:51,760
+from VCs or private equity or you know
+
+901
+00:37:49,440 --> 00:37:54,240
+people that uh are in the industry,
+
+902
+00:37:51,760 --> 00:37:56,320
+experts in the industry or you know
+
+903
+00:37:54,240 --> 00:37:58,480
+people that you know people network
+
+904
+00:37:56,320 --> 00:38:01,560
+through people, talk to people, talk to
+
+905
+00:37:58,480 --> 00:38:04,880
+me, we can talk about things but point
+
+906
+00:38:01,560 --> 00:38:07,680
+is you move very very quickly with this
+
+907
+00:38:04,880 --> 00:38:10,320
+plan and you can move quickly but again
+
+908
+00:38:07,680 --> 00:38:14,400
+it all goes back to is the problem
+
+909
+00:38:10,320 --> 00:38:17,599
+you're solving worth solving? Is the
+
+910
+00:38:14,400 --> 00:38:19,200
+target avatar the right target avatar?
+
+911
+00:38:17,599 --> 00:38:21,280
+Are you putting these pieces together?
+
+912
+00:38:19,200 --> 00:38:23,599
+Do you have a good total addressable
+
+913
+00:38:21,280 --> 00:38:27,599
+market and a serviceable addressable
+
+914
+00:38:23,599 --> 00:38:30,000
+market and your share of market? Like
+
+915
+00:38:27,599 --> 00:38:33,520
+are those numbers right? Like all of
+
+916
+00:38:30,000 --> 00:38:35,200
+these pieces come into play and it might
+
+917
+00:38:33,520 --> 00:38:37,760
+make sense to have a mentor or somebody
+
+918
+00:38:35,200 --> 00:38:39,760
+like me to help you. But point is all
+
+919
+00:38:37,760 --> 00:38:42,160
+these pieces do come into play to make
+
+920
+00:38:39,760 --> 00:38:44,440
+sure that you are on track to building
+
+921
+00:38:42,160 --> 00:38:47,520
+something correctly. You can use chat
+
+922
+00:38:44,440 --> 00:38:50,000
+GP03 for some of this reasoning but
+
+923
+00:38:47,520 --> 00:38:52,960
+perhaps a mentor uh definitely an
+
+924
+00:38:50,000 --> 00:38:55,119
+attorney but would help you move a
+
+925
+00:38:52,960 --> 00:38:57,440
+little bit quicker. So yeah, once you
+
+926
+00:38:55,119 --> 00:38:59,520
+get the price round, hire scale your
+
+927
+00:38:57,440 --> 00:39:02,800
+venture and then prepare for an exit in
+
+928
+00:38:59,520 --> 00:39:05,440
+3 to 5 years. Boom. Done. That's it.
+
+929
+00:39:02,800 --> 00:39:07,280
+Rinse and repeat. Do it again. Do it
+
+930
+00:39:05,440 --> 00:39:09,839
+again and again and again and again. Do
+
+931
+00:39:07,280 --> 00:39:11,599
+it so many times. It's so much fun.
+
+932
+00:39:09,839 --> 00:39:13,599
+After I had my first exit, I was like,
+
+933
+00:39:11,599 --> 00:39:17,720
+"Wow, I should just have 10 exits a
+
+934
+00:39:13,599 --> 00:39:21,280
+year, right?" But I need 10 great
+
+935
+00:39:17,720 --> 00:39:24,400
+businesses. I mean, I have five right
+
+936
+00:39:21,280 --> 00:39:26,720
+now, five ventures that uh we're ramping
+
+937
+00:39:24,400 --> 00:39:29,119
+up and uh taking the exit in the next
+
+938
+00:39:26,720 --> 00:39:31,359
+three to five years. But yeah, it's I
+
+939
+00:39:29,119 --> 00:39:34,400
+mean really once you get it down, I mean
+
+940
+00:39:31,359 --> 00:39:37,599
+this is how wealth is built is when you
+
+941
+00:39:34,400 --> 00:39:40,960
+do something well one time, go and do it
+
+942
+00:39:37,599 --> 00:39:42,480
+again and again and again and again. The
+
+943
+00:39:40,960 --> 00:39:45,280
+first one's going to be the hardest,
+
+944
+00:39:42,480 --> 00:39:48,240
+they get easier the further you go. So
+
+945
+00:39:45,280 --> 00:39:51,359
+I'm, you know, couple exits in. It's
+
+946
+00:39:48,240 --> 00:39:54,480
+getting easier for me. And now with AI,
+
+947
+00:39:51,359 --> 00:39:56,240
+it's creating prototypes like having
+
+948
+00:39:54,480 --> 00:39:58,400
+breakfast or having coffee in the
+
+949
+00:39:56,240 --> 00:40:01,760
+morning, having an app by the time
+
+950
+00:39:58,400 --> 00:40:03,680
+dinner rolls around. It's insane. So,
+
+951
+00:40:01,760 --> 00:40:05,720
+there is so much here that I did not
+
+952
+00:40:03,680 --> 00:40:07,839
+have time for. Sign up at
+
+953
+00:40:05,720 --> 00:40:10,960
+mattganszac.com for the full course.
+
+954
+00:40:07,839 --> 00:40:13,680
+You'll get the ideation, the prototype
+
+955
+00:40:10,960 --> 00:40:15,680
+building, the marketing, and then also
+
+956
+00:40:13,680 --> 00:40:18,800
+my workshops where I walk through step
+
+957
+00:40:15,680 --> 00:40:21,920
+by step kind of like I did on the uh one
+
+958
+00:40:18,800 --> 00:40:24,079
+page that we did. But we do step by step
+
+959
+00:40:21,920 --> 00:40:26,160
+and uh we have events coming up. We have
+
+960
+00:40:24,079 --> 00:40:28,320
+a ton of great things. So, if you're
+
+961
+00:40:26,160 --> 00:40:30,000
+serious about building software, you
+
+962
+00:40:28,320 --> 00:40:31,280
+really do need a mentor, somebody that's
+
+963
+00:40:30,000 --> 00:40:33,040
+already had exits, somebody that's
+
+964
+00:40:31,280 --> 00:40:36,240
+already done these things that can help
+
+965
+00:40:33,040 --> 00:40:38,640
+move you along. and I will help you to
+
+966
+00:40:36,240 --> 00:40:40,720
+validate your ideas, plan your software
+
+967
+00:40:38,640 --> 00:40:42,640
+build and your go to market strategy
+
+968
+00:40:40,720 --> 00:40:44,400
+inside of there. All students receive
+
+969
+00:40:42,640 --> 00:40:46,960
+discounts on live events that we have
+
+970
+00:40:44,400 --> 00:40:49,040
+coming up and our hourly dev work.
+
+971
+00:40:46,960 --> 00:40:50,960
+You'll get discounts on those as well.
+
+972
+00:40:49,040 --> 00:40:53,200
+And I will open my rolodex for you as
+
+973
+00:40:50,960 --> 00:40:55,760
+needed. And you can sign up today and
+
+974
+00:40:53,200 --> 00:40:57,920
+we'll go deep into each step of this
+
+975
+00:40:55,760 --> 00:41:00,560
+blueprint and really build this out for
+
+976
+00:40:57,920 --> 00:41:03,280
+you to have a great business that you
+
+977
+00:41:00,560 --> 00:41:05,920
+can build and scale and feel really good
+
+978
+00:41:03,280 --> 00:41:07,680
+about. jump over macanzac.com, sign up
+
+979
+00:41:05,920 --> 00:41:10,240
+for the full program. You get a discount
+
+980
+00:41:07,680 --> 00:41:13,920
+signing up for the full program and it's
+
+981
+00:41:10,240 --> 00:41:17,599
+a onetime fee and uh keep updating it
+
+982
+00:41:13,920 --> 00:41:19,520
+and also um yeah, we'll we'll do all
+
+983
+00:41:17,599 --> 00:41:21,119
+sorts of good stuff. So, I mean even if
+
+984
+00:41:19,520 --> 00:41:23,520
+that if you want to hop on a quick call
+
+985
+00:41:21,119 --> 00:41:25,680
+with me like we can do that, but you
+
+986
+00:41:23,520 --> 00:41:28,480
+know, my time is pretty scarce with
+
+987
+00:41:25,680 --> 00:41:29,920
+running several companies. But I want to
+
+988
+00:41:28,480 --> 00:41:31,839
+help people. I want to help move you
+
+989
+00:41:29,920 --> 00:41:34,880
+along. I want to look for new great
+
+990
+00:41:31,839 --> 00:41:37,040
+ideas that people are doing and uh we
+
+991
+00:41:34,880 --> 00:41:39,359
+might have good synergy with some of my
+
+992
+00:41:37,040 --> 00:41:41,520
+projects, your projects and let's see
+
+993
+00:41:39,359 --> 00:41:43,520
+what we do. I want to build great things
+
+994
+00:41:41,520 --> 00:41:46,480
+and help good people build great things
+
+995
+00:41:43,520 --> 00:41:49,839
+and uh solve big problems. So that's my
+
+996
+00:41:46,480 --> 00:41:52,079
+objective. Jump on macans.com. Hopefully
+
+997
+00:41:49,839 --> 00:41:53,760
+you found this helpful to, you know,
+
+998
+00:41:52,079 --> 00:41:55,359
+bring some ideas and bring some things
+
+999
+00:41:53,760 --> 00:41:58,000
+forward. Hopefully it gives you some
+
+1000
+00:41:55,359 --> 00:42:01,119
+ways to get started even before signing
+
+1001
+00:41:58,000 --> 00:42:02,720
+up. And once you do sign up, uh, we're
+
+1002
+00:42:01,119 --> 00:42:04,240
+really going to dive in and do some
+
+1003
+00:42:02,720 --> 00:42:06,400
+amazing things together. So, look
+
+1004
+00:42:04,240 --> 00:42:08,400
+forward to seeing you in there. And, uh,
+
+1005
+00:42:06,400 --> 00:42:10,079
+let's go. Let's build it. Let's make it
+
+1006
+00:42:08,400 --> 00:42:12,480
+happen. All right. See you on the next
+
+1007
+00:42:10,079 --> 00:42:12,480
+video.
+

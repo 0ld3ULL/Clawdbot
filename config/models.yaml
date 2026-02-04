@@ -1,0 +1,75 @@
+# Model Routing Configuration
+# Based on Ganzak's 97% cost reduction framework
+
+models:
+  local:
+    provider: ollama
+    name: "llama3.2:8b"
+    host: "http://localhost:11434"
+    cost_per_1m_input: 0.0
+    cost_per_1m_output: 0.0
+    max_context: 8192
+
+  cheap:
+    provider: anthropic
+    name: "claude-3-5-haiku-20241022"
+    cost_per_1m_input: 0.80
+    cost_per_1m_output: 4.00
+    max_context: 200000
+
+  mid:
+    provider: anthropic
+    name: "claude-sonnet-4-20250514"
+    cost_per_1m_input: 3.00
+    cost_per_1m_output: 15.00
+    max_context: 200000
+
+  premium:
+    provider: anthropic
+    name: "claude-opus-4-5-20251101"
+    cost_per_1m_input: 15.00
+    cost_per_1m_output: 75.00
+    max_context: 200000
+
+# Task -> Model tier mapping
+task_routing:
+  # Local (Ollama) - 15% of tasks, $0
+  heartbeat: local
+  file_organize: local
+  data_entry: local
+  format_text: local
+  summarize_short: local
+
+  # Haiku - 75% of tasks, cheap
+  web_research: cheap
+  read_article: cheap
+  classify_content: cheap
+  extract_data: cheap
+  simple_qa: cheap
+  social_reply: cheap
+  discord_moderation: cheap
+
+  # Sonnet - 10% of tasks, mid-tier
+  write_social_post: mid
+  write_script: mid
+  write_email: mid
+  code_generation: mid
+  content_creation: mid
+  ama_response: mid
+
+  # Opus - 3-5% of tasks, premium
+  strategic_decision: premium
+  complex_reasoning: premium
+  brand_voice_calibration: premium
+  crisis_response: premium
+  personality_deep: premium
+
+# Escalation: auto-escalate on failure
+escalation_chain:
+  - local
+  - cheap
+  - mid
+  - premium
+
+# Default if task type not mapped
+default_tier: cheap

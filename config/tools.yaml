@@ -1,0 +1,49 @@
+# Tool Permissions per Project
+# Deny-by-default: tools only available if explicitly listed
+
+projects:
+  master:
+    allowed_tools:
+      - read_file
+      - write_file_memory
+    blocked_tools: "*"  # Everything else blocked
+
+  david-flip:
+    allowed_tools:
+      # Research
+      - brave_search
+      - playwright_browse
+      - read_file
+      - write_file_memory
+
+      # Social Media (all require approval)
+      - twitter_post
+      - twitter_reply
+      - twitter_thread
+      - discord_reply
+      - discord_announce
+      - discord_moderate
+      - discord_pin
+      - whatsapp_send
+
+      # Content Creation
+      - generate_script
+      - elevenlabs_tts
+      - hedra_lipsync
+      - ffmpeg_postprocess
+      - write_blog
+
+    blocked_tools:
+      - shell_execute  # No shell access
+      - file_delete    # No file deletion outside memory
+
+# Tools that ALWAYS require human approval regardless of project
+approval_required:
+  - twitter_post
+  - twitter_reply
+  - twitter_thread
+  - discord_announce
+  - whatsapp_send
+  - elevenlabs_tts      # Costs money
+  - hedra_lipsync       # Costs money
+  - playwright_browse   # Could visit malicious sites

@@ -1,0 +1,29 @@
+# LLM Providers
+anthropic>=0.40.0
+openai>=1.50.0
+ollama>=0.4.0
+
+# Telegram (command interface)
+python-telegram-bot>=21.0
+
+# Social Media
+tweepy>=4.14.0
+discord.py>=2.4.0
+
+# HTTP / Web
+httpx>=0.27.0
+playwright>=1.45.0
+beautifulsoup4>=4.12.0
+
+# Data / Config
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# Security
+cryptography>=43.0.0
+
+# Scheduling
+apscheduler>=3.10.0
+
+# Utilities
+aiosqlite>=0.20.0

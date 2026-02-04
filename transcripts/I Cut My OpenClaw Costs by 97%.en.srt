@@ -1,0 +1,2448 @@
+1
+00:00:00,000 --> 00:00:05,279
+Hi, this is Matt Ganzac and this is the
+
+2
+00:00:02,080 --> 00:00:06,960
+OpenClaw token optimization guide. And
+
+3
+00:00:05,279 --> 00:00:08,880
+if you're not familiar with OpenClaw,
+
+4
+00:00:06,960 --> 00:00:10,880
+it's an AI personal assistant that you
+
+5
+00:00:08,880 --> 00:00:13,120
+can deploy locally. A couple of things
+
+6
+00:00:10,880 --> 00:00:15,519
+that I want to tell you. One, you
+
+7
+00:00:13,120 --> 00:00:18,320
+probably shouldn't do this if you're not
+
+8
+00:00:15,519 --> 00:00:20,640
+a developer or if you haven't deployed
+
+9
+00:00:18,320 --> 00:00:22,560
+apps locally before, developed any apps
+
+10
+00:00:20,640 --> 00:00:26,640
+before. So, I definitely don't recommend
+
+11
+00:00:22,560 --> 00:00:29,119
+it for you. Uh, number two is um be sure
+
+12
+00:00:26,640 --> 00:00:33,040
+to deploy it on a controlled
+
+13
+00:00:29,119 --> 00:00:35,600
+environment. So on a PC or Mac,
+
+14
+00:00:33,040 --> 00:00:38,160
+definitely Mac is better. Uh deploy it
+
+15
+00:00:35,600 --> 00:00:41,280
+on its own device. Like do not deploy
+
+16
+00:00:38,160 --> 00:00:43,920
+this on your own machine. It's going to
+
+17
+00:00:41,280 --> 00:00:47,039
+try to log in to your apps. It's going
+
+18
+00:00:43,920 --> 00:00:49,360
+to try to access things. It's going to
+
+19
+00:00:47,039 --> 00:00:51,039
+um one guy even said that it accesses
+
+20
+00:00:49,360 --> 00:00:53,600
+credit card. he went and asked it to
+
+21
+00:00:51,039 --> 00:00:56,879
+rebuild his brand and it went and bought
+
+22
+00:00:53,600 --> 00:00:59,680
+a $3,000 course, consumed the course in
+
+23
+00:00:56,879 --> 00:01:02,079
+order to help him to build his brand.
+
+24
+00:00:59,680 --> 00:01:04,799
+So, yeah, like it will literally go do
+
+25
+00:01:02,079 --> 00:01:07,119
+things for you and you need to be very
+
+26
+00:01:04,799 --> 00:01:09,520
+careful. So, I need to preface that
+
+27
+00:01:07,119 --> 00:01:12,720
+entire thing here. Uh, another preface
+
+28
+00:01:09,520 --> 00:01:15,439
+that I should add and a disclaimer here
+
+29
+00:01:12,720 --> 00:01:17,759
+is that I'm giving you the steps that I
+
+30
+00:01:15,439 --> 00:01:19,920
+took and if you're trying to follow
+
+31
+00:01:17,759 --> 00:01:22,159
+these exact same steps, there is a
+
+32
+00:01:19,920 --> 00:01:23,920
+chance that you'll possibly break your
+
+33
+00:01:22,159 --> 00:01:26,400
+open claw if you don't know what you're
+
+34
+00:01:23,920 --> 00:01:29,040
+doing. So, please don't try to do these
+
+35
+00:01:26,400 --> 00:01:30,479
+customization things uh if you don't
+
+36
+00:01:29,040 --> 00:01:32,479
+know what you're doing. So, it's not my
+
+37
+00:01:30,479 --> 00:01:34,159
+fault. I'm not doing the coding work.
+
+38
+00:01:32,479 --> 00:01:36,479
+I'm just giving you exactly what it is
+
+39
+00:01:34,159 --> 00:01:38,799
+that I did. And hopefully this will help
+
+40
+00:01:36,479 --> 00:01:41,040
+some people. I've been posting over on
+
+41
+00:01:38,799 --> 00:01:42,560
+Tik Tok and Instagram and I've been
+
+42
+00:01:41,040 --> 00:01:45,200
+helping a lot of people just in those
+
+43
+00:01:42,560 --> 00:01:46,079
+one minute videos. So, I want to make
+
+44
+00:01:45,200 --> 00:01:47,759
+something a little bit more
+
+45
+00:01:46,079 --> 00:01:49,840
+comprehensive to dive in a little bit
+
+46
+00:01:47,759 --> 00:01:52,079
+deeper uh to answer some of those
+
+47
+00:01:49,840 --> 00:01:55,360
+questions that I've been getting. So,
+
+48
+00:01:52,079 --> 00:01:59,439
+first off, uh OpenClaw again, it's an AI
+
+49
+00:01:55,360 --> 00:02:03,119
+that connects to um other platforms like
+
+50
+00:01:59,439 --> 00:02:07,200
+Claude, O Open AI, so forth. When I
+
+51
+00:02:03,119 --> 00:02:11,120
+first built my V1, I tried to use OpenAI
+
+52
+00:02:07,200 --> 00:02:14,800
+and it built the app like terribly and
+
+53
+00:02:11,120 --> 00:02:17,200
+it was uh it didn't do anything really.
+
+54
+00:02:14,800 --> 00:02:18,640
+So like I was just fighting it and it
+
+55
+00:02:17,200 --> 00:02:21,040
+was lying to me and it was really
+
+56
+00:02:18,640 --> 00:02:25,760
+frustrating. [snorts] So I terminated it
+
+57
+00:02:21,040 --> 00:02:29,040
+and did um uh V2 and I created V2 of my
+
+58
+00:02:25,760 --> 00:02:30,879
+app with Sonnet. And when I went through
+
+59
+00:02:29,040 --> 00:02:34,400
+um Sonnet's a little bit cheaper than
+
+60
+00:02:30,879 --> 00:02:38,400
+Opus and Haiku is cheaper than Sonnet.
+
+61
+00:02:34,400 --> 00:02:41,760
+So it's this hierarchy of um spend. But
+
+62
+00:02:38,400 --> 00:02:44,640
+that being said, it cost me about $3, a
+
+63
+00:02:41,760 --> 00:02:47,280
+little less than $3 to deploy and
+
+64
+00:02:44,640 --> 00:02:49,920
+configure the entire app for using
+
+65
+00:02:47,280 --> 00:02:52,080
+Sonnet. And it it it was definitely
+
+66
+00:02:49,920 --> 00:02:54,160
+worth it. Like it really gave me a good
+
+67
+00:02:52,080 --> 00:02:56,480
+foundation and a good architecture to
+
+68
+00:02:54,160 --> 00:03:00,000
+build on top of. But I noticed some
+
+69
+00:02:56,480 --> 00:03:02,159
+issues as I was running Sonnet. And
+
+70
+00:03:00,000 --> 00:03:05,120
+these are the steps that I took to
+
+71
+00:03:02,159 --> 00:03:09,040
+reduce my cost by 97%.
+
+72
+00:03:05,120 --> 00:03:10,959
+So it's a pretty massive shift in the
+
+73
+00:03:09,040 --> 00:03:13,840
+amount of tokens that were being used
+
+74
+00:03:10,959 --> 00:03:16,640
+and expensed. and I'll give you the um
+
+75
+00:03:13,840 --> 00:03:19,280
+exact reasoning and exactly how I found
+
+76
+00:03:16,640 --> 00:03:22,400
+it in the token audits that I do once a
+
+77
+00:03:19,280 --> 00:03:24,720
+day and how I fixed it step by step so
+
+78
+00:03:22,400 --> 00:03:27,120
+it's not you know real complex. All
+
+79
+00:03:24,720 --> 00:03:28,800
+right. Uh also below this video I'm
+
+80
+00:03:27,120 --> 00:03:30,480
+going to give you a link to this guide
+
+81
+00:03:28,800 --> 00:03:32,319
+so you can actually go through it and
+
+82
+00:03:30,480 --> 00:03:34,080
+copy and paste everything so you can
+
+83
+00:03:32,319 --> 00:03:35,519
+have a download to this. But let's run
+
+84
+00:03:34,080 --> 00:03:37,680
+through it. I'm not going to read every
+
+85
+00:03:35,519 --> 00:03:41,680
+single word on this page. You can read
+
+86
+00:03:37,680 --> 00:03:44,400
+it yourself. Um key thing is uh just
+
+87
+00:03:41,680 --> 00:03:48,080
+keying in down here before and after
+
+88
+00:03:44,400 --> 00:03:50,799
+like daily usage. Um uh this was daily
+
+89
+00:03:48,080 --> 00:03:53,519
+usage like just running one or two tasks
+
+90
+00:03:50,799 --> 00:03:56,480
+was like $2 to $3. So monthly would have
+
+91
+00:03:53,519 --> 00:03:59,760
+been you know $90 and and this is just
+
+92
+00:03:56,480 --> 00:04:02,159
+it almost just sitting idle. It was
+
+93
+00:03:59,760 --> 00:04:05,920
+still spending $2 to $3 a day just
+
+94
+00:04:02,159 --> 00:04:08,000
+sitting idle. And um now after
+
+95
+00:04:05,920 --> 00:04:10,480
+technically I'm at zero sitting idle and
+
+96
+00:04:08,000 --> 00:04:12,400
+I'll explain that in a moment. Uh but
+
+97
+00:04:10,480 --> 00:04:14,560
+you know you want this to be able to run
+
+98
+00:04:12,400 --> 00:04:16,959
+tests. So what sort of tasks do I have
+
+99
+00:04:14,560 --> 00:04:20,560
+it running? I have it finding
+
+100
+00:04:16,959 --> 00:04:22,800
+opportunities for us. Uh we run venture
+
+101
+00:04:20,560 --> 00:04:25,360
+companies. So I have it finding
+
+102
+00:04:22,800 --> 00:04:28,240
+opportunities and crafting outreach
+
+103
+00:04:25,360 --> 00:04:30,639
+messages. And I'm not letting it send
+
+104
+00:04:28,240 --> 00:04:32,960
+emails yet. I'm not letting it be fully
+
+105
+00:04:30,639 --> 00:04:35,919
+autonomous and do things like that. But
+
+106
+00:04:32,960 --> 00:04:38,960
+it's doing the research and um uh
+
+107
+00:04:35,919 --> 00:04:41,759
+getting valid email addresses. Uh I do
+
+108
+00:04:38,960 --> 00:04:45,280
+B2B business so a lot of our apps like
+
+109
+00:04:41,759 --> 00:04:48,560
+our hospital app um you know I can't run
+
+110
+00:04:45,280 --> 00:04:53,120
+ads to a hospital app and find the
+
+111
+00:04:48,560 --> 00:04:55,440
+specific you know VP of patient safety
+
+112
+00:04:53,120 --> 00:04:57,600
+at XYZ hospital. I'm not going to find
+
+113
+00:04:55,440 --> 00:05:01,120
+them through ads. Sure, I could do cold
+
+114
+00:04:57,600 --> 00:05:03,280
+outreach on LinkedIn, but you know, this
+
+115
+00:05:01,120 --> 00:05:04,720
+app is finding their LinkedIn profile,
+
+116
+00:05:03,280 --> 00:05:06,320
+but it's also finding their email
+
+117
+00:05:04,720 --> 00:05:07,680
+address, so I can send them an email and
+
+118
+00:05:06,320 --> 00:05:09,919
+kind of tell them about what it is that
+
+119
+00:05:07,680 --> 00:05:11,840
+we do and find a opportunity to work
+
+120
+00:05:09,919 --> 00:05:14,240
+together. So, B2B business, this is
+
+121
+00:05:11,840 --> 00:05:16,160
+phenomenal. Uh, you can do so much with
+
+122
+00:05:14,240 --> 00:05:17,520
+this. That's just one use case that you
+
+123
+00:05:16,160 --> 00:05:19,520
+can do.
+
+124
+00:05:17,520 --> 00:05:23,039
+Now, one of the things that I found was
+
+125
+00:05:19,520 --> 00:05:26,240
+wrong, and this is a core logic of the
+
+126
+00:05:23,039 --> 00:05:28,800
+architecture of OpenClaw is that it's
+
+127
+00:05:26,240 --> 00:05:31,440
+loading your entire history on every
+
+128
+00:05:28,800 --> 00:05:33,919
+message. It's loading all your context
+
+129
+00:05:31,440 --> 00:05:36,240
+files. It's loading and your context
+
+130
+00:05:33,919 --> 00:05:38,320
+files are a little bloated and the more
+
+131
+00:05:36,240 --> 00:05:41,680
+you know you put in your context files,
+
+132
+00:05:38,320 --> 00:05:43,360
+soul, user identity, etc., uh, the more
+
+133
+00:05:41,680 --> 00:05:46,639
+bloated it's going to be every single
+
+134
+00:05:43,360 --> 00:05:48,880
+time. So every heartbeat it's going to
+
+135
+00:05:46,639 --> 00:05:50,400
+um expense tokens. Every single time you
+
+136
+00:05:48,880 --> 00:05:53,440
+ask it to do something, it's going to
+
+137
+00:05:50,400 --> 00:05:56,080
+run your context files and so forth. So
+
+138
+00:05:53,440 --> 00:05:59,199
+I was wasting 2 to three million tokens
+
+139
+00:05:56,080 --> 00:06:01,680
+just on heartbeats. Like my heartbeat
+
+140
+00:05:59,199 --> 00:06:03,840
+was like running every 30 minutes and I
+
+141
+00:06:01,680 --> 00:06:05,600
+was expensing that many tokens every 30
+
+142
+00:06:03,840 --> 00:06:09,840
+minutes. I was like what's going on
+
+143
+00:06:05,600 --> 00:06:13,600
+here? Like I loaded up $25 to Anthropic
+
+144
+00:06:09,840 --> 00:06:17,280
+and uh I was on target like just sitting
+
+145
+00:06:13,600 --> 00:06:19,840
+idle to spend almost $20 in the day just
+
+146
+00:06:17,280 --> 00:06:22,560
+doing nothing. And that's definitely an
+
+147
+00:06:19,840 --> 00:06:25,600
+issue. Um and it it's not something
+
+148
+00:06:22,560 --> 00:06:28,479
+that's written into um you know the the
+
+149
+00:06:25,600 --> 00:06:30,639
+web platform and so forth. Uh so it's
+
+150
+00:06:28,479 --> 00:06:32,880
+not something that you could just go and
+
+151
+00:06:30,639 --> 00:06:35,280
+just do. You need to provision your app
+
+152
+00:06:32,880 --> 00:06:38,080
+in order to do these things. So this is
+
+153
+00:06:35,280 --> 00:06:40,080
+one thing that I did is I'm not loading
+
+154
+00:06:38,080 --> 00:06:43,680
+all the context files every single time
+
+155
+00:06:40,080 --> 00:06:46,880
+now. So that alone saved me like 80% of
+
+156
+00:06:43,680 --> 00:06:49,280
+my context overload just on that alone.
+
+157
+00:06:46,880 --> 00:06:51,759
+So that was a huge Here's my before and
+
+158
+00:06:49,280 --> 00:06:55,680
+after. So before it was about 50
+
+159
+00:06:51,759 --> 00:06:57,759
+kilobytes on context on startup and also
+
+160
+00:06:55,680 --> 00:06:59,840
+every single time I prompted it and also
+
+161
+00:06:57,759 --> 00:07:01,599
+every single time there was a heartbeat
+
+162
+00:06:59,840 --> 00:07:03,199
+like every single time it was just
+
+163
+00:07:01,599 --> 00:07:05,360
+bloating and getting bigger and bigger
+
+164
+00:07:03,199 --> 00:07:07,039
+and bigger as the memory was getting
+
+165
+00:07:05,360 --> 00:07:09,520
+bigger and bigger and bigger it like
+
+166
+00:07:07,039 --> 00:07:11,280
+that's just compiling the amount of
+
+167
+00:07:09,520 --> 00:07:13,759
+tokens. So if you've been using it for
+
+168
+00:07:11,280 --> 00:07:16,319
+weeks or months, you know, the context
+
+169
+00:07:13,759 --> 00:07:18,080
+might be much bigger for you and every
+
+170
+00:07:16,319 --> 00:07:21,280
+single time you take any sing any
+
+171
+00:07:18,080 --> 00:07:24,160
+action, your uh context file size could
+
+172
+00:07:21,280 --> 00:07:27,680
+be going from 50 to 75 to 100 and
+
+173
+00:07:24,160 --> 00:07:30,240
+beyond. And that's really compiling the
+
+174
+00:07:27,680 --> 00:07:32,160
+data usage for no reason. Like you're
+
+175
+00:07:30,240 --> 00:07:34,240
+literally doing nothing and you're
+
+176
+00:07:32,160 --> 00:07:37,759
+having to pay money for no reason. So
+
+177
+00:07:34,240 --> 00:07:39,440
+that's essential. The other thing is uh
+
+178
+00:07:37,759 --> 00:07:44,960
+a lot of people are saying that you can
+
+179
+00:07:39,440 --> 00:07:47,680
+only run one um AI model and it's wrong.
+
+180
+00:07:44,960 --> 00:07:51,039
+So I'm actually running three AI models
+
+181
+00:07:47,680 --> 00:07:53,280
+actually technically four because I made
+
+182
+00:07:51,039 --> 00:07:55,919
+another change just recently uh this
+
+183
+00:07:53,280 --> 00:07:58,240
+morning. But just going ahead and giving
+
+184
+00:07:55,919 --> 00:08:01,120
+you some understanding of this you'll be
+
+185
+00:07:58,240 --> 00:08:02,720
+able to go to your open claw uh your
+
+186
+00:08:01,120 --> 00:08:04,960
+config file. So this is your config
+
+187
+00:08:02,720 --> 00:08:06,560
+file. Inside of there you'll see agents
+
+188
+00:08:04,960 --> 00:08:09,199
+default model and then you'll see
+
+189
+00:08:06,560 --> 00:08:11,280
+whatever your primary model is. So if
+
+190
+00:08:09,199 --> 00:08:13,919
+you're setting it up initially on sonnet
+
+191
+00:08:11,280 --> 00:08:16,879
+this would be sonnet. You can set it up
+
+192
+00:08:13,919 --> 00:08:19,440
+this way to have multiple models. And I
+
+193
+00:08:16,879 --> 00:08:23,280
+also added a third one here for opus
+
+194
+00:08:19,440 --> 00:08:27,039
+that I have like 1% of my task going
+
+195
+00:08:23,280 --> 00:08:28,960
+through opus. So currently it's like 85%
+
+196
+00:08:27,039 --> 00:08:33,680
+is running through haiku somewhere
+
+197
+00:08:28,960 --> 00:08:37,440
+around there. uh 10% on sonnet and 5% on
+
+198
+00:08:33,680 --> 00:08:40,880
+uh or less on um opus. So the point of
+
+199
+00:08:37,440 --> 00:08:43,839
+saying that is you can segment tasks and
+
+200
+00:08:40,880 --> 00:08:47,040
+and put it into the memory and you can
+
+201
+00:08:43,839 --> 00:08:49,440
+segment tasks for this to say that task
+
+202
+00:08:47,040 --> 00:08:52,480
+is a brainless task and I don't need to
+
+203
+00:08:49,440 --> 00:08:54,800
+run opus for some brainless task uh you
+
+204
+00:08:52,480 --> 00:08:58,720
+know such as moving files around
+
+205
+00:08:54,800 --> 00:09:00,560
+organizing things like compiling CSVs uh
+
+206
+00:08:58,720 --> 00:09:04,240
+all into one or whatever it is that
+
+207
+00:09:00,560 --> 00:09:07,279
+you're doing as like a brainless data
+
+208
+00:09:04,240 --> 00:09:10,399
+entry task. You don't need to be using
+
+209
+00:09:07,279 --> 00:09:14,080
+Opus or Sonnet. You could use Haiku, but
+
+210
+00:09:10,399 --> 00:09:16,720
+I'm actually using um Olama, which is a
+
+211
+00:09:14,080 --> 00:09:19,120
+free LLM, and I'll explain that in a
+
+212
+00:09:16,720 --> 00:09:21,200
+second, but I'm using that to do my
+
+213
+00:09:19,120 --> 00:09:22,720
+brainless tasks and also my heartbeats
+
+214
+00:09:21,200 --> 00:09:25,360
+and so forth. getting ahead of myself,
+
+215
+00:09:22,720 --> 00:09:26,880
+but um point being you can have four
+
+216
+00:09:25,360 --> 00:09:31,440
+different models running at the same
+
+217
+00:09:26,880 --> 00:09:34,160
+time and then have your critical um and
+
+218
+00:09:31,440 --> 00:09:37,680
+uh different levels of the criticalness
+
+219
+00:09:34,160 --> 00:09:39,519
+of the tasks based upon what it needs to
+
+220
+00:09:37,680 --> 00:09:43,120
+be reasoning and thinking. You can
+
+221
+00:09:39,519 --> 00:09:46,800
+assign each model based upon your use
+
+222
+00:09:43,120 --> 00:09:49,040
+case, based upon what reasoning needs to
+
+223
+00:09:46,800 --> 00:09:52,000
+be included or what needs to be written
+
+224
+00:09:49,040 --> 00:09:56,000
+or so forth. and you can run things on
+
+225
+00:09:52,000 --> 00:09:58,880
+Haiku, which is like 10x 50x cheaper,
+
+226
+00:09:56,000 --> 00:10:00,720
+and be able to have the same output. So,
+
+227
+00:09:58,880 --> 00:10:03,760
+if you're just running Opus or you're
+
+228
+00:10:00,720 --> 00:10:07,200
+just running Sonnet or some other AI
+
+229
+00:10:03,760 --> 00:10:09,760
+model, you're probably burning tokens
+
+230
+00:10:07,200 --> 00:10:12,320
+for no reason because you could have one
+
+231
+00:10:09,760 --> 00:10:14,880
+of the cheaper models do the tokens for
+
+232
+00:10:12,320 --> 00:10:17,279
+you, right? So, you're adding routing
+
+233
+00:10:14,880 --> 00:10:20,000
+for it and you'll have to define what it
+
+234
+00:10:17,279 --> 00:10:22,720
+is that your business does and and what
+
+235
+00:10:20,000 --> 00:10:25,200
+it is that you need it to accomplish.
+
+236
+00:10:22,720 --> 00:10:28,240
+And then you assign which model based
+
+237
+00:10:25,200 --> 00:10:30,800
+upon which tasks you want it to do. And
+
+238
+00:10:28,240 --> 00:10:33,040
+if it hits a block, if there's like a a
+
+239
+00:10:30,800 --> 00:10:34,720
+block that will happen, it escalates to
+
+240
+00:10:33,040 --> 00:10:37,200
+the next highest model. If there's a
+
+241
+00:10:34,720 --> 00:10:39,839
+block there, it escal escalates to the
+
+242
+00:10:37,200 --> 00:10:42,240
+next highest model. So you can set it up
+
+243
+00:10:39,839 --> 00:10:45,760
+that maybe it it even starts with the
+
+244
+00:10:42,240 --> 00:10:47,920
+free, you know, uh, local LLM and then
+
+245
+00:10:45,760 --> 00:10:50,480
+maybe it goes to Haiku and then maybe it
+
+246
+00:10:47,920 --> 00:10:53,440
+goes to Sonnet and maybe it goes up
+
+247
+00:10:50,480 --> 00:10:56,317
+there to Opus as as a final and so
+
+248
+00:10:53,440 --> 00:10:57,920
+forth. So there are ways to do this. So
+
+249
+00:10:56,317 --> 00:11:00,160
+[snorts] before I was using Sonnet for
+
+250
+00:10:57,920 --> 00:11:04,560
+everything. So it was like a fraction of
+
+251
+00:11:00,160 --> 00:11:07,680
+a penny for a,000 tokens. Um, and I
+
+252
+00:11:04,560 --> 00:11:11,680
+brought it down considerably just by
+
+253
+00:11:07,680 --> 00:11:14,720
+having Haiku do like 80% of the lifting.
+
+254
+00:11:11,680 --> 00:11:18,000
+And, and now with that, I even have LLM
+
+255
+00:11:14,720 --> 00:11:20,560
+on the front. So, it can do probably 15%
+
+256
+00:11:18,000 --> 00:11:24,079
+of my front-end tasks. And it's probably
+
+257
+00:11:20,560 --> 00:11:27,680
+75% now if I were to say on Haiku, maybe
+
+258
+00:11:24,079 --> 00:11:30,000
+10% on Sonnet, and like 3 to 5% on Opus.
+
+259
+00:11:27,680 --> 00:11:33,680
+So, I can escalate things without
+
+260
+00:11:30,000 --> 00:11:36,640
+burning tokens. So, uh, you can put your
+
+261
+00:11:33,680 --> 00:11:39,360
+heartbeat on Olama. So, heartbeat is
+
+262
+00:11:36,640 --> 00:11:41,360
+when it it kind of pings the system to
+
+263
+00:11:39,360 --> 00:11:43,360
+let it know like, hey, everything's kind
+
+264
+00:11:41,360 --> 00:11:45,440
+of running. I do you have any active
+
+265
+00:11:43,360 --> 00:11:48,320
+tasks? If you don't have heartbeat
+
+266
+00:11:45,440 --> 00:11:51,440
+running, um, it it could just put itself
+
+267
+00:11:48,320 --> 00:11:53,360
+to sleep and not finish the task that is
+
+268
+00:11:51,440 --> 00:11:54,959
+at hand. But if you have heartbeat
+
+269
+00:11:53,360 --> 00:11:56,399
+running, it'll give it a little poke and
+
+270
+00:11:54,959 --> 00:11:58,560
+just say like, hey, what's going on
+
+271
+00:11:56,399 --> 00:12:00,079
+here? Um, you know, do you have any open
+
+272
+00:11:58,560 --> 00:12:02,880
+tasks? Do you need to move along on
+
+273
+00:12:00,079 --> 00:12:06,560
+these tasks? what what's going on. And
+
+274
+00:12:02,880 --> 00:12:10,800
+every single time it runs heartbeat, it
+
+275
+00:12:06,560 --> 00:12:14,079
+is sending context files and also um uh
+
+276
+00:12:10,800 --> 00:12:16,880
+searching u uh history, session history
+
+277
+00:12:14,079 --> 00:12:19,360
+as well. Um some people it's not
+
+278
+00:12:16,880 --> 00:12:21,760
+searching session history, but what I
+
+279
+00:12:19,360 --> 00:12:24,560
+found when I did my token audit is that
+
+280
+00:12:21,760 --> 00:12:26,480
+it is actually uploading my session
+
+281
+00:12:24,560 --> 00:12:29,040
+history. And we'll talk about session
+
+282
+00:12:26,480 --> 00:12:32,240
+history in a moment, but session history
+
+283
+00:12:29,040 --> 00:12:35,279
+is like if you're using Slack to
+
+284
+00:12:32,240 --> 00:12:37,200
+communicate with your bot or WhatsApp,
+
+285
+00:12:35,279 --> 00:12:40,000
+it's looking at everything that you've
+
+286
+00:12:37,200 --> 00:12:41,920
+ever said in Slack and it's compiling
+
+287
+00:12:40,000 --> 00:12:45,760
+that. When when I looked at my logs and
+
+288
+00:12:41,920 --> 00:12:49,600
+I I did a token audit, I had 111
+
+289
+00:12:45,760 --> 00:12:52,480
+kilobytes of session of just text that
+
+290
+00:12:49,600 --> 00:12:54,560
+was being sent. every single time I
+
+291
+00:12:52,480 --> 00:12:56,639
+prompted it again, it was putting it
+
+292
+00:12:54,560 --> 00:12:58,959
+into the context, putting it in, you
+
+293
+00:12:56,639 --> 00:13:01,040
+know, with the memory and uploading it
+
+294
+00:12:58,959 --> 00:13:03,279
+every single time. And I saw it, it was
+
+295
+00:13:01,040 --> 00:13:05,680
+in the logs. I was like, we don't need
+
+296
+00:13:03,279 --> 00:13:08,959
+to do that. So, you have to build a
+
+297
+00:13:05,680 --> 00:13:10,720
+command to kill your session and then
+
+298
+00:13:08,959 --> 00:13:13,040
+when you do a new prompt, it's not going
+
+299
+00:13:10,720 --> 00:13:14,399
+to be loading the context of every
+
+300
+00:13:13,040 --> 00:13:17,120
+single thing you've ever talked to it
+
+301
+00:13:14,399 --> 00:13:21,279
+about. kind of going off the rails here,
+
+302
+00:13:17,120 --> 00:13:23,600
+but um so you'll install this local LLM
+
+303
+00:13:21,279 --> 00:13:26,240
+and you can add it just like this. So
+
+304
+00:13:23,600 --> 00:13:29,279
+this is what mine looks like and you can
+
+305
+00:13:26,240 --> 00:13:30,399
+add the OAMA like this is the latest
+
+306
+00:13:29,279 --> 00:13:32,160
+version right now. If you're watching
+
+307
+00:13:30,399 --> 00:13:33,760
+this couple weeks or a couple months
+
+308
+00:13:32,160 --> 00:13:35,839
+from now, that version might be a little
+
+309
+00:13:33,760 --> 00:13:37,600
+bit different. So, I would just make
+
+310
+00:13:35,839 --> 00:13:40,399
+sure you have the latest version of it
+
+311
+00:13:37,600 --> 00:13:42,880
+and when you do run it, you can run it
+
+312
+00:13:40,399 --> 00:13:45,200
+here and then you can find the latest
+
+313
+00:13:42,880 --> 00:13:48,000
+version and make sure you install the
+
+314
+00:13:45,200 --> 00:13:51,760
+latest version, etc. So, with that being
+
+315
+00:13:48,000 --> 00:13:55,519
+said, now I can have Olama run my
+
+316
+00:13:51,760 --> 00:13:57,120
+heartbeats and uh purpose of that is I
+
+317
+00:13:55,519 --> 00:14:01,120
+don't want to expense tokens for
+
+318
+00:13:57,120 --> 00:14:03,199
+heartbeats. Like that's it sitting idle
+
+319
+00:14:01,120 --> 00:14:05,360
+and you are paying money. Like why would
+
+320
+00:14:03,199 --> 00:14:07,360
+you do that if you're on Opus and you
+
+321
+00:14:05,360 --> 00:14:09,680
+don't configure these things? You might
+
+322
+00:14:07,360 --> 00:14:12,079
+be spending $5 a day just to have it up
+
+323
+00:14:09,680 --> 00:14:15,199
+running and it's sitting idle not doing
+
+324
+00:14:12,079 --> 00:14:18,160
+anything. So why would you do that? So
+
+325
+00:14:15,199 --> 00:14:20,000
+why not set it up and configure it that
+
+326
+00:14:18,160 --> 00:14:22,160
+the heartbeat is just running locally
+
+327
+00:14:20,000 --> 00:14:24,240
+cuz it's it's brainless. Like there's
+
+328
+00:14:22,160 --> 00:14:26,399
+really nothing to it. It's like check
+
+329
+00:14:24,240 --> 00:14:28,560
+your memory and check your task and make
+
+330
+00:14:26,399 --> 00:14:30,880
+sure everything's okay. Um and then it
+
+331
+00:14:28,560 --> 00:14:32,639
+comes back system okay. um you know
+
+332
+00:14:30,880 --> 00:14:35,040
+heartbeat check okay or whatever words
+
+333
+00:14:32,639 --> 00:14:37,279
+are that it says but the point of that
+
+334
+00:14:35,040 --> 00:14:39,680
+is you don't need to be making API calls
+
+335
+00:14:37,279 --> 00:14:43,519
+for heartbeats period end of story this
+
+336
+00:14:39,680 --> 00:14:46,880
+should be a core integration into
+
+337
+00:14:43,519 --> 00:14:48,800
+openclaw and if it like hopefully like
+
+338
+00:14:46,880 --> 00:14:50,959
+somebody can commit this to it or maybe
+
+339
+00:14:48,800 --> 00:14:52,959
+I'll go and commit it to it but this
+
+340
+00:14:50,959 --> 00:14:55,600
+should be a core integration because
+
+341
+00:14:52,959 --> 00:14:59,920
+there is no reason that you should
+
+342
+00:14:55,600 --> 00:15:02,240
+expense uh API um uh tokens on
+
+343
+00:14:59,920 --> 00:15:05,519
+heartbeats period. Like I I can't I
+
+344
+00:15:02,240 --> 00:15:08,240
+can't think of any use case in why that
+
+345
+00:15:05,519 --> 00:15:10,480
+would be needed like that. There's no
+
+346
+00:15:08,240 --> 00:15:13,040
+reason for it because all it's doing is
+
+347
+00:15:10,480 --> 00:15:16,160
+just checking its local memory and
+
+348
+00:15:13,040 --> 00:15:18,880
+checking its local um uh task that it
+
+349
+00:15:16,160 --> 00:15:20,800
+has running. So why would you do that?
+
+350
+00:15:18,880 --> 00:15:23,440
+Another issue that I was running into
+
+351
+00:15:20,800 --> 00:15:25,920
+was rate limits. So, when you initially
+
+352
+00:15:23,440 --> 00:15:28,880
+sign up for Anthropic to have an API
+
+353
+00:15:25,920 --> 00:15:31,440
+key, it gives you something like 30,000
+
+354
+00:15:28,880 --> 00:15:33,839
+uh tokens per minute. And like I was
+
+355
+00:15:31,440 --> 00:15:36,160
+saying, and and this is where I found
+
+356
+00:15:33,839 --> 00:15:38,000
+the session history problem. And I
+
+357
+00:15:36,160 --> 00:15:39,839
+probably would have never found it if it
+
+358
+00:15:38,000 --> 00:15:41,760
+wasn't for the rate limit. So, thank you
+
+359
+00:15:39,839 --> 00:15:45,519
+for having a low rate limit that I could
+
+360
+00:15:41,760 --> 00:15:48,480
+see that. And it was pinging like a
+
+361
+00:15:45,519 --> 00:15:51,839
+million tokens and and uploading way too
+
+362
+00:15:48,480 --> 00:15:55,279
+much all at once for no reason. And what
+
+363
+00:15:51,839 --> 00:15:57,120
+I found was it was uh compressing all my
+
+364
+00:15:55,279 --> 00:16:00,160
+cont well it wasn't compressing it was
+
+365
+00:15:57,120 --> 00:16:02,079
+uncompressed all my context files and
+
+366
+00:16:00,160 --> 00:16:04,560
+then it was doing the call but it was
+
+367
+00:16:02,079 --> 00:16:07,440
+uploading my entire session history from
+
+368
+00:16:04,560 --> 00:16:10,000
+Slack every single time. So when I made
+
+369
+00:16:07,440 --> 00:16:11,519
+a command and I prompted it to make a
+
+370
+00:16:10,000 --> 00:16:14,000
+command and we came up with a command
+
+371
+00:16:11,519 --> 00:16:16,639
+name uh new session. So anytime I say
+
+372
+00:16:14,000 --> 00:16:19,279
+new session, dump all of your previous
+
+373
+00:16:16,639 --> 00:16:22,160
+session history but save it in your
+
+374
+00:16:19,279 --> 00:16:24,320
+memory so we can recall it at a later
+
+375
+00:16:22,160 --> 00:16:27,600
+time. So that's how my memory is
+
+376
+00:16:24,320 --> 00:16:30,160
+configured and I can dump my Slack
+
+377
+00:16:27,600 --> 00:16:32,399
+session. So it's not compiling every
+
+378
+00:16:30,160 --> 00:16:35,680
+single thing I've ever said in Slack
+
+379
+00:16:32,399 --> 00:16:39,120
+every single time I prompt it to send it
+
+380
+00:16:35,680 --> 00:16:42,720
+to the API in order to make a call. So
+
+381
+00:16:39,120 --> 00:16:44,800
+yeah, that was huge. And so that made a
+
+382
+00:16:42,720 --> 00:16:47,199
+huge difference with the rate limits.
+
+383
+00:16:44,800 --> 00:16:48,880
+And now I have built-in pacing. And uh
+
+384
+00:16:47,199 --> 00:16:51,120
+you can read how I did the built-in
+
+385
+00:16:48,880 --> 00:16:52,560
+pacing and so forth. And it's so
+
+386
+00:16:51,120 --> 00:16:54,480
+important so you're not hitting those
+
+387
+00:16:52,560 --> 00:16:58,000
+rate limits every single time. I was
+
+388
+00:16:54,480 --> 00:17:01,759
+getting uh 429 every single time I was
+
+389
+00:16:58,000 --> 00:17:03,839
+submitting. And um I figured out it was
+
+390
+00:17:01,759 --> 00:17:06,480
+Slack because I went to the web version
+
+391
+00:17:03,839 --> 00:17:09,120
+of it and I was doing the same exact
+
+392
+00:17:06,480 --> 00:17:11,199
+prompt in the web version, not in Slack.
+
+393
+00:17:09,120 --> 00:17:13,039
+and the calls were going through fine.
+
+394
+00:17:11,199 --> 00:17:14,959
+So I read the logs and read what was
+
+395
+00:17:13,039 --> 00:17:17,120
+being sent and looked at the tokens in a
+
+396
+00:17:14,959 --> 00:17:19,679
+token audit and then I went side by side
+
+397
+00:17:17,120 --> 00:17:22,319
+to say Slack is compiling every single
+
+398
+00:17:19,679 --> 00:17:24,640
+message I have ever sent Slack every
+
+399
+00:17:22,319 --> 00:17:26,480
+single time I prompted again. And I
+
+400
+00:17:24,640 --> 00:17:27,919
+haven't tested that on WhatsApp. If if
+
+401
+00:17:26,480 --> 00:17:29,760
+you have on WhatsApp like leave a
+
+402
+00:17:27,919 --> 00:17:33,039
+comment below and let me know. But I
+
+403
+00:17:29,760 --> 00:17:36,640
+would imagine that any um any messaging
+
+404
+00:17:33,039 --> 00:17:38,559
+platform that uh uh that does this and
+
+405
+00:17:36,640 --> 00:17:40,880
+allows you to communicate with it, it
+
+406
+00:17:38,559 --> 00:17:42,880
+probably does the same thing and it's
+
+407
+00:17:40,880 --> 00:17:45,760
+compressing it. It's taking your entire
+
+408
+00:17:42,880 --> 00:17:48,880
+session history and sending it uh to
+
+409
+00:17:45,760 --> 00:17:51,360
+expense AI tokens every single time uh
+
+410
+00:17:48,880 --> 00:17:54,320
+you use it. So, some other things I did
+
+411
+00:17:51,360 --> 00:17:55,919
+is I took my work plate uh my workspace
+
+412
+00:17:54,320 --> 00:17:58,480
+files and I compressed some of these and
+
+413
+00:17:55,919 --> 00:18:00,080
+I brought them down and then I told it
+
+414
+00:17:58,480 --> 00:18:02,400
+exactly what to do with my model
+
+415
+00:18:00,080 --> 00:18:04,400
+selection and the switching too and
+
+416
+00:18:02,400 --> 00:18:06,160
+switching back and forth. I put all the
+
+417
+00:18:04,400 --> 00:18:09,200
+rate limits in there and breaking that
+
+418
+00:18:06,160 --> 00:18:11,919
+all down as what it needs to do. Um, and
+
+419
+00:18:09,200 --> 00:18:14,559
+then I define some key metrics in here.
+
+420
+00:18:11,919 --> 00:18:16,000
+And you can put one of the metrics being
+
+421
+00:18:14,559 --> 00:18:18,640
+uh one of the metrics that you want to
+
+422
+00:18:16,000 --> 00:18:20,160
+accomplish is low token usage. So you
+
+423
+00:18:18,640 --> 00:18:22,480
+can literally tell it to optimize for
+
+424
+00:18:20,160 --> 00:18:25,200
+tokens. So now every single time I
+
+425
+00:18:22,480 --> 00:18:26,799
+prompt it, it tells me how many tokens
+
+426
+00:18:25,200 --> 00:18:29,280
+it's going to expense in order to
+
+427
+00:18:26,799 --> 00:18:31,760
+achieve the goal. Like go find me a,000
+
+428
+00:18:29,280 --> 00:18:33,360
+leads for this business and you know
+
+429
+00:18:31,760 --> 00:18:34,880
+find the best email address and find
+
+430
+00:18:33,360 --> 00:18:37,039
+their LinkedIn and find the decision
+
+431
+00:18:34,880 --> 00:18:38,880
+maker and yada yada yada yada whatever
+
+432
+00:18:37,039 --> 00:18:40,960
+and tell me how many tokens you're going
+
+433
+00:18:38,880 --> 00:18:44,480
+to expense. Now it's like you know it'll
+
+434
+00:18:40,960 --> 00:18:46,640
+use 60 tokens or 60 cents on that uh in
+
+435
+00:18:44,480 --> 00:18:49,440
+order to achieve that. I'm like okay
+
+436
+00:18:46,640 --> 00:18:53,120
+great do it. Then at the end uh it tells
+
+437
+00:18:49,440 --> 00:18:55,760
+me how many tokens it actually used and
+
+438
+00:18:53,120 --> 00:18:58,480
+uh I'm able to say like oh well we were
+
+439
+00:18:55,760 --> 00:19:00,320
+close or you know what was wrong what
+
+440
+00:18:58,480 --> 00:19:02,080
+was the block what was the problem and
+
+441
+00:19:00,320 --> 00:19:05,280
+then we can work through that and and
+
+442
+00:19:02,080 --> 00:19:07,360
+work through it but in the um you know
+
+443
+00:19:05,280 --> 00:19:10,799
+success metrics that is one thing I
+
+444
+00:19:07,360 --> 00:19:14,080
+added in there run efficiently like run
+
+445
+00:19:10,799 --> 00:19:16,559
+efficiently so I'm not expensing tokens
+
+446
+00:19:14,080 --> 00:19:19,600
+for you know no reason. I've had some
+
+447
+00:19:16,559 --> 00:19:21,440
+people messaging me um uh and you can
+
+448
+00:19:19,600 --> 00:19:23,039
+verify your entire setup and go through
+
+449
+00:19:21,440 --> 00:19:24,720
+these steps and you have a little uh
+
+450
+00:19:23,039 --> 00:19:26,880
+checklist here. I had some people
+
+451
+00:19:24,720 --> 00:19:28,880
+messaging me saying like, "I went to bed
+
+452
+00:19:26,880 --> 00:19:32,160
+and I woke up in the morning and it
+
+453
+00:19:28,880 --> 00:19:35,039
+burned $500." Like that's another thing
+
+454
+00:19:32,160 --> 00:19:37,520
+is don't like until you really get this
+
+455
+00:19:35,039 --> 00:19:40,000
+thing dialed in, don't allow for
+
+456
+00:19:37,520 --> 00:19:42,000
+Anthropic to automatically bill you.
+
+457
+00:19:40,000 --> 00:19:44,720
+Like just add a couple of dollars on
+
+458
+00:19:42,000 --> 00:19:48,400
+there and then be like really mindful of
+
+459
+00:19:44,720 --> 00:19:51,280
+how that's being spent. So I have on my
+
+460
+00:19:48,400 --> 00:19:53,600
+screen if you were looking at my screen
+
+461
+00:19:51,280 --> 00:19:57,280
+of my agent. This is not my agent. This
+
+462
+00:19:53,600 --> 00:20:00,559
+is my laptop. Uh but on my agent, I keep
+
+463
+00:19:57,280 --> 00:20:04,000
+the um the dashboard for the tokens up
+
+464
+00:20:00,559 --> 00:20:06,799
+and then each time that you know I run a
+
+465
+00:20:04,000 --> 00:20:09,039
+test um I I take a screenshot of the
+
+466
+00:20:06,799 --> 00:20:13,039
+tokens and I give it back to the
+
+467
+00:20:09,039 --> 00:20:16,080
+OpenClaw bot and I say you know uh uh
+
+468
+00:20:13,039 --> 00:20:18,559
+compare what you think the token usage
+
+469
+00:20:16,080 --> 00:20:21,120
+was and what you thought the cost was to
+
+470
+00:20:18,559 --> 00:20:22,799
+the actual cost and the actual token
+
+471
+00:20:21,120 --> 00:20:24,880
+usage. So, I give it a couple of
+
+472
+00:20:22,799 --> 00:20:26,640
+screenshots from the dashboard and then
+
+473
+00:20:24,880 --> 00:20:28,480
+it's like, "Okay, great." You know, I'm
+
+474
+00:20:26,640 --> 00:20:30,320
+I'm calibrating now to make sure that
+
+475
+00:20:28,480 --> 00:20:32,880
+it's more accurate. I had to do that
+
+476
+00:20:30,320 --> 00:20:34,880
+like three times and once I did it three
+
+477
+00:20:32,880 --> 00:20:39,600
+times, it got to the point that it was
+
+478
+00:20:34,880 --> 00:20:42,400
+like 99% accurate to um figure out what
+
+479
+00:20:39,600 --> 00:20:44,720
+the cost would be. Another thing really
+
+480
+00:20:42,400 --> 00:20:47,280
+important to do, and I didn't add it in
+
+481
+00:20:44,720 --> 00:20:52,640
+here, but I probably will, is caching.
+
+482
+00:20:47,280 --> 00:20:55,520
+So you the cache API cost is way lower
+
+483
+00:20:52,640 --> 00:20:59,280
+than anything else. So, I ran a task and
+
+484
+00:20:55,520 --> 00:21:03,039
+it was like 95% of the task was on uh
+
+485
+00:20:59,280 --> 00:21:05,280
+cached um uh tokens and so forth. And I
+
+486
+00:21:03,039 --> 00:21:08,559
+ran this like massive task overnight and
+
+487
+00:21:05,280 --> 00:21:10,720
+it was probably like 6 hours of just um
+
+488
+00:21:08,559 --> 00:21:12,640
+doing research and looking things up and
+
+489
+00:21:10,720 --> 00:21:14,480
+writing emails for me and writing
+
+490
+00:21:12,640 --> 00:21:16,480
+followup and you know putting it all
+
+491
+00:21:14,480 --> 00:21:18,720
+into the right folders and organizing
+
+492
+00:21:16,480 --> 00:21:22,159
+everything and and doing all that for
+
+493
+00:21:18,720 --> 00:21:26,240
+me. And at the end it was like that cost
+
+494
+00:21:22,159 --> 00:21:29,039
+you $6. I'm like that is insane because
+
+495
+00:21:26,240 --> 00:21:31,919
+you know we pay as a venture studio like
+
+496
+00:21:29,039 --> 00:21:35,200
+we pay people to go and do research for
+
+497
+00:21:31,919 --> 00:21:37,440
+us, do data entry and go find decision
+
+498
+00:21:35,200 --> 00:21:39,919
+makers. So, we pay people to do that and
+
+499
+00:21:37,440 --> 00:21:42,159
+it cost us tens of thousands of dollars
+
+500
+00:21:39,919 --> 00:21:45,360
+and the performance of what it is that
+
+501
+00:21:42,159 --> 00:21:48,960
+they do versus what uh OpenClaw did
+
+502
+00:21:45,360 --> 00:21:51,360
+overnight for me in one day overnight is
+
+503
+00:21:48,960 --> 00:21:54,480
+basically what I would pay that company
+
+504
+00:21:51,360 --> 00:21:57,280
+a month to do research on. And it did it
+
+505
+00:21:54,480 --> 00:21:59,600
+overnight and it was like $6. I'm like,
+
+506
+00:21:57,280 --> 00:22:01,520
+this is absolutely insane. So, you know,
+
+507
+00:21:59,600 --> 00:22:03,280
+I can do my work and work, you know,
+
+508
+00:22:01,520 --> 00:22:05,520
+work through my day and have it help me
+
+509
+00:22:03,280 --> 00:22:07,679
+out and and help me through things, but
+
+510
+00:22:05,520 --> 00:22:10,000
+at the end of the day, I can say, "Hey,
+
+511
+00:22:07,679 --> 00:22:14,000
+go find me some new um, you know, go
+
+512
+00:22:10,000 --> 00:22:15,520
+find me a new hit list for XYZ." And
+
+513
+00:22:14,000 --> 00:22:18,080
+when I wake up in the morning, it'll
+
+514
+00:22:15,520 --> 00:22:20,320
+have a hit list all organized and all
+
+515
+00:22:18,080 --> 00:22:24,480
+refined, everything compiled in a master
+
+516
+00:22:20,320 --> 00:22:26,960
+list, etc. So, it's incredible. So when
+
+517
+00:22:24,480 --> 00:22:30,640
+I set this up and the way that mine's
+
+518
+00:22:26,960 --> 00:22:33,360
+set up is we spin up these sub agents in
+
+519
+00:22:30,640 --> 00:22:36,640
+order to you know do the the crawling
+
+520
+00:22:33,360 --> 00:22:39,520
+work and I'm using uh Brave search API
+
+521
+00:22:36,640 --> 00:22:41,919
+and then I'm using like hunter.io to go
+
+522
+00:22:39,520 --> 00:22:45,520
+and find their real email addresses both
+
+523
+00:22:41,919 --> 00:22:47,520
+APIs and what it's doing is it's
+
+524
+00:22:45,520 --> 00:22:51,600
+spinning up these sub aents. It spinned
+
+525
+00:22:47,520 --> 00:22:53,919
+up like spun up like 14 sub aents for me
+
+526
+00:22:51,600 --> 00:22:56,000
+and it did all the work based upon this
+
+527
+00:22:53,919 --> 00:22:58,000
+one was doing this and then Sonnet was
+
+528
+00:22:56,000 --> 00:23:00,000
+doing the research and writing the thing
+
+529
+00:22:58,000 --> 00:23:04,880
+and Haiku's going out there and running
+
+530
+00:23:00,000 --> 00:23:07,360
+it and then on the back LLM the uh Olama
+
+531
+00:23:04,880 --> 00:23:10,559
+is organizing all the files. So they're
+
+532
+00:23:07,360 --> 00:23:13,760
+feeding the data in and then the sub
+
+533
+00:23:10,559 --> 00:23:15,600
+agent for OAMA it was just organizing
+
+534
+00:23:13,760 --> 00:23:17,360
+files and putting things together and
+
+535
+00:23:15,600 --> 00:23:19,840
+making sure the headers and the CSVs
+
+536
+00:23:17,360 --> 00:23:21,600
+look good and everything. So I had three
+
+537
+00:23:19,840 --> 00:23:23,600
+different agents running. I didn't have
+
+538
+00:23:21,600 --> 00:23:28,080
+Opus running at all in the task last
+
+539
+00:23:23,600 --> 00:23:30,799
+night. I had um I I had haiku going out
+
+540
+00:23:28,080 --> 00:23:33,039
+there and finding the information like
+
+541
+00:23:30,799 --> 00:23:36,159
+it was reading blogs and you know I was
+
+542
+00:23:33,039 --> 00:23:38,320
+looking for distressed businesses and
+
+543
+00:23:36,159 --> 00:23:39,840
+and so forth. So it was reading blogs,
+
+544
+00:23:38,320 --> 00:23:41,679
+it was reading like all these insights
+
+545
+00:23:39,840 --> 00:23:44,480
+and you know doing all this research and
+
+546
+00:23:41,679 --> 00:23:46,799
+everything and then it was finding one
+
+547
+00:23:44,480 --> 00:23:49,200
+pushing it over to Sonnet. Sonnet was
+
+548
+00:23:46,799 --> 00:23:51,280
+writing my emails and my cold outreach
+
+549
+00:23:49,200 --> 00:23:53,280
+and what I need to do for today to reach
+
+550
+00:23:51,280 --> 00:23:54,960
+out to them and structuring all the
+
+551
+00:23:53,280 --> 00:23:58,480
+followup and all of that of what it
+
+552
+00:23:54,960 --> 00:24:01,200
+needs to do. And then the Lama uh on the
+
+553
+00:23:58,480 --> 00:24:02,880
+LLM was organizing the files and getting
+
+554
+00:24:01,200 --> 00:24:04,480
+my file structure put together and
+
+555
+00:24:02,880 --> 00:24:06,080
+making sure everything was clean. So
+
+556
+00:24:04,480 --> 00:24:08,080
+when I wake up in the morning, I can
+
+557
+00:24:06,080 --> 00:24:09,840
+just do the task and I'm doing the
+
+558
+00:24:08,080 --> 00:24:11,840
+outreach. I'm not letting this machine
+
+559
+00:24:09,840 --> 00:24:15,760
+do outreach right now. Maybe in the
+
+560
+00:24:11,840 --> 00:24:18,159
+future I will, but today no. So, like
+
+561
+00:24:15,760 --> 00:24:20,159
+then I can set up my outreach and and
+
+562
+00:24:18,159 --> 00:24:22,159
+set up, you know, getting demo calls
+
+563
+00:24:20,159 --> 00:24:27,360
+booked and and getting situations going
+
+564
+00:24:22,159 --> 00:24:31,120
+on. And it ran for $6. It ran all night,
+
+565
+00:24:27,360 --> 00:24:34,960
+six hours for $6. So, it's like a dollar
+
+566
+00:24:31,120 --> 00:24:37,520
+like an hour. It's [laughter] like just
+
+567
+00:24:34,960 --> 00:24:41,039
+put your head around that. If I had it
+
+568
+00:24:37,520 --> 00:24:44,720
+running 24 hours a day, um it would be
+
+569
+00:24:41,039 --> 00:24:46,559
+about a dollar an hour. And no one is
+
+570
+00:24:44,720 --> 00:24:50,240
+working for a dollar an hour this
+
+571
+00:24:46,559 --> 00:24:52,320
+efficiently, having 14 sub aents running
+
+572
+00:24:50,240 --> 00:24:55,360
+and doing things all at the same time
+
+573
+00:24:52,320 --> 00:24:57,760
+and working interchangeably.
+
+574
+00:24:55,360 --> 00:25:00,640
+That's what is insane about this
+
+575
+00:24:57,760 --> 00:25:03,360
+platform. But if you know some people
+
+576
+00:25:00,640 --> 00:25:05,279
+are just run Opus. If you're literally
+
+577
+00:25:03,360 --> 00:25:08,480
+just running Opus, that task would have
+
+578
+00:25:05,279 --> 00:25:12,080
+been like $150 that happened last night
+
+579
+00:25:08,480 --> 00:25:16,240
+and it cost me $1, right, for an hour,
+
+580
+00:25:12,080 --> 00:25:18,960
+right? So, that is what's insane about
+
+581
+00:25:16,240 --> 00:25:20,880
+this, but you need to be mindful of the
+
+582
+00:25:18,960 --> 00:25:22,320
+token optimization and that's why I put
+
+583
+00:25:20,880 --> 00:25:23,840
+this thing together. If you have any
+
+584
+00:25:22,320 --> 00:25:25,520
+specific questions, you can mention them
+
+585
+00:25:23,840 --> 00:25:27,600
+in the comments. I'll jump in and try to
+
+586
+00:25:25,520 --> 00:25:29,840
+help you guys out along the way. But, I
+
+587
+00:25:27,600 --> 00:25:31,679
+want you guys to reduce your token cost
+
+588
+00:25:29,840 --> 00:25:32,720
+because you're not going to run this
+
+589
+00:25:31,679 --> 00:25:34,000
+thing and it's not going to be
+
+590
+00:25:32,720 --> 00:25:37,440
+efficient. You're not going to be happy
+
+591
+00:25:34,000 --> 00:25:40,400
+with it if you're expensing 50 or even
+
+592
+00:25:37,440 --> 00:25:43,600
+what the one guy said $500 in tokens
+
+593
+00:25:40,400 --> 00:25:46,080
+overnight. uh and it it's doing a little
+
+594
+00:25:43,600 --> 00:25:48,799
+bit but really not crushing it for you.
+
+595
+00:25:46,080 --> 00:25:50,240
+Right? So hopefully this was helpful. Um
+
+596
+00:25:48,799 --> 00:25:52,640
+leave a comment below if you have any
+
+597
+00:25:50,240 --> 00:25:54,960
+questions and you can link below to this
+
+598
+00:25:52,640 --> 00:25:56,880
+document and follow the steps and get
+
+599
+00:25:54,960 --> 00:25:59,679
+yours optimized to have those multiple
+
+600
+00:25:56,880 --> 00:26:02,240
+sub aents and then run the different
+
+601
+00:25:59,679 --> 00:26:04,480
+tasks based upon um you know the
+
+602
+00:26:02,240 --> 00:26:06,640
+reasoning that you need. Haiku is great
+
+603
+00:26:04,480 --> 00:26:09,840
+for like most things. Haiku can do most
+
+604
+00:26:06,640 --> 00:26:12,480
+things. um you know, sonnet for writing,
+
+605
+00:26:09,840 --> 00:26:15,440
+uh doing some coding, opus for like the
+
+606
+00:26:12,480 --> 00:26:18,799
+most complex and so forth, but install
+
+607
+00:26:15,440 --> 00:26:20,320
+the lama, install the local LLM to do
+
+608
+00:26:18,799 --> 00:26:22,400
+the basic things, heartbeat and
+
+609
+00:26:20,320 --> 00:26:24,559
+everything, and you're going to reduce
+
+610
+00:26:22,400 --> 00:26:26,960
+your AI cost significantly by doing
+
+611
+00:26:24,559 --> 00:26:30,080
+this. So, thank you guys so much. See
+
+612
+00:26:26,960 --> 00:26:30,080
+you on the next video.
+

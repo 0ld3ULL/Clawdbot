@@ -1,0 +1,29 @@
+# Environment
+.env
+*.enc
+
+# Runtime data
+data/
+!data/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+
+# Node (bridges)
+node_modules/
+bridges/*/node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
