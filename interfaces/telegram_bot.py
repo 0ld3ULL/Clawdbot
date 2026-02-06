@@ -96,9 +96,9 @@ class TelegramBot:
             self.handle_approval_callback, pattern=r"^(approve|reject|edit|postnow|posttwitter|postyoutube|postboth|schedule|scheduleat)_"
         ))
 
-        # David action callbacks
+        # David action callbacks (post_debasement, etc.)
         self.app.add_handler(CallbackQueryHandler(
-            self.handle_david_callback, pattern=r"^david_"
+            self.handle_david_callback, pattern=r"^post_debasement"
         ))
 
         # Catch-all for agent commands
