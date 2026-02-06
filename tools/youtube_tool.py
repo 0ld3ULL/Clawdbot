@@ -19,7 +19,11 @@ from googleapiclient.http import MediaFileUpload
 logger = logging.getLogger(__name__)
 
 # YouTube API scopes
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"]
+
+# Expected channel for David Flip
+EXPECTED_CHANNEL_NAME = "David Flip"
+EXPECTED_CHANNEL_ID = "UCBNP7tMEMf21Ks2RmnblQDw"
 
 # Data directory for token storage
 DATA_DIR = Path(os.environ.get("CLAWDBOT_DATA_DIR", "data"))
@@ -99,6 +103,15 @@ class YouTubeTool:
             dict with video_id, url, etc.
         """
         self._ensure_client()
+
+        # SAFETY: Verify we're on the correct channel before uploading
+        is_correct, message = self.verify_channel()
+        if not is_correct:
+            logger.error(f"Channel verification failed: {message}")
+            return {
+                "error": f"UPLOAD BLOCKED - {message}. Delete data/youtube_token.pickle and re-authenticate with the correct account."
+            }
+        logger.info(f"Channel verified: {message}")
 
         if not Path(video_path).exists():
             return {"error": f"Video file not found: {video_path}"}
@@ -213,3 +226,30 @@ class YouTubeTool:
         except Exception as e:
             logger.error(f"Failed to get channel info: {e}")
             return {"error": str(e)}
+
+    def verify_channel(self) -> tuple[bool, str]:
+        """
+        Verify that we're authenticated to the correct channel.
+
+        Returns:
+            (is_correct, message) - True if David Flip channel, False otherwise
+        """
+        channel_info = self.get_channel_info()
+
+        if "error" in channel_info:
+            return False, f"Could not verify channel: {channel_info['error']}"
+
+        channel_name = channel_info.get("title", "")
+        channel_id = channel_info.get("channel_id", "")
+
+        # Check by channel ID (most reliable)
+        if channel_id == EXPECTED_CHANNEL_ID:
+            return True, f"Verified: {channel_name} ({channel_id})"
+
+        # Check by name as fallback
+        if EXPECTED_CHANNEL_NAME.lower() in channel_name.lower():
+            logger.warning(f"Channel ID mismatch but name matches: {channel_name}")
+            return True, f"Verified by name: {channel_name} ({channel_id})"
+
+        # Wrong channel!
+        return False, f"WRONG CHANNEL: '{channel_name}' ({channel_id}) - Expected '{EXPECTED_CHANNEL_NAME}'"

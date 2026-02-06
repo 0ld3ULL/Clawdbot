@@ -289,16 +289,7 @@ class TelegramBot:
                 auto_music=True,
             )
             
-            # Send video file
-            with open(result['video_path'], 'rb') as video_file:
-                await update.message.reply_video(
-                    video=video_file,
-                    caption=f"**Episode {episode_num}: {episode['title']}**\n\n"
-                            f"Next: {episode.get('hook_for_next', 'Series complete!')}",
-                    parse_mode="Markdown"
-                )
-            
-            # Send approval buttons
+            # Create approval buttons
             keyboard = InlineKeyboardMarkup([
                 [
                     InlineKeyboardButton("Twitter", callback_data=f"posttwitter_video_{episode_num}"),
@@ -312,10 +303,16 @@ class TelegramBot:
                     InlineKeyboardButton("Reject", callback_data=f"reject_video_{episode_num}"),
                 ],
             ])
-            await update.message.reply_text(
-                "Where would you like to post this video?",
-                reply_markup=keyboard
-            )
+
+            # Send video WITH buttons attached (no separate message)
+            with open(result['video_path'], 'rb') as video_file:
+                await update.message.reply_video(
+                    video=video_file,
+                    caption=f"**Episode {episode_num}: {episode['title']}**\n\n"
+                            f"Post where?",
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
             
         except Exception as e:
             await update.message.reply_text(f"Error generating video: {e}")
@@ -340,13 +337,7 @@ class TelegramBot:
                 auto_music=True,
             )
             
-            with open(result['video_path'], 'rb') as video_file:
-                await update.message.reply_video(
-                    video=video_file,
-                    caption="**Custom David Flip Video**",
-                    parse_mode="Markdown"
-                )
-            
+            # Create approval buttons
             keyboard = InlineKeyboardMarkup([
                 [
                     InlineKeyboardButton("Twitter", callback_data="posttwitter_video_custom"),
@@ -360,10 +351,15 @@ class TelegramBot:
                     InlineKeyboardButton("Reject", callback_data="reject_video_custom"),
                 ],
             ])
-            await update.message.reply_text(
-                "Where would you like to post this video?",
-                reply_markup=keyboard
-            )
+
+            # Send video WITH buttons attached
+            with open(result['video_path'], 'rb') as video_file:
+                await update.message.reply_video(
+                    video=video_file,
+                    caption="**Custom David Flip Video**\n\nPost where?",
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
             
         except Exception as e:
             await update.message.reply_text(f"Error: {e}")
