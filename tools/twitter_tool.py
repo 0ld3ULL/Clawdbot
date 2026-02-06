@@ -192,30 +192,137 @@ class TwitterTool:
     # --- Read methods (no approval needed) ---
 
     def get_mentions(self, count: int = 20) -> list[dict]:
-        """Get recent mentions (read-only, no approval needed)."""
+        """
+        Get recent mentions using search (workaround for API tier limits).
+
+        The mentions endpoint requires Basic tier ($100+/month).
+        Search works on lower tiers and pay-per-use.
+        """
         self._ensure_client()
         try:
-            # Get authenticated user ID
+            # Get our username
+            me = self._client.get_me()
+            username = me.data.username
+
+            # Search for tweets mentioning us (last 7 days)
+            # This works on lower API tiers unlike get_users_mentions
+            results = self._client.search_recent_tweets(
+                query=f"@{username} -is:retweet",
+                max_results=min(count, 100),
+                tweet_fields=["created_at", "author_id", "text", "conversation_id", "in_reply_to_user_id"],
+                expansions=["author_id"],
+                user_fields=["username", "name"],
+            )
+
+            if not results.data:
+                return []
+
+            # Build author lookup
+            authors = {}
+            if results.includes and "users" in results.includes:
+                for user in results.includes["users"]:
+                    authors[str(user.id)] = {
+                        "username": user.username,
+                        "name": user.name,
+                    }
+
+            mentions = []
+            for t in results.data:
+                author_id = str(t.author_id)
+                author_info = authors.get(author_id, {})
+                mentions.append({
+                    "id": str(t.id),
+                    "text": t.text,
+                    "author_id": author_id,
+                    "author_username": author_info.get("username", ""),
+                    "author_name": author_info.get("name", ""),
+                    "created_at": t.created_at.isoformat() if t.created_at else "",
+                    "conversation_id": str(t.conversation_id) if t.conversation_id else "",
+                    "is_reply": t.in_reply_to_user_id is not None,
+                })
+
+            return mentions
+
+        except Exception as e:
+            logger.error(f"Failed to get mentions: {e}")
+            return []
+
+    def get_replies_to_tweet(self, tweet_id: str, count: int = 20) -> list[dict]:
+        """Get replies to a specific tweet (for monitoring comments on David's posts)."""
+        self._ensure_client()
+        try:
+            # Search for replies to a specific conversation
+            results = self._client.search_recent_tweets(
+                query=f"conversation_id:{tweet_id} -is:retweet",
+                max_results=min(count, 100),
+                tweet_fields=["created_at", "author_id", "text", "in_reply_to_user_id"],
+                expansions=["author_id"],
+                user_fields=["username", "name"],
+            )
+
+            if not results.data:
+                return []
+
+            # Build author lookup
+            authors = {}
+            if results.includes and "users" in results.includes:
+                for user in results.includes["users"]:
+                    authors[str(user.id)] = {
+                        "username": user.username,
+                        "name": user.name,
+                    }
+
+            replies = []
+            for t in results.data:
+                # Skip the original tweet
+                if str(t.id) == tweet_id:
+                    continue
+
+                author_id = str(t.author_id)
+                author_info = authors.get(author_id, {})
+                replies.append({
+                    "id": str(t.id),
+                    "text": t.text,
+                    "author_id": author_id,
+                    "author_username": author_info.get("username", ""),
+                    "author_name": author_info.get("name", ""),
+                    "created_at": t.created_at.isoformat() if t.created_at else "",
+                })
+
+            return replies
+
+        except Exception as e:
+            logger.error(f"Failed to get replies: {e}")
+            return []
+
+    def get_my_recent_tweets(self, count: int = 10) -> list[dict]:
+        """Get David's recent tweets (to monitor for replies)."""
+        self._ensure_client()
+        try:
             me = self._client.get_me()
             user_id = me.data.id
 
-            mentions = self._client.get_users_mentions(
+            tweets = self._client.get_users_tweets(
                 id=user_id,
                 max_results=min(count, 100),
-                tweet_fields=["created_at", "author_id", "text"],
+                tweet_fields=["created_at", "public_metrics", "conversation_id"],
             )
-            if not mentions.data:
+
+            if not tweets.data:
                 return []
 
             return [
                 {
                     "id": str(t.id),
                     "text": t.text,
-                    "author_id": str(t.author_id),
                     "created_at": t.created_at.isoformat() if t.created_at else "",
+                    "reply_count": t.public_metrics.get("reply_count", 0) if t.public_metrics else 0,
+                    "like_count": t.public_metrics.get("like_count", 0) if t.public_metrics else 0,
+                    "conversation_id": str(t.conversation_id) if t.conversation_id else str(t.id),
                 }
-                for t in mentions.data
+                for t in tweets.data
             ]
+
         except Exception as e:
-            logger.error(f"Failed to get mentions: {e}")
+            logger.error(f"Failed to get my tweets: {e}")
             return []
