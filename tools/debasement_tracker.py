@@ -227,7 +227,7 @@ class DebasementTracker:
                 lines.append(f"  Week change: {sign}${m2['week_change']:,.0f}B ({sign}{m2['week_change_pct']:.2f}%)")
             if m2.get("year_change"):
                 sign = "+" if m2["year_change"] > 0 else ""
-                lines.append(f"  Year change: {sign}${m2['year_change']:,.0f}B ({sign}{m2['year_change_pct']:.2f}%)")
+                lines.append(f"  Last 12 months: {sign}${m2['year_change']:,.0f}B ({sign}{m2['year_change_pct']:.2f}%)")
 
         fed = report.get("fed_balance_sheet", {})
         if not fed.get("error"):
@@ -237,11 +237,11 @@ class DebasementTracker:
             if fed.get("year_change"):
                 change_t = fed["year_change"] / 1_000_000
                 sign = "+" if change_t > 0 else ""
-                lines.append(f"  Year change: {sign}${change_t:.2f}T ({sign}{fed['year_change_pct']:.1f}%)")
+                lines.append(f"  Last 12 months: {sign}${change_t:.2f}T ({sign}{fed['year_change_pct']:.1f}%)")
 
         impact = report.get("impact_on_savings", {})
         if impact:
-            lines.append(f"\nImpact on $100,000 savings (past year):")
+            lines.append(f"\nImpact on $100,000 savings (last 12 months):")
             lines.append(f"  Lost purchasing power: ${impact['purchasing_power_loss_amount']:.2f}")
             lines.append(f"  Effective value: ${impact['effective_value']:,.2f}")
 

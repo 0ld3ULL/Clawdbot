@@ -669,7 +669,7 @@ class TelegramBot:
                 observation = report.get("observation", random.choice(DAVID_DEBASEMENT_OBSERVATIONS))
 
                 tweet = (
-                    f"Money supply up {year_pct:.1f}% this year.\n\n"
+                    f"Money supply up {year_pct:.1f}% in the last 12 months.\n\n"
                     f"$100k in savings lost ${loss:,.0f} in purchasing power.\n\n"
                     f"{observation}"
                 )
