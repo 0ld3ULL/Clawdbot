@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Activity - David Flip Dashboard{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 24px;">Activity Timeline</h1>
+
+<p style="color: var(--text-secondary); margin-bottom: 24px;">
+    What David has been doing while you were away.
+</p>
+
+<div class="card">
+    <div class="timeline">
+        {% for item in timeline %}
+        <div class="timeline-item">
+            <div class="timeline-time">{{ item.timestamp[:16] if item.timestamp else 'N/A' }}</div>
+            <div class="timeline-content">
+                <span class="timeline-category" style="
+                    {% if item.event_type == 'reject' %}background: rgba(248, 81, 73, 0.2); color: var(--accent-red);
+                    {% elif item.event_type == 'approve' %}background: rgba(63, 185, 80, 0.2); color: var(--accent-green);
+                    {% elif item.event_type == 'alert' %}background: rgba(210, 153, 34, 0.2); color: var(--accent-yellow);
+                    {% endif %}
+                ">{{ item.category }}</span>
+                <strong>{{ item.message }}</strong>
+                {% if item.details %}
+                <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px;">
+                    {{ item.details[:200] }}{% if item.details|length > 200 %}...{% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <p style="text-align: center; color: var(--text-muted); padding: 40px;">
+            No activity recorded yet.
+        </p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

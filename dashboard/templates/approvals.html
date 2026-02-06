@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Approvals - David Flip Dashboard{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 24px;">Pending Approvals</h1>
+
+{% if approvals %}
+<p style="color: var(--text-secondary); margin-bottom: 24px;">
+    {{ approvals|length }} items waiting for review
+</p>
+
+{% for approval in approvals %}
+<div class="approval-card" id="approval-{{ approval.id }}">
+    <div class="meta">
+        <strong>#{{ approval.id }}</strong> |
+        {{ approval.action_type|capitalize }} |
+        {{ approval.agent_id }} |
+        {{ approval.created_at[:16] }}
+    </div>
+
+    <div class="tweet-text" id="text-{{ approval.id }}">
+        {{ approval.action_data.text }}
+    </div>
+
+    {% if approval.context_summary %}
+    <div style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 16px;">
+        <strong>Context:</strong> {{ approval.context_summary }}
+    </div>
+    {% endif %}
+
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="char-count">
+            <span id="char-{{ approval.id }}">{{ approval.action_data.text|length }}</span>/280 characters
+        </div>
+        <div class="actions">
+            <button class="btn" onclick="openEditModal({{ approval.id }}, '{{ approval.action_data.text|replace("'", "\\'") }}')">
+                Edit
+            </button>
+            <button class="btn btn-danger" onclick="rejectApproval({{ approval.id }})">
+                Reject
+            </button>
+            <button class="btn btn-primary" onclick="approveApproval({{ approval.id }})">
+                Approve & Post
+            </button>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="card" style="text-align: center; padding: 60px;">
+    <h2 style="color: var(--text-secondary); margin-bottom: 12px;">All Caught Up!</h2>
+    <p style="color: var(--text-muted);">No pending approvals right now.</p>
+</div>
+{% endif %}
+
+<!-- Edit Modal -->
+<div class="modal" id="editModal">
+    <div class="modal-content">
+        <h3 style="margin-bottom: 8px;">Edit Tweet</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem;">Edit the text and then approve.</p>
+
+        <textarea id="editText" maxlength="280" oninput="updateCharCount()"></textarea>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="char-count">
+                <span id="editCharCount">0</span>/280 characters
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="closeEditModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEdit()">Save & Approve</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentEditId = null;
+
+function openEditModal(id, text) {
+    currentEditId = id;
+    document.getElementById('editText').value = text;
+    document.getElementById('editModal').classList.add('active');
+    updateCharCount();
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.remove('active');
+    currentEditId = null;
+}
+
+function updateCharCount() {
+    const text = document.getElementById('editText').value;
+    const count = text.length;
+    const countEl = document.getElementById('editCharCount');
+    countEl.textContent = count;
+    countEl.parentElement.classList.toggle('over', count > 280);
+}
+
+async function approveApproval(id) {
+    if (!confirm('Approve and post this tweet?')) return;
+
+    try {
+        const response = await fetch(`/api/approve/${id}`, { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById(`approval-${id}`).remove();
+            showNotification('Tweet approved and queued for posting!', 'success');
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+        }
+    } catch (e) {
+        showNotification('Error: ' + e.message, 'error');
+    }
+}
+
+async function rejectApproval(id) {
+    const reason = prompt('Rejection reason (optional):');
+    if (reason === null) return; // Cancelled
+
+    try {
+        const response = await fetch(`/api/reject/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason || 'Rejected by operator' })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById(`approval-${id}`).remove();
+            showNotification('Tweet rejected', 'info');
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+        }
+    } catch (e) {
+        showNotification('Error: ' + e.message, 'error');
+    }
+}
+
+async function saveEdit() {
+    if (!currentEditId) return;
+
+    const text = document.getElementById('editText').value.trim();
+    if (!text) {
+        showNotification('Tweet text cannot be empty', 'error');
+        return;
+    }
+    if (text.length > 280) {
+        showNotification('Tweet exceeds 280 characters', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/edit/${currentEditId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            document.getElementById(`approval-${currentEditId}`).remove();
+            closeEditModal();
+            showNotification('Tweet edited and approved!', 'success');
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+        }
+    } catch (e) {
+        showNotification('Error: ' + e.message, 'error');
+    }
+}
+
+function showNotification(message, type) {
+    // Simple notification
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        padding: 16px 24px;
+        border-radius: 8px;
+        background: ${type === 'error' ? '#f85149' : type === 'success' ? '#3fb950' : '#58a6ff'};
+        color: white;
+        z-index: 1001;
+        animation: slideIn 0.3s ease;
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Close modal on outside click
+document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEditModal();
+});
+
+// Close modal on Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeEditModal();
+});
+</script>
+
+<style>
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+</style>
+{% endblock %}

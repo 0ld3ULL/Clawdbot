@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Research - David Flip Dashboard{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 24px;">Research Findings</h1>
+
+<p style="color: var(--text-secondary); margin-bottom: 24px;">
+    Items scored by David Flip Score (1-10). Higher scores = more relevant to surveillance/control narratives.
+</p>
+
+<div class="card" style="overflow-x: auto;">
+    <table class="research-table">
+        <thead>
+            <tr>
+                <th>Score</th>
+                <th>Title</th>
+                <th>Source</th>
+                <th>Priority</th>
+                <th>Action</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in findings %}
+            <tr>
+                <td>
+                    <span class="score-badge {% if item.relevance_score >= 8 %}score-high{% elif item.relevance_score >= 5 %}score-medium{% else %}score-low{% endif %}">
+                        {{ item.relevance_score|round(1) }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ item.url }}" target="_blank" style="color: var(--accent-blue); text-decoration: none;">
+                        {{ item.title[:60] }}{% if item.title|length > 60 %}...{% endif %}
+                    </a>
+                    {% if item.summary %}
+                    <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px;">
+                        {{ item.summary[:100] }}{% if item.summary|length > 100 %}...{% endif %}
+                    </div>
+                    {% endif %}
+                </td>
+                <td style="color: var(--text-secondary);">{{ item.source }}</td>
+                <td>
+                    {% if item.priority == 'critical' %}
+                    <span style="color: var(--accent-red);">Critical</span>
+                    {% elif item.priority == 'high' %}
+                    <span style="color: var(--accent-yellow);">High</span>
+                    {% else %}
+                    <span style="color: var(--text-muted);">{{ item.priority|capitalize }}</span>
+                    {% endif %}
+                </td>
+                <td style="color: var(--text-muted);">{{ item.suggested_action }}</td>
+                <td style="color: var(--text-muted); font-size: 0.875rem;">
+                    {{ item.scraped_at[:10] if item.scraped_at else 'N/A' }}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                    No research findings yet. Run /research in Telegram to start.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div style="margin-top: 24px; padding: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;">
+    <h3 style="margin-bottom: 12px; font-size: 1rem;">David Flip Score Guide</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; color: var(--text-secondary); font-size: 0.875rem;">
+        <div>
+            <span class="score-badge score-high">10</span>
+            <strong>Kill Switch</strong><br>
+            CBDCs, debanking, instant financial control
+        </div>
+        <div>
+            <span class="score-badge score-high">9</span>
+            <strong>Infrastructure</strong><br>
+            Facial recognition, encryption attacks
+        </div>
+        <div>
+            <span class="score-badge score-high">8</span>
+            <strong>The Pattern</strong><br>
+            Privacy erosion, surveillance expansion
+        </div>
+        <div>
+            <span class="score-badge score-medium">5-7</span>
+            <strong>Adjacent</strong><br>
+            Related crypto/tech news
+        </div>
+    </div>
+</div>
+{% endblock %}

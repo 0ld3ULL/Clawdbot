@@ -31,11 +31,13 @@ from core.audit_log import AuditLog
 from core.engine import AgentContext, AgentEngine
 from core.kill_switch import KillSwitch
 from core.model_router import ModelRouter
+from core.scheduler import ContentScheduler
 from core.token_budget import TokenBudgetManager
 from interfaces.telegram_bot import TelegramBot
 from personality.david_flip import DavidFlipPersonality
 from tools.twitter_tool import TwitterTool
 from tools.tool_registry import build_registry, get_project_allowed_tools
+from agents.research_agent import ResearchAgent
 
 # Configure logging
 logging.basicConfig(
@@ -79,7 +81,13 @@ class ClawdbotSystem:
             allowed_tools=get_project_allowed_tools("david-flip"),
         )
 
-        # Telegram bot
+        # Scheduler for recurring tasks
+        self.scheduler = ContentScheduler()
+
+        # Research Agent (initialized after Telegram bot)
+        self.research_agent = None
+
+        # Telegram bot (needs research_agent, set after)
         self.telegram = TelegramBot(
             approval_queue=self.approval_queue,
             kill_switch=self.kill_switch,
@@ -237,6 +245,31 @@ class ClawdbotSystem:
         # Start Telegram bot
         await self.telegram.start()
 
+        # Initialize Research Agent (needs telegram bot for alerts)
+        self.research_agent = ResearchAgent(
+            model_router=self.model_router,
+            approval_queue=self.approval_queue,
+            telegram_bot=self.telegram,
+        )
+        self.telegram.research_agent = self.research_agent
+        logger.info("Research Agent initialized")
+
+        # Start content scheduler
+        await self.scheduler.start()
+        self.scheduler.register_executor("daily_research", self._run_daily_research)
+
+        # Create separate in-memory scheduler for cron jobs (can't pickle methods to SQLite)
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        self.cron_scheduler = AsyncIOScheduler()
+        self.cron_scheduler.add_job(
+            self._run_daily_research_wrapper,
+            trigger=CronTrigger(hour=2, minute=0),  # 2am UTC = 6am UAE
+            id="daily_research",
+        )
+        self.cron_scheduler.start()
+        logger.info("Daily research scheduled for 2:00 UTC (6:00 UAE)")
+
         logger.info("System online. Waiting for commands via Telegram.")
         logger.info(f"Operator chat ID: {os.environ.get('TELEGRAM_OPERATOR_CHAT_ID', 'NOT SET')}")
 
@@ -247,10 +280,50 @@ class ClawdbotSystem:
         except asyncio.CancelledError:
             pass
 
+    async def _run_daily_research(self, data: dict = None) -> dict:
+        """Run the daily research cycle."""
+        if self.kill_switch.is_active:
+            logger.warning("Skipping daily research - kill switch active")
+            return {"skipped": True, "reason": "kill_switch_active"}
+
+        try:
+            logger.info("Running daily research cycle...")
+            result = await self.research_agent.run_daily_research()
+            self.audit_log.log(
+                "david-flip", "info", "research",
+                f"Daily research complete: {result['new']} new, {result['relevant']} relevant"
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Daily research failed: {e}")
+            self.audit_log.log(
+                "david-flip", "reject", "research",
+                f"Daily research failed: {e}",
+                success=False
+            )
+            return {"error": str(e)}
+
+    def _run_daily_research_wrapper(self):
+        """Wrapper for cron job (sync entry point)."""
+        asyncio.create_task(self._run_daily_research())
+
     async def stop(self):
         """Graceful shutdown."""
         logger.info("System shutting down...")
         self.audit_log.log("master", "info", "system", "System shutdown")
+
+        # Stop research agent
+        if self.research_agent:
+            await self.research_agent.close()
+
+        # Stop cron scheduler
+        if hasattr(self, 'cron_scheduler'):
+            self.cron_scheduler.shutdown(wait=False)
+
+        # Stop content scheduler
+        await self.scheduler.stop()
+
+        # Stop telegram
         await self.telegram.stop()
         logger.info("System stopped.")
 

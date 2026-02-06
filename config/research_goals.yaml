@@ -1,0 +1,195 @@
+# Research Goals - What David's Intelligence Network cares about
+#
+# Each goal defines:
+# - id: Unique identifier
+# - name: Human-readable name
+# - description: What we're looking for
+# - keywords: Terms that indicate relevance
+# - priority: critical, high, medium, low
+# - action: What to do when found (alert, task, content, knowledge, ignore)
+
+goals:
+  - id: improve_architecture
+    name: "Improve Clawdbot/David architecture"
+    description: "New patterns, tools, or techniques for building better AI agents"
+    keywords:
+      - agent
+      - tool use
+      - memory
+      - context window
+      - orchestration
+      - multi-agent
+      - prompt engineering
+      - function calling
+      - agent loop
+      - autonomous
+    priority: high
+    action: task
+
+  - id: david_content
+    name: "Content opportunities for David"
+    description: "Surveillance, CBDCs, digital ID, privacy news that David should comment on"
+    keywords:
+      - surveillance
+      - CBDC
+      - digital ID
+      - privacy
+      - tracking
+      - social credit
+      - government control
+      - financial surveillance
+      - digital currency
+      - central bank
+      - biometric
+      - facial recognition
+    priority: high
+    action: content
+
+  - id: security_updates
+    name: "Security vulnerabilities or patches"
+    description: "Security issues in tools we use or patterns we follow"
+    keywords:
+      - vulnerability
+      - CVE
+      - security
+      - exploit
+      - patch
+      - breach
+      - injection
+      - authentication
+      - prompt injection
+      - jailbreak
+    priority: critical
+    action: alert
+
+  - id: cost_optimization
+    name: "Cost optimization techniques"
+    description: "Ways to reduce LLM costs, token usage, or improve efficiency"
+    keywords:
+      - token
+      - cost
+      - cheap
+      - efficient
+      - cache
+      - compress
+      - batch
+      - latency
+      - optimization
+      - pricing
+    priority: medium
+    action: task
+
+  - id: competitor_watch
+    name: "AI founder/agent projects"
+    description: "Other AI agents, AI founders, or autonomous systems to learn from"
+    keywords:
+      - AI founder
+      - autonomous agent
+      - AI CEO
+      - DAO
+      - decentralized AI
+      - agent framework
+      - AutoGPT
+      - BabyAGI
+      - CrewAI
+      - LangChain
+      - OpenClaw
+    priority: medium
+    action: knowledge
+
+  - id: flipt_relevant
+    name: "FLIPT marketplace relevant news"
+    description: "Crypto marketplaces, Solana, perpetual royalties, NFT commerce"
+    keywords:
+      - marketplace
+      - Solana
+      - NFT
+      - royalty
+      - escrow
+      - authentication
+      - secondhand
+      - resale
+      - crypto commerce
+      - web3
+    priority: medium
+    action: knowledge
+
+  - id: claude_updates
+    name: "Claude/Anthropic updates"
+    description: "New features, models, or changes from Anthropic"
+    keywords:
+      - Claude
+      - Anthropic
+      - Claude 3
+      - Claude 4
+      - Sonnet
+      - Opus
+      - Haiku
+      - API update
+      - model release
+    priority: high
+    action: alert
+
+# Sources configuration
+sources:
+  github:
+    repos:
+      - anthropics/anthropic-sdk-python
+      - langchain-ai/langchain
+      - microsoft/autogen
+      - joaomdmoura/crewAI
+      - Significant-Gravitas/AutoGPT
+    check_releases: true
+    check_commits: true
+    check_issues: false
+
+  youtube:
+    channels:
+      - "@GodaGo"  # AI agent tutorials
+      - "@AIJason"  # Agent development
+      - "@MatthewBerman"  # AI news
+      - "@DavidShapiroAI"  # Autonomous agents
+
+  reddit:
+    subreddits:
+      - ClaudeAI
+      - LocalLLaMA
+      - AutoGPT
+      - artificial
+      - MachineLearning
+
+  rss:
+    feeds:
+      # AI/Tech news
+      - name: "TechCrunch AI"
+        url: "https://techcrunch.com/category/artificial-intelligence/feed/"
+      - name: "The Verge AI"
+        url: "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml"
+      - name: "Ars Technica"
+        url: "https://feeds.arstechnica.com/arstechnica/technology-lab"
+
+      # Privacy/Surveillance
+      - name: "EFF"
+        url: "https://www.eff.org/rss/updates.xml"
+      - name: "Privacy International"
+        url: "https://privacyinternational.org/rss.xml"
+
+      # Crypto/Finance
+      - name: "CoinDesk"
+        url: "https://www.coindesk.com/arc/outboundfeeds/rss/"
+      - name: "Decrypt"
+        url: "https://decrypt.co/feed"
+      - name: "The Block"
+        url: "https://www.theblock.co/rss.xml"
+
+# Scheduling
+schedule:
+  daily_run_time: "02:00"  # UTC (6am UAE)
+  digest_enabled: true
+  alerts_enabled: true
+
+# Budget limits
+budget:
+  max_daily_cost: 5.00  # USD
+  default_model: "haiku"  # For bulk evaluation
+  quality_model: "sonnet"  # For content drafting

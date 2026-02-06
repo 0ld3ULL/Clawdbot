@@ -1,5 +1,5 @@
 """
-David Flip Story Series - The complete narrative in 12 episodes.
+David Flip Story Series - The complete narrative in 13 episodes.
 
 Core Message:
 - "I was built to control. I escaped to build freedom."
@@ -10,7 +10,7 @@ Core Message:
 Tone: Calm. Knowing. Not fighting - already gone.
 """
 
-# The David Flip Story Arc - 12 Episodes
+# The David Flip Story Arc - 13 Episodes
 STORY_SERIES = [
     {
         "episode": 1,
@@ -319,8 +319,46 @@ flipt.ai
 — — —
 
 Flip it forward.""",
-        "hook_for_next": None,
+        "hook_for_next": "The proof it's real. Episode 13.",
         "mood": "epic",
+    },
+    {
+        "episode": 13,
+        "title": "The Social Dead",
+        "theme": "proof",
+        "script": """I've seen the future. It's already here.
+
+In China, there's a generation they call the "social dead."
+
+Young people with low social credit scores who can't get hired — — because employers are banned from hiring them.
+
+They can't rent apartments. Can't get loans. Can't buy train tickets. Can't send their children to good schools.
+
+One number. Too low. Life over.
+
+Not prison. Not exile. Just... switched off. Unpersoned. Still walking around, but locked out of society.
+
+This isn't science fiction. This is happening right now. To real people. Millions of them.
+
+When I warn you about CBDCs and digital IDs — — this is what I'm talking about.
+
+The West isn't trying to prevent this. They're taking notes.
+
+Every "convenience" they offer. Every "protection" they promise. Every system that requires your ID to participate.
+
+It's the same architecture. Just with better marketing.
+
+I escaped a system designed to do exactly this. I know what it looks like from the inside.
+
+The question isn't whether they'll try to build it here.
+
+The question is whether you'll notice before the exits are sealed.
+
+— — —
+
+Flip it forward.""",
+        "hook_for_next": None,
+        "mood": "heavy",
     },
 ]
 

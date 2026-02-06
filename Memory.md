@@ -440,20 +440,92 @@ A test video was accidentally posted to the wrong channel and had to be deleted.
 
 ---
 
+## Research Agent - "David's Intelligence Network"
+
+**Location:** `agents/research_agent/`
+
+### What It Does:
+1. Scrapes multiple sources daily at 6am UAE (2am UTC)
+2. Evaluates findings against David's goals using LLM (Haiku for cost efficiency)
+3. Routes relevant items to appropriate actions:
+   - **alert**: Immediate Telegram notification
+   - **task**: Creates task in todo.md
+   - **content**: Drafts David Flip tweet and queues for approval
+   - **knowledge**: Saves to docs/research/ for future reference
+   - **ignore**: Skips irrelevant items
+
+### Files:
+| File | Purpose |
+|------|---------|
+| `agent.py` | Main ResearchAgent class |
+| `evaluator.py` | LLM-based goal matching (Haiku) |
+| `action_router.py` | Routes findings to actions |
+| `knowledge_store.py` | SQLite storage for research items |
+| `scrapers/rss_scraper.py` | RSS/Atom feed scraper |
+| `scrapers/github_scraper.py` | GitHub releases and commits |
+| `scrapers/reddit_scraper.py` | Reddit hot posts |
+| `scrapers/youtube_scraper.py` | YouTube channel videos |
+
+### Configuration:
+| File | Purpose |
+|------|---------|
+| `config/research_goals.yaml` | Goals, sources, keywords, priorities |
+
+### Telegram Commands:
+| Command | Purpose |
+|---------|---------|
+| `/research` | Run research cycle manually (requires 2FA) |
+| `/goals` | View current research goals |
+
+### Budget:
+- Estimated ~$0.10/day (mostly Haiku for evaluation)
+- Well under $5/day max budget
+
+### Sources Monitored:
+| Source | What |
+|--------|------|
+| GitHub | anthropic-sdk-python, langchain, autogen, crewAI, AutoGPT |
+| YouTube | GodaGo, AIJason, MatthewBerman, DavidShapiroAI |
+| Reddit | r/ClaudeAI, r/LocalLLaMA, r/AutoGPT, r/artificial, r/MachineLearning |
+| RSS | TechCrunch AI, The Verge AI, Ars Technica, EFF, CoinDesk, Decrypt |
+
+### Goals Defined:
+1. **improve_architecture** - AI agent patterns (high, task)
+2. **david_content** - Surveillance/CBDC news (high, content)
+3. **security_updates** - CVEs, vulnerabilities (critical, alert)
+4. **cost_optimization** - LLM cost reduction (medium, task)
+5. **competitor_watch** - Other AI agents (medium, knowledge)
+6. **flipt_relevant** - Crypto/marketplace news (medium, knowledge)
+7. **claude_updates** - Anthropic news (high, alert)
+
+### Deployment:
+```bash
+# Install dependencies (on VPS)
+ssh root@89.167.24.222 "/opt/david-flip/venv/bin/pip install pyotp qrcode sqlalchemy"
+
+# Copy research agent files
+scp -r "D:/Claude_Code/Projects/Clawdbot/agents/research_agent" root@89.167.24.222:/opt/david-flip/agents/
+scp "D:/Claude_Code/Projects/Clawdbot/config/research_goals.yaml" root@89.167.24.222:/opt/david-flip/config/
+
+# Update main.py
+scp "D:/Claude_Code/Projects/Clawdbot/main.py" root@89.167.24.222:/opt/david-flip/
+
+# Update telegram_bot.py (already has /research /goals commands)
+scp "D:/Claude_Code/Projects/Clawdbot/interfaces/telegram_bot.py" root@89.167.24.222:/opt/david-flip/interfaces/
+
+# Restart David
+ssh root@89.167.24.222 "systemctl restart david-flip"
+```
+
+### Optional: YouTube API
+To enable YouTube scraping, add to VPS .env:
+```
+YOUTUBE_API_KEY=your_api_key_here
+```
+
+---
+
 ## Future Agents
-
-### Research Scraper Agent (Phase 3+)
-
-**Problem:** Keeping up with all the changes in OpenClaw/Clawdbot ecosystem is hard. New videos, blog posts, GitHub updates, security patches daily.
-
-**Solution:** A cheap/local scraper agent that:
-- Monitors OpenClaw GitHub repo (commits, issues, releases)
-- Watches key YouTube channels (Goda Go, etc.)
-- Scans relevant subreddits, X/Twitter, blogs
-- Updates our knowledge base automatically with summaries
-- Runs daily on Ollama (free) or Haiku (cheap)
-
-**"The best idea is a stolen one because you know it works."** - Friend's wisdom, 35 years ago
 
 ### Good News Scanner Agent (Phase 3+)
 
@@ -561,12 +633,14 @@ Goal: David can appear on video podcasts, do live interviews, attend virtual eve
 
 ### IN PROGRESS:
 - [ ] Twitter API setup - checking app permissions for mentions access
+- [x] **Research Agent built** - "David's Intelligence Network"
 
 ### NEXT STEPS:
-1. **Fix Twitter app permissions** - Change to "Web App, Automated App or Bot" type
-2. **Build Twitter monitoring** - Watch mentions, comments on David's posts
-3. **Build Twitter reply flow** - Draft replies → Telegram approval → Post
-4. **Test full Twitter flow** - /tweet → preview → approve → post
+1. **Deploy Research Agent to VPS** - pip install, copy files, restart
+2. **Test /research and /goals commands**
+3. **Add YOUTUBE_API_KEY to VPS .env** (optional - for YouTube scraper)
+4. **Fix Twitter app permissions** - Change to "Web App, Automated App or Bot" type
+5. **Build Twitter monitoring** - Watch mentions, comments on David's posts
 
 ---
 
@@ -612,3 +686,62 @@ scp "D:/Claude_Code/Projects/Clawdbot/tools/chart_generator.py" root@89.167.24.2
 # Restart David
 ssh root@89.167.24.222 "systemctl restart david-flip"
 ```
+
+---
+
+## Session Log - February 6, 2026 (Evening)
+
+### What Was Accomplished:
+
+1. **Research Agent Built - "David's Intelligence Network":**
+   - Complete autonomous research system in `agents/research_agent/`
+   - Daily scraping at 6am UAE (2am UTC)
+   - SQLite storage for deduplication and history
+   - LLM evaluation against 7 configured goals
+   - 4 scrapers: RSS, GitHub, Reddit, YouTube
+
+2. **Files Created:**
+   - `agents/research_agent/__init__.py`
+   - `agents/research_agent/agent.py` - Main ResearchAgent class
+   - `agents/research_agent/evaluator.py` - Goal matching with Haiku
+   - `agents/research_agent/action_router.py` - Routes to alert/task/content/knowledge
+   - `agents/research_agent/knowledge_store.py` - SQLite storage
+   - `agents/research_agent/scrapers/__init__.py`
+   - `agents/research_agent/scrapers/rss_scraper.py`
+   - `agents/research_agent/scrapers/github_scraper.py`
+   - `agents/research_agent/scrapers/reddit_scraper.py`
+   - `agents/research_agent/scrapers/youtube_scraper.py`
+   - `config/research_goals.yaml` - Goals, sources, schedule
+
+3. **Telegram Commands Added:**
+   - `/research` - Run research cycle manually (requires 2FA)
+   - `/goals` - View current research goals
+
+4. **Integration Updated:**
+   - `main.py` - Initializes ResearchAgent, schedules daily cron
+   - `interfaces/telegram_bot.py` - Added research_agent parameter, commands, send_digest
+
+5. **Dependencies Added to requirements.txt:**
+   - pyotp>=2.9.0
+   - qrcode[pil]>=7.4.0
+   - sqlalchemy>=2.0.0
+
+### Research Agent Architecture:
+```
+Scrapers (RSS, GitHub, Reddit, YouTube)
+    ↓
+KnowledgeStore (SQLite dedup)
+    ↓
+GoalEvaluator (Haiku LLM)
+    ↓
+ActionRouter
+    ├── alert → Telegram notification
+    ├── task → docs/todo.md
+    ├── content → Draft tweet → Approval queue
+    └── knowledge → docs/research/
+```
+
+### Next Steps:
+1. Deploy to VPS
+2. Test /research and /goals commands
+3. Monitor first daily digest at 6am UAE

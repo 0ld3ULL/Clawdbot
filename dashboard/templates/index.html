@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Overview - David Flip Dashboard{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 24px;">Dashboard Overview</h1>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card {% if stats.pending_approvals > 0 %}warning{% endif %}">
+        <div class="stat-value">{{ stats.pending_approvals }}</div>
+        <div class="stat-label">Pending Approvals</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.tweets_today }}</div>
+        <div class="stat-label">Tweets Today</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.tweets_week }}</div>
+        <div class="stat-label">Tweets This Week</div>
+    </div>
+    <div class="stat-card highlight">
+        <div class="stat-value">{{ stats.high_score_findings }}</div>
+        <div class="stat-label">High Score Findings (8+)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.research_items_today }}</div>
+        <div class="stat-label">Research Items Today</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">
+            <span class="status-dot status-{{ stats.system_status }}"></span>
+            {{ stats.system_status|capitalize }}
+        </div>
+        <div class="stat-label">System Status</div>
+    </div>
+</div>
+
+<div class="two-col">
+    <!-- Recent Activity -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Recent Activity</h2>
+            <a href="/activity" class="btn">View All</a>
+        </div>
+        <div class="timeline">
+            {% for item in recent_activity[:10] %}
+            <div class="timeline-item">
+                <div class="timeline-time">{{ item.timestamp[:16] }}</div>
+                <div class="timeline-content">
+                    <span class="timeline-category">{{ item.category }}</span>
+                    {{ item.message }}
+                </div>
+            </div>
+            {% else %}
+            <p style="color: var(--text-secondary);">No recent activity</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Quick Actions</h2>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <a href="/approvals" class="btn" style="text-align: center;">
+                    Review Approvals
+                    {% if stats.pending_approvals > 0 %}
+                    <span class="badge" style="background: var(--accent-red);">{{ stats.pending_approvals }}</span>
+                    {% endif %}
+                </a>
+                <a href="/research" class="btn" style="text-align: center;">View Research</a>
+                <a href="/tweets" class="btn" style="text-align: center;">Tweet History</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">David's Mission</h2>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">
+                "They're building systems to switch you off. I'm building the alternative."
+            </p>
+            <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 12px;">
+                Monitoring: CBDCs, Digital IDs, Surveillance, Debanking
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

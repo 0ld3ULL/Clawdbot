@@ -42,12 +42,14 @@ class TelegramBot:
                  kill_switch: KillSwitch,
                  token_budget: TokenBudgetManager,
                  audit_log: AuditLog,
-                 on_command: Any = None):
+                 on_command: Any = None,
+                 research_agent: Any = None):
         """
         Args:
             on_command: Async callback(command: str, args: str) -> str
                         Called when operator sends a command the bot doesn't
                         handle directly (passed to agent engine).
+            research_agent: Optional ResearchAgent for /research and /goals commands.
         """
         self.token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
         self.operator_id = int(os.environ.get("TELEGRAM_OPERATOR_CHAT_ID", "0"))
@@ -56,6 +58,7 @@ class TelegramBot:
         self.budget = token_budget
         self.audit = audit_log
         self.on_command = on_command
+        self.research_agent = research_agent
         self.app: Application | None = None
         self.two_fa = TwoFactorAuth(session_duration_minutes=60)  # 1 hour sessions
 
@@ -113,6 +116,10 @@ class TelegramBot:
         self.app.add_handler(CommandHandler("schedule", self.cmd_schedule))
         self.app.add_handler(CommandHandler("help", self.cmd_help))
 
+        # Research agent commands
+        self.app.add_handler(CommandHandler("research", self.cmd_research))
+        self.app.add_handler(CommandHandler("goals", self.cmd_goals))
+
         # 2FA commands (no 2FA required for these)
         self.app.add_handler(CommandHandler("auth", self.cmd_auth))
         self.app.add_handler(CommandHandler("logout", self.cmd_logout))
@@ -148,6 +155,8 @@ class TelegramBot:
             BotCommand("debasement", "Money printing report"),
             BotCommand("video", "Generate a David Flip video"),
             BotCommand("schedule", "Show scheduled posts"),
+            BotCommand("research", "Run research cycle"),
+            BotCommand("goals", "View research goals"),
             BotCommand("help", "Show all commands"),
         ])
 
@@ -193,7 +202,9 @@ class TelegramBot:
             "**Research:**\n"
             "/news - Get news digest\n"
             "/davidnews <#> - David comments on story\n"
-            "/debasement - Money printing report\n\n"
+            "/debasement - Money printing report\n"
+            "/research - Run research cycle now\n"
+            "/goals - View research goals\n\n"
             "**Content:**\n"
             "/video - Generate video\n"
             "/schedule - Show scheduled posts\n\n"
@@ -309,6 +320,68 @@ class TelegramBot:
             parse_mode="Markdown"
         )
         self.audit.log("master", "info", "2fa", "2FA setup initiated - new secret generated")
+
+    # --- Research Agent Commands ---
+
+    async def cmd_research(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Run research cycle manually."""
+        if not self._is_operator(update):
+            return
+        if not await self._require_2fa(update):
+            return
+
+        if not self.research_agent:
+            await update.message.reply_text(
+                "Research Agent not configured.\n"
+                "Set up ResearchAgent in main.py first."
+            )
+            return
+
+        await update.message.reply_text("Starting research cycle... This may take a minute.")
+
+        try:
+            result = await self.research_agent.run_daily_research()
+            await update.message.reply_text(
+                f"**Research Complete**\n\n"
+                f"Scraped: {result['scraped']} items\n"
+                f"New: {result['new']} items\n"
+                f"Relevant: {result['relevant']} items\n\n"
+                f"**Actions:**\n"
+                f"  Alerts: {result['alerts']}\n"
+                f"  Tasks: {result['tasks']}\n"
+                f"  Content: {result['content']}\n"
+                f"  Knowledge: {result['knowledge']}",
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.error(f"Research cycle failed: {e}")
+            await update.message.reply_text(f"Research failed: {e}")
+
+    async def cmd_goals(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show current research goals."""
+        if not self._is_operator(update):
+            return
+
+        if not self.research_agent:
+            await update.message.reply_text(
+                "Research Agent not configured.\n"
+                "Set up ResearchAgent in main.py first."
+            )
+            return
+
+        goals = self.research_agent.get_goals()
+        if not goals:
+            await update.message.reply_text("No research goals configured.")
+            return
+
+        text = "RESEARCH GOALS\n\n"
+        for g in goals:
+            priority_marker = {"critical": "[!]", "high": "[H]", "medium": "[M]", "low": "[L]"}
+            marker = priority_marker.get(g.get("priority", "medium"), "[-]")
+            text += f"{marker} {g['name']} ({g.get('priority', 'medium')})\n"
+            text += f"    Action: {g.get('action', 'knowledge')}\n"
+
+        await update.message.reply_text(text)
 
     # --- System Commands ---
 
@@ -505,8 +578,7 @@ class TelegramBot:
 
             item = news_items[item_num]
             await update.message.reply_text(
-                f"David is composing a take on:\n**{item.title}**",
-                parse_mode="Markdown"
+                f"David is composing a take on:\n{item.title}"
             )
 
             # Generate David's take
@@ -896,7 +968,7 @@ class TelegramBot:
         preview = self.queue.format_preview(approval)
 
         text = (
-            f"**Approval #{approval['id']}**\n\n"
+            f"APPROVAL #{approval['id']}\n\n"
             f"Agent: {approval['agent_id']}\n"
             f"Type: {approval['action_type']}\n"
             f"Cost: ${approval['cost_estimate']:.4f}\n\n"
@@ -907,7 +979,7 @@ class TelegramBot:
         keyboard = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton(
-                    "Review", callback_data=f"approve_{approval['id']}"
+                    "Post", callback_data=f"approve_{approval['id']}"
                 ),
                 InlineKeyboardButton(
                     "Reject", callback_data=f"reject_{approval['id']}"
@@ -919,7 +991,6 @@ class TelegramBot:
             chat_id=chat_id,
             text=text,
             reply_markup=keyboard,
-            parse_mode="Markdown",
         )
 
     async def handle_approval_callback(self, update: Update,
@@ -1300,4 +1371,12 @@ class TelegramBot:
                 chat_id=self.operator_id,
                 text=text,
                 parse_mode="Markdown",
+            )
+
+    async def send_digest(self, text: str):
+        """Send a research digest to the operator."""
+        if self.app and self.operator_id:
+            await self.app.bot.send_message(
+                chat_id=self.operator_id,
+                text=f"RESEARCH DIGEST\n\n{text}",
             )
