@@ -194,13 +194,17 @@ class DebasementTracker:
         m2_data = await self.get_m2_money_supply()
         fed_data = await self.get_fed_balance_sheet()
 
+        # Pick observation once and store it
+        observation = random.choice(DAVID_DEBASEMENT_OBSERVATIONS)
+
         report = {
             "generated_at": datetime.now().isoformat(),
             "m2_money_supply": m2_data,
             "fed_balance_sheet": fed_data,
+            "observation": observation,
         }
 
-        # Calculate impact on $10,000 savings
+        # Calculate impact on $100,000 savings
         if m2_data.get("year_change_pct"):
             report["impact_on_savings"] = self.calculate_purchasing_power_loss(
                 m2_data["year_change_pct"],
@@ -241,8 +245,8 @@ class DebasementTracker:
             lines.append(f"  Lost purchasing power: ${impact['purchasing_power_loss_amount']:.2f}")
             lines.append(f"  Effective value: ${impact['effective_value']:,.2f}")
 
-        # Add David's observation
-        observation = random.choice(DAVID_DEBASEMENT_OBSERVATIONS)
+        # Add David's observation (use stored one from report)
+        observation = report.get("observation", random.choice(DAVID_DEBASEMENT_OBSERVATIONS))
         lines.append(f"\n— {observation}")
 
         return "\n".join(lines)

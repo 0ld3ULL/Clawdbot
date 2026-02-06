@@ -302,7 +302,7 @@ class TelegramBot:
 
             # Offer to post with a button
             if not report.get("m2_money_supply", {}).get("error"):
-                # Store report for callback
+                # Store report for callback - observation is already in the formatted text
                 context.user_data["debasement_report"] = report
 
                 keyboard = InlineKeyboardMarkup([
@@ -656,8 +656,8 @@ class TelegramBot:
                     tracker = DebasementTracker()
                     report = await tracker.generate_debasement_report()
 
-                # Format as tweet - just the key numbers + observation
-                from tools.debasement_tracker import DebasementTracker, DAVID_DEBASEMENT_OBSERVATIONS
+                # Format as tweet - use the SAME observation from the report
+                from tools.debasement_tracker import DAVID_DEBASEMENT_OBSERVATIONS
                 import random
 
                 m2 = report.get("m2_money_supply", {})
@@ -665,7 +665,8 @@ class TelegramBot:
 
                 year_pct = m2.get("year_change_pct", 0)
                 loss = impact.get("purchasing_power_loss_amount", 0) if impact else 0
-                observation = random.choice(DAVID_DEBASEMENT_OBSERVATIONS)
+                # Use stored observation, or pick new if not available
+                observation = report.get("observation", random.choice(DAVID_DEBASEMENT_OBSERVATIONS))
 
                 tweet = (
                     f"Money supply up {year_pct:.1f}% this year.\n\n"
