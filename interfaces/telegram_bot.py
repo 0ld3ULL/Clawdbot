@@ -300,16 +300,16 @@ class TelegramBot:
             text = tracker.format_for_david(report)
             await update.message.reply_text(text, parse_mode="Markdown")
 
-            # Offer to have David comment with a button
+            # Offer to post with a button
             if not report.get("m2_money_supply", {}).get("error"):
                 # Store report for callback
                 context.user_data["debasement_report"] = report
 
                 keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("David's Take", callback_data="david_debasement")]
+                    [InlineKeyboardButton("Post", callback_data="post_debasement")]
                 ])
                 await update.message.reply_text(
-                    "Want David to tweet about this?",
+                    "Post this?",
                     reply_markup=keyboard
                 )
 
@@ -647,38 +647,44 @@ class TelegramBot:
 
         action = query.data
 
-        if action == "david_debasement":
-            await query.edit_message_text("David is composing his take on debasement...")
-
+        if action == "post_debasement":
             try:
-                # Get stored report or generate new one
+                # Get stored report
                 report = context.user_data.get("debasement_report")
                 if not report:
                     from tools.debasement_tracker import DebasementTracker
                     tracker = DebasementTracker()
                     report = await tracker.generate_debasement_report()
 
-                # Generate David's tweet
-                from tools.debasement_tracker import DebasementTracker
-                tracker = DebasementTracker()
-                prompt = tracker.generate_david_tweet_prompt(report)
+                # Format as tweet - just the key numbers + observation
+                from tools.debasement_tracker import DebasementTracker, DAVID_DEBASEMENT_OBSERVATIONS
+                import random
 
-                if self.on_command and prompt:
-                    response = await self.on_command("generate_tweet", prompt)
+                m2 = report.get("m2_money_supply", {})
+                impact = report.get("impact_on_savings", {})
 
-                    # Submit to approval queue
-                    approval_id = self.queue.submit(
-                        project_id="david-flip",
-                        agent_id="david-debasement",
-                        action_type="tweet",
-                        action_data={"text": response},
-                        context_summary="David's take on debasement data",
-                    )
+                year_pct = m2.get("year_change_pct", 0)
+                loss = impact.get("purchasing_power_loss_amount", 0) if impact else 0
+                observation = random.choice(DAVID_DEBASEMENT_OBSERVATIONS)
 
-                    approval = self.queue.get_by_id(approval_id)
-                    await self._send_approval_card(query.message.chat_id, approval)
-                else:
-                    await query.edit_message_text("Agent engine not connected.")
+                tweet = (
+                    f"Money supply up {year_pct:.1f}% this year.\n\n"
+                    f"$100k in savings lost ${loss:,.0f} in purchasing power.\n\n"
+                    f"{observation}"
+                )
+
+                # Submit to approval queue
+                approval_id = self.queue.submit(
+                    project_id="david-flip",
+                    agent_id="david-debasement",
+                    action_type="tweet",
+                    action_data={"text": tweet},
+                    context_summary="Debasement report tweet",
+                )
+
+                await query.edit_message_text("Tweet ready for approval.")
+                approval = self.queue.get_by_id(approval_id)
+                await self._send_approval_card(query.message.chat_id, approval)
 
             except Exception as e:
                 await query.edit_message_text(f"Error: {e}")
