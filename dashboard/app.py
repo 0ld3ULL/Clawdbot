@@ -219,15 +219,34 @@ def api_activity():
 
 # ============== DATA FUNCTIONS ==============
 
+def get_david_status():
+    """Get David's current status from status file."""
+    status_file = DATA_DIR / "david_status.json"
+    try:
+        if status_file.exists():
+            with open(status_file) as f:
+                return json.load(f)
+    except:
+        pass
+    return {
+        "online": False,
+        "timestamp_dubai": "Unknown",
+        "status": "unknown"
+    }
+
+
 def get_stats():
     """Get dashboard statistics."""
+    david_status = get_david_status()
     stats = {
         "pending_approvals": 0,
         "tweets_today": 0,
         "tweets_week": 0,
         "research_items_today": 0,
         "high_score_findings": 0,
-        "system_status": "unknown"
+        "system_status": david_status["status"],
+        "david_online": david_status["online"],
+        "david_timestamp": david_status["timestamp_dubai"]
     }
 
     try:
@@ -272,8 +291,7 @@ def get_stats():
             stats["high_score_findings"] = cursor.fetchone()[0]
             conn.close()
 
-        # System status - check if bot is running
-        stats["system_status"] = "running"  # TODO: Actually check process
+        # System status is already set from david_status.json above
 
     except Exception as e:
         stats["error"] = str(e)

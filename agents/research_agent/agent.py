@@ -40,15 +40,19 @@ class ResearchAgent:
 
     def __init__(self, model_router: "ModelRouter",
                  approval_queue: "ApprovalQueue",
-                 telegram_bot=None):
+                 telegram_bot=None,
+                 memory_manager=None):
         self.router = model_router
         self.queue = approval_queue
         self.telegram = telegram_bot
+        self.memory = memory_manager
 
         # Initialize components
         self.store = KnowledgeStore()
         self.evaluator = GoalEvaluator(model_router)
-        self.action_router = ActionRouter(approval_queue, model_router, telegram_bot)
+        self.action_router = ActionRouter(
+            approval_queue, model_router, telegram_bot, memory_manager
+        )
 
         # Initialize scrapers
         self.scrapers = [

@@ -43,13 +43,15 @@ class TelegramBot:
                  token_budget: TokenBudgetManager,
                  audit_log: AuditLog,
                  on_command: Any = None,
-                 research_agent: Any = None):
+                 research_agent: Any = None,
+                 memory_manager: Any = None):
         """
         Args:
             on_command: Async callback(command: str, args: str) -> str
                         Called when operator sends a command the bot doesn't
                         handle directly (passed to agent engine).
             research_agent: Optional ResearchAgent for /research and /goals commands.
+            memory_manager: Optional MemoryManager for /memory command.
         """
         self.token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
         self.operator_id = int(os.environ.get("TELEGRAM_OPERATOR_CHAT_ID", "0"))
@@ -59,6 +61,7 @@ class TelegramBot:
         self.audit = audit_log
         self.on_command = on_command
         self.research_agent = research_agent
+        self.memory_manager = memory_manager
         self.app: Application | None = None
         self.two_fa = TwoFactorAuth(session_duration_minutes=60)  # 1 hour sessions
 
@@ -120,6 +123,9 @@ class TelegramBot:
         self.app.add_handler(CommandHandler("research", self.cmd_research))
         self.app.add_handler(CommandHandler("goals", self.cmd_goals))
 
+        # Memory command
+        self.app.add_handler(CommandHandler("memory", self.cmd_memory))
+
         # 2FA commands (no 2FA required for these)
         self.app.add_handler(CommandHandler("auth", self.cmd_auth))
         self.app.add_handler(CommandHandler("logout", self.cmd_logout))
@@ -128,6 +134,11 @@ class TelegramBot:
         # Approval callbacks
         self.app.add_handler(CallbackQueryHandler(
             self.handle_approval_callback, pattern=r"^(approve|reject|edit|postnow|posttwitter|postyoutube|postboth|schedule|scheduleat)_"
+        ))
+
+        # News create callbacks
+        self.app.add_handler(CallbackQueryHandler(
+            self.handle_news_create_callback, pattern=r"^news_create_"
         ))
 
         # David action callbacks (post_debasement, post_debasement_chart, etc.)
@@ -157,6 +168,7 @@ class TelegramBot:
             BotCommand("schedule", "Show scheduled posts"),
             BotCommand("research", "Run research cycle"),
             BotCommand("goals", "View research goals"),
+            BotCommand("memory", "View David's memory stats"),
             BotCommand("help", "Show all commands"),
         ])
 
@@ -204,7 +216,8 @@ class TelegramBot:
             "/davidnews <#> - David comments on story\n"
             "/debasement - Money printing report\n"
             "/research - Run research cycle now\n"
-            "/goals - View research goals\n\n"
+            "/goals - View research goals\n"
+            "/memory - View David's memory stats\n\n"
             "**Content:**\n"
             "/video - Generate video\n"
             "/schedule - Show scheduled posts\n\n"
@@ -383,6 +396,25 @@ class TelegramBot:
 
         await update.message.reply_text(text)
 
+    async def cmd_memory(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show memory system stats."""
+        if not self._is_operator(update):
+            return
+
+        if not hasattr(self, 'memory_manager') or not self.memory_manager:
+            await update.message.reply_text("Memory system not configured.")
+            return
+
+        stats = self.memory_manager.get_stats()
+        summary = self.memory_manager.get_summary()
+
+        text = f"DAVID'S MEMORY\n\n{summary}\n\n"
+        text += f"By Category:\n"
+        for cat, count in list(stats.get('by_category', {}).items())[:5]:
+            text += f"  {cat}: {count}\n"
+
+        await update.message.reply_text(text)
+
     # --- System Commands ---
 
     async def cmd_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -492,11 +524,28 @@ class TelegramBot:
                 await update.message.reply_text("No relevant news found in the last 24 hours.")
                 return
 
-            # Store items for davidnews command
+            # Store items for davidnews command and callbacks
             context.user_data["news_items"] = items
+            # Also store in bot_data for callback access
+            context.bot_data["news_items"] = items
 
-            text = monitor.format_digest_for_telegram(items)
-            await update.message.reply_text(text, parse_mode="Markdown")
+            # Send header
+            await update.message.reply_text(
+                f"**David's News Digest** ({len(items)} items)",
+                parse_mode="Markdown"
+            )
+
+            # Send each item with a Create button
+            for i, item in enumerate(items):
+                text = f"**{i+1}. {item.source}** {item.title[:80]}{'...' if len(item.title) > 80 else ''}"
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Create Tweet", callback_data=f"news_create_{i}")]
+                ])
+                await update.message.reply_text(
+                    text,
+                    reply_markup=keyboard,
+                    parse_mode="Markdown"
+                )
 
         except Exception as e:
             await update.message.reply_text(f"Error fetching news: {e}")
@@ -954,7 +1003,25 @@ class TelegramBot:
         if not self._is_operator(update):
             return
         if self.on_command:
+            # Show typing indicator while generating response
+            await context.bot.send_chat_action(
+                chat_id=update.effective_chat.id,
+                action="typing"
+            )
+
             response = await self.on_command("message", update.message.text)
+
+            # Simulate typing time based on response length (faster than human)
+            # ~50 chars per second (humans type ~40 wpm = ~3.3 chars/sec)
+            typing_time = min(len(response) / 50, 5.0)  # Cap at 5 seconds
+            if typing_time > 0.5:
+                await asyncio.sleep(typing_time)
+                # Refresh typing indicator for long responses
+                await context.bot.send_chat_action(
+                    chat_id=update.effective_chat.id,
+                    action="typing"
+                )
+
             await update.message.reply_text(response)
         else:
             await update.message.reply_text(
@@ -992,6 +1059,70 @@ class TelegramBot:
             text=text,
             reply_markup=keyboard,
         )
+
+    async def handle_news_create_callback(self, update: Update,
+                                          context: ContextTypes.DEFAULT_TYPE):
+        """Handle Create Tweet button clicks for news items."""
+        query = update.callback_query
+        await query.answer()
+
+        if not self._is_operator(update):
+            return
+
+        # Check 2FA
+        if self.two_fa.is_enabled and not self.two_fa.is_authenticated:
+            await query.message.reply_text(
+                "2FA required. Use /auth <code> first."
+            )
+            return
+
+        # Parse the item number from callback data (news_create_0, news_create_1, etc.)
+        data = query.data
+        try:
+            item_num = int(data.split("_")[2])
+        except (IndexError, ValueError):
+            await query.message.reply_text("Invalid news item.")
+            return
+
+        # Get news items from bot_data
+        news_items = context.bot_data.get("news_items", [])
+        if not news_items or item_num >= len(news_items):
+            await query.message.reply_text("News items expired. Run /news again.")
+            return
+
+        item = news_items[item_num]
+
+        # Update button to show processing
+        await query.edit_message_text(
+            f"David is writing about:\n**{item.title}**",
+            parse_mode="Markdown"
+        )
+
+        try:
+            # Generate David's take
+            from tools.news_monitor import NewsMonitor
+            monitor = NewsMonitor()
+            prompt = monitor.generate_david_prompt(item)
+
+            if self.on_command:
+                response = await self.on_command("generate_tweet", prompt)
+
+                # Submit to approval queue
+                approval_id = self.queue.submit(
+                    project_id="david-flip",
+                    agent_id="david-news",
+                    action_type="tweet",
+                    action_data={"text": response},
+                    context_summary=f"David's take on: {item.title[:50]}",
+                )
+
+                approval = self.queue.get_by_id(approval_id)
+                await self._send_approval_card(query.message.chat_id, approval)
+            else:
+                await query.message.reply_text("Agent engine not connected.")
+
+        except Exception as e:
+            await query.message.reply_text(f"Error generating tweet: {e}")
 
     async def handle_approval_callback(self, update: Update,
                                        context: ContextTypes.DEFAULT_TYPE):

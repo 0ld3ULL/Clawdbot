@@ -169,12 +169,38 @@ class ModelRouter:
         if not self._anthropic:
             raise RuntimeError("Anthropic API key not configured")
 
-        # Separate system messages from conversation
+        # Separate system messages and convert to Claude format
         system_parts = []
         conversation = []
         for msg in messages:
             if msg["role"] == "system":
                 system_parts.append(msg["content"])
+            elif msg["role"] == "tool":
+                # Convert OpenAI-style tool result to Claude format
+                conversation.append({
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": msg.get("tool_use_id", ""),
+                            "content": msg.get("content", ""),
+                        }
+                    ]
+                })
+            elif msg["role"] == "assistant" and msg.get("tool_calls"):
+                # Convert assistant tool calls to Claude format
+                content_blocks = []
+                for tc in msg["tool_calls"]:
+                    content_blocks.append({
+                        "type": "tool_use",
+                        "id": tc["id"],
+                        "name": tc["name"],
+                        "input": tc["arguments"],
+                    })
+                conversation.append({
+                    "role": "assistant",
+                    "content": content_blocks,
+                })
             else:
                 conversation.append(msg)
 

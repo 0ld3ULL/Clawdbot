@@ -59,10 +59,12 @@ class ActionRouter:
 
     def __init__(self, approval_queue: "ApprovalQueue",
                  model_router: ModelRouter,
-                 telegram_bot=None):
+                 telegram_bot=None,
+                 memory_manager=None):
         self.queue = approval_queue
         self.router = model_router
         self.telegram = telegram_bot
+        self.memory = memory_manager
         self._ensure_paths()
 
     def _ensure_paths(self):
@@ -73,6 +75,16 @@ class ActionRouter:
     async def route(self, item: ResearchItem) -> str:
         """Route an item to the appropriate action. Returns action taken."""
         action = item.suggested_action
+
+        # Remember high-scoring research in memory
+        if self.memory and item.relevance_score >= 6:
+            self.memory.remember_research(
+                title=item.title,
+                summary=item.summary or item.content[:200],
+                score=item.relevance_score,
+                source=item.source,
+                url=item.url
+            )
 
         if action == "alert":
             await self._send_alert(item)

@@ -298,6 +298,7 @@ HEADLINE: {item.title}
 SUMMARY: {item.summary[:300]}
 
 SOURCE: {item.source}
+URL: {item.url}
 
 DAVID'S ANGLES:
 - If about CBDCs/digital currency: Programmable money, control infrastructure
@@ -306,8 +307,13 @@ DAVID'S ANGLES:
 - If about Fed/money printing: The silent tax, debasement math
 - If about Bitcoin/decentralization: The escape route, the accident they can't undo
 
+FORMAT:
+- Your take first (short, punchy - around 180 chars max)
+- End with the source link: {item.url}
+- Total must be under 280 characters
+
 Remember:
 - Stay in character as David Flip
 - Connect to the bigger picture of control vs freedom
 - No price predictions
-- Under 280 characters"""
+- ALWAYS end with the article URL"""

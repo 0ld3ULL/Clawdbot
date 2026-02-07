@@ -3,6 +3,33 @@
 {% block title %}Overview - David Flip Dashboard{% endblock %}
 
 {% block content %}
+<!-- David Status Banner -->
+<div class="status-banner {% if stats.david_online %}status-online{% else %}status-offline{% endif %}" style="
+    padding: 16px 24px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    {% if stats.david_online %}
+    background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 100%);
+    border: 1px solid #3d7a4d;
+    {% else %}
+    background: linear-gradient(135deg, #4a1a1a 0%, #5a2d2d 100%);
+    border: 1px solid #7a3d3d;
+    {% endif %}
+">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 24px;">{% if stats.david_online %}🟢{% else %}🔴{% endif %}</span>
+        <div>
+            <div style="font-size: 1.25rem; font-weight: 600;">
+                DAVID IS {% if stats.david_online %}AWAKE{% else %}OFFLINE{% endif %}
+            </div>
+            <div style="font-size: 0.875rem; opacity: 0.8;">{{ stats.david_timestamp }} (Dubai)</div>
+        </div>
+    </div>
+</div>
+
 <h1 style="margin-bottom: 24px;">Dashboard Overview</h1>
 
 <!-- Stats Grid -->

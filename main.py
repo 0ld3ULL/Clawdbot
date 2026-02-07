@@ -19,6 +19,7 @@ import logging
 import os
 import signal
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -38,6 +39,7 @@ from personality.david_flip import DavidFlipPersonality
 from tools.twitter_tool import TwitterTool
 from tools.tool_registry import build_registry, get_project_allowed_tools
 from agents.research_agent import ResearchAgent
+from core.memory import MemoryManager
 
 # Configure logging
 logging.basicConfig(
@@ -65,6 +67,9 @@ class ClawdbotSystem:
         self.token_budget = TokenBudgetManager()
         self.model_router = ModelRouter()
         self.personality = DavidFlipPersonality()
+
+        # Memory system
+        self.memory = MemoryManager(model_router=self.model_router)
 
         # Tools
         self.twitter = TwitterTool()
@@ -94,6 +99,7 @@ class ClawdbotSystem:
             token_budget=self.token_budget,
             audit_log=self.audit_log,
             on_command=self.handle_command,
+            memory_manager=self.memory,
         )
 
         # Wire alert callback
@@ -182,9 +188,16 @@ class ClawdbotSystem:
 
         system_prompt = self.personality.get_system_prompt("general")
 
+        # Get memory context for the topic
+        memory_context = self.memory.get_context(topic=user_message)
+        if memory_context:
+            enhanced_task = f"{user_message}\n\n[Memory Context]\n{memory_context}"
+        else:
+            enhanced_task = user_message
+
         response = await self.engine.run(
             context=context,
-            task=user_message,
+            task=enhanced_task,
             system_prompt=system_prompt,
         )
 
@@ -202,6 +215,9 @@ class ClawdbotSystem:
                 system_prompt=system_prompt,
             )
 
+        # Remember the interaction
+        self.memory.remember_interaction(user_message, response, channel="telegram")
+
         return response
 
     async def _execute_action(self, action_type: str, action_data: dict) -> str:
@@ -214,6 +230,11 @@ class ClawdbotSystem:
                 if "error" in result:
                     return f"Twitter error: {result['error']}"
                 url = result.get("url", "")
+
+                # Remember the tweet
+                tweet_text = action_data.get("text", "")
+                self.memory.remember_tweet(tweet_text, context=url, posted=True)
+
                 return f"Posted: {url}"
             else:
                 return f"No executor for action type: {action_type}"
@@ -242,6 +263,10 @@ class ClawdbotSystem:
             details=f"Kill switch: {'ACTIVE' if self.kill_switch.is_active else 'inactive'}"
         )
 
+        # Start memory session
+        self.memory.start_session()
+        logger.info(f"Memory system online: {self.memory.get_summary()}")
+
         # Start Telegram bot
         await self.telegram.start()
 
@@ -250,6 +275,7 @@ class ClawdbotSystem:
             model_router=self.model_router,
             approval_queue=self.approval_queue,
             telegram_bot=self.telegram,
+            memory_manager=self.memory,
         )
         self.telegram.research_agent = self.research_agent
         logger.info("Research Agent initialized")
@@ -272,6 +298,9 @@ class ClawdbotSystem:
 
         logger.info("System online. Waiting for commands via Telegram.")
         logger.info(f"Operator chat ID: {os.environ.get('TELEGRAM_OPERATOR_CHAT_ID', 'NOT SET')}")
+
+        # Send startup notification to Telegram
+        await self._send_status_notification(online=True)
 
         # Keep running
         try:
@@ -307,10 +336,51 @@ class ClawdbotSystem:
         """Wrapper for cron job (sync entry point)."""
         asyncio.create_task(self._run_daily_research())
 
+    async def _send_status_notification(self, online: bool):
+        """Send David's status to Telegram with Dubai time and update status file."""
+        from datetime import timezone, timedelta
+        import json
+
+        # Dubai is UTC+4
+        dubai_tz = timezone(timedelta(hours=4))
+        dubai_time = datetime.now(dubai_tz)
+        dubai_time_str = dubai_time.strftime("%I:%M %p - %d %b %Y")
+
+        # Update status file for dashboard
+        status_file = Path("data/david_status.json")
+        status_data = {
+            "online": online,
+            "timestamp_utc": datetime.utcnow().isoformat(),
+            "timestamp_dubai": dubai_time_str,
+            "status": "awake" if online else "offline"
+        }
+        try:
+            with open(status_file, "w") as f:
+                json.dump(status_data, f)
+        except Exception as e:
+            logger.warning(f"Could not write status file: {e}")
+
+        if online:
+            message = f"🟢 DAVID IS AWAKE\n\n{dubai_time_str} (Dubai)"
+        else:
+            message = f"🔴 DAVID IS OFFLINE\n\n{dubai_time_str} (Dubai)"
+
+        try:
+            if self.telegram and self.telegram.app:
+                await self.telegram.app.bot.send_message(
+                    chat_id=self.telegram.operator_id,
+                    text=message
+                )
+        except Exception as e:
+            logger.warning(f"Could not send status notification: {e}")
+
     async def stop(self):
         """Graceful shutdown."""
         logger.info("System shutting down...")
         self.audit_log.log("master", "info", "system", "System shutdown")
+
+        # Send shutdown notification to Telegram (before stopping telegram)
+        await self._send_status_notification(online=False)
 
         # Stop research agent
         if self.research_agent:

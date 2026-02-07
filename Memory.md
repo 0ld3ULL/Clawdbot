@@ -745,3 +745,214 @@ ActionRouter
 1. Deploy to VPS
 2. Test /research and /goals commands
 3. Monitor first daily digest at 6am UAE
+
+---
+
+## Session Log - February 7, 2026
+
+### What Was Accomplished:
+
+1. **David's Memory System Built:**
+   - `core/memory/memory_store.py` - SQLite with FTS5 full-text search
+   - `core/memory/memory_manager.py` - Orchestration, compression, context injection
+   - Three memory types: episodic (events), semantic (knowledge), short_term (session)
+   - Auto-captures: tweets posted, research findings, interactions
+   - Context injection into David's responses based on topic
+   - `/memory` Telegram command shows stats
+
+2. **David's Personality Updated - Less Robotic:**
+   - Added "CONVERSATIONAL VOICE" section - young (early 20s), quirky intellectual
+   - Casual phrasing, good vocabulary, not formal
+   - Short punchy responses (2-3 sentences usually)
+   - NEVER: Start with meta-statements, end with "want me to elaborate?", lecture
+   - NEVER: Be a helpful AI assistant trying to make people feel good
+   - Added example exchanges showing his voice
+   - Added "general" channel prompt for Telegram conversations
+
+3. **Status Notifications Added:**
+   - David sends "🟢 DAVID IS AWAKE" with Dubai time on startup
+   - David sends "🔴 DAVID IS OFFLINE" with Dubai time on shutdown
+   - Status written to `data/david_status.json` for dashboard
+   - Dashboard shows green/red banner with timestamp
+
+4. **Desktop Shortcuts Created for User:**
+   - `C:\Users\PC\OneDrive\Desktop\DAVIDS HOME.bat` - Opens and connects to VPS
+   - `C:\Users\PC\OneDrive\Desktop\PC POWERSHELL.bat` - Opens local PowerShell
+   - User can now easily distinguish between VPS and local windows
+
+5. **Bug Fixed - FTS5 Syntax Error:**
+   - Search queries with special characters (like "?") broke FTS5
+   - Fixed by escaping and quoting queries in `memory_store.py`
+
+### Files Created/Modified:
+
+**New Files:**
+- `core/memory/__init__.py`
+- `core/memory/memory_store.py`
+- `core/memory/memory_manager.py`
+
+**Modified:**
+- `main.py` - Memory integration, status notifications
+- `interfaces/telegram_bot.py` - /memory command, memory_manager parameter
+- `personality/david_flip.py` - Conversational voice, example exchanges
+- `agents/research_agent/agent.py` - Memory manager parameter
+- `agents/research_agent/action_router.py` - Memory capture for research
+- `dashboard/app.py` - Read david_status.json
+- `dashboard/templates/index.html` - Status banner
+
+### User's Desktop Setup:
+- OneDrive synced: `C:\Users\PC\OneDrive\Desktop\`
+- Shortcuts work by double-clicking
+- VPS window title: "DAVIDS HOME - VPS"
+- Local window title: "PC POWERSHELL - LOCAL"
+
+### Dashboard:
+- URL: http://89.167.24.222:5000/
+- Must be started manually: `cd /opt/david-flip && nohup python dashboard/app.py > /dev/null 2>&1 &`
+- Shows David's online/offline status with Dubai timestamp
+
+---
+
+## Quick Reference - Common Tasks
+
+### Update David's Code:
+1. Edit files locally in `D:\Claude_Code\Projects\Clawdbot\`
+2. Open **PC POWERSHELL** shortcut
+3. Run: `scp "D:\Claude_Code\Projects\Clawdbot\<file>" root@89.167.24.222:/opt/david-flip/<path>/`
+4. Open **DAVIDS HOME** shortcut
+5. Run: `systemctl restart david-flip`
+
+### Check David's Logs:
+1. Open **DAVIDS HOME** shortcut
+2. Run: `journalctl -u david-flip -n 50 --no-pager`
+
+### Start Dashboard:
+1. Open **DAVIDS HOME** shortcut
+2. Run: `cd /opt/david-flip && nohup python dashboard/app.py > /dev/null 2>&1 &`
+3. Visit: http://89.167.24.222:5000/
+
+---
+
+## David Dev Mode - Voice-Controlled Game Development (Future Vision)
+
+### The Vision
+David as a real-time voice-controlled development partner for Unity, Unreal Engine, and Godot. Load entire game projects into context, talk to David while working, and have him see, understand, and modify your code.
+
+### "Wall Mode" - Full Project Context
+
+**Concept:** "Taking it to the wall" - loading entire systems or full game projects into a massive context window for holistic analysis. Game dev bugs often live in system interactions, not individual files.
+
+**Context Window Comparison (as of early 2026):**
+| Model | Context Window |
+|-------|---------------|
+| **Llama 4 Scout** | **10 million tokens** (largest deployed) |
+| Magic.dev | 100 million (capability, not fully deployed) |
+| Gemini 1.5 Pro | 2 million |
+| Claude 3.5 | 200K |
+
+**10 million tokens = ~7.5 million words = ~75 novels**
+
+Can fit:
+- Entire Unity documentation
+- Entire Unreal Engine documentation
+- Full game project codebase
+- Plus conversation history
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      WALL MODE                               │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
+│  │  COLLECTOR   │    │  FORMATTER   │    │   ANALYST    │   │
+│  │              │    │              │    │              │   │
+│  │ Walk Unity   │───▶│ Structure    │───▶│ Llama 4      │   │
+│  │ project dir  │    │ for analysis │    │ Scout 10M    │   │
+│  │ Filter .cs   │    │ Add context  │    │              │   │
+│  │ Parse scenes │    │ relationships│    │ Deep analysis│   │
+│  └──────────────┘    └──────────────┘    └──────────────┘   │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Proposed Commands:**
+```
+/wall amphitheatre              # Load entire project
+/wall voice                     # Load just voice/audio system
+/wall "player falls through floor"  # Load + analyze specific issue
+```
+
+**Cost Estimate:** ~$1 per deep dive (10M tokens at ~$0.10/M)
+
+### Voice Interaction
+
+**Full David Dev Mode Stack:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    DAVID DEV MODE                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   YOU ──voice──▶ [Whisper] ──text──▶ DAVID                  │
+│                                         │                    │
+│   YOU ◀──voice── [ElevenLabs] ◀─text───┘                    │
+│                                                              │
+│   DAVID can see:                                             │
+│   ├── Your screen (Computer Use)                             │
+│   ├── Entire codebase (Wall Mode / 10M context)              │
+│   └── Unity console logs                                     │
+│                                                              │
+│   DAVID can do:                                              │
+│   ├── Talk back to you                                       │
+│   ├── Edit code                                              │
+│   └── Click/type in Unity (Computer Use)                     │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Components:**
+| Piece | Tech | Cost |
+|-------|------|------|
+| Voice In | Whisper API or local Whisper | ~free to $0.006/min |
+| Voice Out | ElevenLabs or OpenAI TTS | ~$0.01-0.03/message |
+| Brain | Llama 4 Scout (wall) + Claude (reasoning) | ~$0.10-1.00/deep dive |
+| Vision | Screenshot capture | Free |
+| Control | Computer Use API | Part of Claude |
+
+**Example Workflow:**
+> "Hey David, the player is falling through the floor after sitting"
+>
+> *David loads seat system code, checks recent changes, sees Unity console*
+>
+> "I see the issue. In NetworkedThirdPerson line 342, the collider gets disabled but never re-enabled on exit. Want me to fix it?"
+>
+> "Yeah fix it"
+>
+> *David edits the file, Unity hot-reloads*
+
+### Implementation Order
+
+1. **Wall Mode (File Collector)** - Walk Unity project, gather .cs files, parse .unity scenes
+2. **Llama 4 Scout Integration** - Connect to Together.ai / Fireworks / self-hosted
+3. **Voice Input** - Whisper API for speech-to-text
+4. **Voice Output** - ElevenLabs for text-to-speech
+5. **Computer Use** - Screenshot capture, mouse/keyboard control
+6. **Unity Integration** - Console log monitoring, hot-reload triggers
+
+### Why This Matters
+
+Game dev bugs often exist in the **interactions between systems**:
+- VoiceManager ↔ EventControlPanel ↔ PhotonVoice
+- RigidbodyPlayer ↔ SeatStation ↔ NetworkedThirdPerson ↔ AvatarToggle
+- RelayHostClient ↔ WebSpeakerReceiver ↔ SimpleWebServer
+
+When you can see ALL systems together in one context, you can spot:
+- Mismatched assumptions between systems
+- Race conditions (this fires before that's ready)
+- Circular dependencies
+- Missing null checks at boundaries
+- State that gets out of sync
+
+With 10M tokens, it's not "search for the problem" anymore - it's **see the whole machine at once**.
+
+---
