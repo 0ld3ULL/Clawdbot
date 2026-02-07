@@ -36,3 +36,9 @@ aiosqlite>=0.20.0
 
 # Charts / Visualization
 matplotlib>=3.8.0
+
+# Voice (DEVA)
+faster-whisper>=1.0.0      # Local speech-to-text (GPU accelerated)
+sounddevice>=0.4.6         # Audio capture/playback
+soundfile>=0.12.0          # Audio file I/O
+keyboard>=0.13.5           # Push-to-talk key detection
