@@ -28,13 +28,15 @@ CHARS_PER_TOKEN = 3.5
 # See research/wall-mode-model-research.md for details.
 CONTEXT_LIMITS = {
     "gemini_flash": 800_000,     # 800K safe limit (1M claimed, leave margin)
+    "gemini_flash_free": 200_000,  # 200K free tier limit (250K/min quota)
     "gemini_pro": 900_000,       # 900K safe limit (1-2M claimed)
     "claude": 180_000,           # 180K safe limit (200K claimed)
     "llama4_scout": 200_000,     # 200K EFFECTIVE limit (10M is marketing)
 }
 
 # Default model for Wall Mode
-DEFAULT_WALL_MODEL = "gemini_flash"
+# Use "gemini_flash_free" for free tier, "gemini_flash" for paid
+DEFAULT_WALL_MODEL = "gemini_flash"  # Paid tier - 800K tokens
 
 
 @dataclass

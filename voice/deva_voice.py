@@ -24,6 +24,7 @@ import pygame
 from personality.deva import get_deva_prompt, DEVA_VOICE
 from voice.memory import DevaMemory, GroupMemory, GameMemory
 from voice.wall_mode import WallCollector, CONTEXT_LIMITS
+from voice.gemini_client import GeminiClient, GeminiResponse
 
 # Initialize pygame mixer
 pygame.mixer.init()
@@ -76,11 +77,20 @@ class VoiceAssistant:
             self.active_engine = self.active_engine.lower()
             print(f"  Active engine: {self.active_engine.upper()}")
 
-        # Wall Mode - project path
+        # Wall Mode - project path and Gemini client
         self.project_path = self.memory.get_user("project_path")
         if self.project_path:
             print(f"  Project path: {self.project_path}")
         self.wall_context = None  # Cached wall context for analysis
+        self.wall_collector = None  # WallCollector instance
+
+        # Initialize Gemini client for wall mode (optional - only if API key exists)
+        try:
+            self.gemini = GeminiClient()
+            print(f"  Gemini: {self.gemini.provider} API ready")
+        except ValueError:
+            self.gemini = None
+            print("  Gemini: No API key (wall mode will use Claude)")
 
         self.active_game = self.memory.get_user("active_game")
         if self.active_game:
@@ -232,17 +242,18 @@ class VoiceAssistant:
         if memory_context:
             system_prompt = f"{memory_context}\n\n{self.base_system_prompt}"
 
-        # WALL MODE: If wall context is loaded, include it
-        if self.wall_context:
-            # For wall mode, we need more tokens and use the codebase context
-            system_prompt = f"""You have the FULL CODEBASE loaded (Wall Mode).
-Analyze the code to answer the question. Reference specific files and line numbers.
-
-{self.wall_context}
-
----
-
-{self.base_system_prompt}"""
+        # WALL MODE: If wall context is loaded, use Gemini for analysis
+        if self.wall_context and self.gemini:
+            # Use Gemini for wall mode (800K context vs Claude's 200K)
+            try:
+                gemini_response = self.gemini.analyze(self.wall_context, user_input)
+                deva_response = gemini_response.text
+                self.messages.append({"role": "assistant", "content": deva_response})
+                return deva_response
+            except Exception as e:
+                # Fall back to Claude without wall context
+                print(f"[Gemini error: {e}, falling back to Claude]")
+                self.wall_context = None  # Clear broken wall context
 
         # Add engine-specific context when active
         if self.active_engine:
