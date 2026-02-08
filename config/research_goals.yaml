@@ -1,28 +1,70 @@
-# Research Goals - What David's Intelligence Network cares about
+# Research Goals - What the Intelligence Network cares about
 #
 # Each goal defines:
 # - id: Unique identifier
 # - name: Human-readable name
 # - description: What we're looking for
-# - keywords: Terms that indicate relevance
+# - keywords: Terms that indicate relevance (case-insensitive matching)
 # - priority: critical, high, medium, low
 # - action: What to do when found (alert, task, content, knowledge, ignore)
+#
+# SCORING: Items are evaluated by TWO rubrics:
+# 1. David Flip rubric (surveillance/control focus) - for david_content goal
+# 2. Technical rubric (AI agents/gamedev/tools) - for everything else
+# The HIGHER score wins, so an AI agent tutorial won't get buried just because
+# it has nothing to do with surveillance.
 
 goals:
   - id: improve_architecture
     name: "Improve Clawdbot/David architecture"
-    description: "New patterns, tools, or techniques for building better AI agents"
+    description: "New patterns, tools, or techniques for building better AI agents, voice assistants, or autonomous systems"
     keywords:
+      # Core agent concepts
       - agent
+      - AI agent
       - tool use
-      - memory
-      - context window
-      - orchestration
-      - multi-agent
-      - prompt engineering
+      - tool calling
       - function calling
       - agent loop
+      - agentic
+      - agentic coding
       - autonomous
+      - orchestration
+      - multi-agent
+      - agent framework
+      # Memory & context
+      - memory
+      - context window
+      - long-term memory
+      - RAG
+      - retrieval augmented
+      - vector database
+      - embedding
+      # Prompting & reasoning
+      - prompt engineering
+      - chain of thought
+      - reasoning
+      - system prompt
+      - few-shot
+      # Infrastructure
+      - MCP
+      - model context protocol
+      - computer use
+      - browser automation
+      - API integration
+      - webhook
+      - streaming
+      # Voice / assistant
+      - voice assistant
+      - speech to text
+      - text to speech
+      - STT
+      - TTS
+      - whisper
+      - real-time voice
+      # Our projects
+      - Clawdbot
+      - DEVA
     priority: high
     action: task
 
@@ -42,6 +84,14 @@ goals:
       - central bank
       - biometric
       - facial recognition
+      - debanking
+      - programmable money
+      - kill switch
+      - digital wallet
+      - digital passport
+      - age verification
+      - KYC
+      - mass surveillance
     priority: high
     action: content
 
@@ -59,6 +109,7 @@ goals:
       - authentication
       - prompt injection
       - jailbreak
+      - sandbox escape
     priority: critical
     action: alert
 
@@ -76,25 +127,46 @@ goals:
       - latency
       - optimization
       - pricing
+      - rate limit
+      - token budget
     priority: medium
     action: task
 
   - id: competitor_watch
-    name: "AI founder/agent projects"
-    description: "Other AI agents, AI founders, or autonomous systems to learn from"
+    name: "AI agent projects and competitors"
+    description: "Other AI agents, AI founders, autonomous systems, or agentic projects to learn from"
     keywords:
+      # Named projects
+      - OpenClaw
+      - Openclaw
+      - Clawdbot
+      - Moltbook
+      - AutoGPT
+      - BabyAGI
+      - CrewAI
+      - LangChain
+      - LangGraph
+      - Devin
+      - Cursor
+      - Windsurf
+      - Cline
+      - Aider
+      - Bolt
+      - Replit Agent
+      - GitHub Copilot
+      - Amazon Q
+      # Categories
       - AI founder
       - autonomous agent
       - AI CEO
       - DAO
       - decentralized AI
       - agent framework
-      - AutoGPT
-      - BabyAGI
-      - CrewAI
-      - LangChain
-      - OpenClaw
-    priority: medium
+      - AI coding assistant
+      - AI pair programmer
+      - coding agent
+      - vibe coding
+    priority: high
     action: knowledge
 
   - id: flipt_relevant
@@ -106,17 +178,19 @@ goals:
       - NFT
       - royalty
       - escrow
-      - authentication
       - secondhand
       - resale
       - crypto commerce
       - web3
+      - PLAYA3ULL
+      - play to earn
+      - gaming token
     priority: medium
     action: knowledge
 
   - id: claude_updates
     name: "Claude/Anthropic updates"
-    description: "New features, models, or changes from Anthropic"
+    description: "New features, models, API changes, or tools from Anthropic"
     keywords:
       - Claude
       - Anthropic
@@ -127,6 +201,13 @@ goals:
       - Haiku
       - API update
       - model release
+      - Claude Code
+      - claude-code
+      - Anthropic SDK
+      - tool_use
+      - extended thinking
+      - computer use
+      - MCP server
     priority: high
     action: alert
 
@@ -134,21 +215,38 @@ goals:
     name: "DEVA game development knowledge"
     description: "Unity tips, game dev patterns, AI-assisted development techniques relevant to Amphitheatre and DEVA"
     keywords:
+      # Unity specific
       - Unity
+      - Unity 6
+      - Unity 2022
+      - URP
+      - HDRP
+      - ECS
+      - DOTS
+      - Unity multiplayer
+      - Netcode
+      - Photon
+      # Game dev general
       - game dev
+      - game development
+      - game design
       - C#
       - shader
       - multiplayer
       - networking
-      - Photon
-      - AI coding
-      - Claude Code
-      - voice assistant
-      - code generation
-      - game design
       - procedural generation
-      - ECS
-      - URP
+      - level design
+      - game AI
+      - pathfinding
+      - animation
+      # AI-assisted game dev
+      - AI coding
+      - code generation
+      - Amphitheatre
+      - PLAYA3ULL
+      # Other engines (to learn from)
+      - Unreal
+      - Godot
     priority: high
     action: knowledge
 
@@ -157,20 +255,28 @@ sources:
   github:
     repos:
       - anthropics/anthropic-sdk-python
+      - anthropics/claude-code
       - langchain-ai/langchain
+      - langchain-ai/langgraph
       - microsoft/autogen
       - joaomdmoura/crewAI
       - Significant-Gravitas/AutoGPT
+      - paul-gauthier/aider
     check_releases: true
     check_commits: true
     check_issues: false
 
   youtube:
     channels:
-      - "@GodaGo"  # AI agent tutorials
-      - "@AIJason"  # Agent development
-      - "@matthew_berman"  # AI news (note: underscore)
-      - "@DaveShapiro"  # Autonomous agents
+      - "@GodaGo"            # AI agent tutorials
+      - "@AIJason"           # Agent development
+      - "@matthew_berman"    # AI news
+      - "@DaveShapiro"       # Autonomous agents
+      - "@IndyDevDan"        # Claude Code / AI coding
+      - "@AllAboutAI"        # AI tools and agents
+      - "@PeterYangYT"       # OpenClaw, AI tools
+      - "@firaboraalern"     # Fireship - tech news
+      - "@TheCodingTrain"    # Creative coding
 
   reddit:
     subreddits:
@@ -179,16 +285,25 @@ sources:
       - AutoGPT
       - artificial
       - MachineLearning
+      - gamedev
+      - Unity3D
 
   transcripts:
     youtube_channels:
       - "@GodaGo"             # AI agent tutorials
       - "@AIJason"            # Agent development
       - "@matthew_berman"     # AI news (note: underscore, not camelCase)
-      - "@DaveShapiro"        # Autonomous agents (formerly DavidShapiroAI)
+      - "@DaveShapiro"        # Autonomous agents
       - "@IndyDevDan"         # Claude Code / AI coding
       - "@AllAboutAI"         # AI tools and agents
-    tiktok_accounts: []       # Add TikTok handles when ready
+      - "@PeterYangYT"       # OpenClaw, AI tools
+    tiktok_accounts:
+      - "@tristynnmcgowan"   # AI content
+      - "@chase_ai_"         # AI content
+      - "@gregisenberg"      # AI / startup content
+      - "@olleai"            # AI content
+      - "@vibewithkevin"     # AI / vibe coding
+      - "@mattganzak"        # AI content
     max_transcript_length: 15000  # Chars - truncate longer transcripts
     delay_between_fetches: 5      # Seconds between YouTube transcript fetches
 
