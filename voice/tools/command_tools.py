@@ -48,6 +48,8 @@ class CommandTools:
         "dotnet build", "dotnet test", "msbuild",
         # Unity (command line)
         "Unity", "unity",
+        # Windows start command (launch apps)
+        "start",
         # Python
         "python", "pip",
         # Node

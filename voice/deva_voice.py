@@ -242,12 +242,18 @@ class VoiceAssistant:
         return "general"
 
     def _needs_tools(self, text: str) -> bool:
-        """Detect if the user's request requires tool use (code editing)."""
+        """Detect if the user's request requires tool use (code editing, commands)."""
         text_lower = text.lower()
         action_words = [
+            # Code editing
             "fix", "edit", "change", "update", "modify", "add", "remove",
             "delete", "create", "write", "replace", "rename", "refactor",
-            "implement", "make it", "can you", "please", "i need you to"
+            "implement", "make it", "can you", "please", "i need you to",
+            # Running commands
+            "open", "run", "start", "load", "build", "test", "compile",
+            "launch", "execute", "commit", "push", "pull",
+            # File operations
+            "read", "show me", "find", "search", "look for", "where is"
         ]
         return any(word in text_lower for word in action_words) and self.tools_enabled
 
@@ -258,14 +264,31 @@ class VoiceAssistant:
 
 YOU HAVE TOOLS. Use them to help the developer.
 
-When asked to fix, edit, or modify code:
-1. Use search_code or read_file to find the relevant code
-2. Use edit_file to make precise changes
-3. Explain what you changed
+== COMMON TASKS ==
 
-Project path: """ + (self.project_path or "Not set") + """
+OPEN UNITY:
+- run_command: "Unity -projectPath <path>"
+- Or just: "start Unity"
 
-Be direct. Make the changes. Report what you did."""
+BUILD PROJECT:
+- Unity: run_command "dotnet build" or use Unity command line
+- Unreal: run_command "UnrealEditor"
+
+FIX/EDIT CODE:
+1. search_code or read_file to find the code
+2. edit_file to make precise changes
+3. Tell them what you changed
+
+GIT OPERATIONS:
+- git_status, git_diff, git_commit
+
+== PROJECT ==
+Path: """ + (self.project_path or "Not set") + """
+
+== RULES ==
+- Don't say "I can't" - USE YOUR TOOLS
+- Make the change, then report what you did
+- Be direct. One sentence if possible."""
 
         # Add wall context if available
         if self.wall_context:
@@ -617,17 +640,46 @@ def main():
 
             # ==================== WALL MODE ====================
             # "Set project path" or "Project is at"
-            if any(phrase in text_lower for phrase in ["set project", "project path", "project is at", "project folder"]):
+            if any(phrase in text_lower for phrase in ["set project", "project path", "project is at", "project folder", "project is"]):
                 import re
                 # Try to extract path from speech
-                # Common pattern: "project is at D Games Amphitheatre" -> need to handle this better
-                # For now, use a default known path if mentioned
+                # Support both D: (main PC) and C: (David's laptop) drives
+                project = None
+
                 if "amphitheatre" in text_lower:
-                    project = r"D:\Games\PLAYA3ULL GAMES games\Amphitheatre\Amphitheatre"
+                    # Check both drives
+                    candidates = [
+                        r"D:\Games\PLAYA3ULL GAMES games\Amphitheatre\Amphitheatre",
+                        r"C:\Games\Amphitheatre\Amphitheatre",
+                    ]
+                    for p in candidates:
+                        if os.path.exists(p):
+                            project = p
+                            break
                 elif "amphi" in text_lower and "island" in text_lower:
-                    project = r"D:\Games\PLAYA3ULL GAMES games\AMPHI-Island"
-                else:
-                    response = "I need a project path. Say 'project is Amphitheatre' or 'project is AMPHI Island'."
+                    candidates = [
+                        r"D:\Games\PLAYA3ULL GAMES games\AMPHI-Island",
+                        r"C:\Games\AMPHI-Island",
+                    ]
+                    for p in candidates:
+                        if os.path.exists(p):
+                            project = p
+                            break
+
+                # Also try to parse explicit path from speech like "C Games Amphitheatre"
+                if not project:
+                    # Convert speech to path: "c games amphitheatre" -> "C:\Games\Amphitheatre"
+                    path_match = re.search(r"([cde])\s*(?:drive|colon)?\s*(.+)", text_lower)
+                    if path_match:
+                        drive = path_match.group(1).upper()
+                        parts = path_match.group(2).strip().split()
+                        # Join with backslash
+                        potential_path = drive + ":\\" + "\\".join(p.capitalize() for p in parts)
+                        if os.path.exists(potential_path):
+                            project = potential_path
+
+                if not project:
+                    response = "I need a project path. Say 'project is Amphitheatre' or give me the path."
                     print(f"DEVA: {response}")
                     assistant.speak(response)
                     continue
@@ -641,7 +693,7 @@ def main():
                     assistant.tool_executor.command_tools.allowed_directories = [project]
                     # Update log watcher
                     assistant._setup_log_watcher()
-                    response = f"Project set. Wall Mode and code editing ready."
+                    response = f"Got it - {os.path.basename(project)}. What's up with your project files?"
                     print(f"[Project: {project}]")
                 else:
                     response = f"Path not found: {project}"
