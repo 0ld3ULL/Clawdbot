@@ -40,8 +40,8 @@ winget install Git.Git
 
 1. In PowerShell, paste this and press Enter:
 ```powershell
-mkdir D:\Projects
-cd D:\Projects
+mkdir C:\Projects
+cd C:\Projects
 ```
 
 ---
@@ -74,7 +74,7 @@ winget install Python.Python.3.12
 
 1. In PowerShell, paste these commands one at a time:
 ```powershell
-cd D:\Projects\Clawdbot
+cd C:\Projects\Clawdbot
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 ```
@@ -143,7 +143,7 @@ ELEVENLABS_API_KEY=your_elevenlabs_key_here
 
 1. In PowerShell with `(venv)` active:
 ```powershell
-cd D:\Projects\Clawdbot
+cd C:\Projects\Clawdbot
 python voice/deva_voice.py
 ```
 
@@ -167,7 +167,7 @@ Ready!
 2. It will ask you to log in - use your Anthropic account
 3. Once logged in, type:
 ```
-cd D:\Projects\Clawdbot
+cd C:\Projects\Clawdbot
 ```
 
 4. Then type:
@@ -183,21 +183,21 @@ Read Memory.md
 
 **Start DEVA (voice assistant):**
 ```powershell
-cd D:\Projects\Clawdbot
+cd C:\Projects\Clawdbot
 .\venv\Scripts\Activate.ps1
 python voice/deva_voice.py
 ```
 
 **Start Claude Code with project context:**
 ```powershell
-cd D:\Projects\Clawdbot
+cd C:\Projects\Clawdbot
 claude
 ```
 Then: `Read Memory.md`
 
 **Update from GitHub:**
 ```powershell
-cd D:\Projects\Clawdbot
+cd C:\Projects\Clawdbot
 git pull
 ```
 
