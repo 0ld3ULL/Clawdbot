@@ -908,21 +908,29 @@ DEVA as a real-time voice-controlled development partner for Unity, Unreal Engin
 
 **Concept:** "Taking it to the wall" - loading entire systems or full game projects into a massive context window for holistic analysis. Game dev bugs often live in system interactions, not individual files.
 
-**Context Window Comparison (as of early 2026):**
-| Model | Context Window |
-|-------|---------------|
-| **Llama 4 Scout** | **10 million tokens** (largest deployed) |
-| Magic.dev | 100 million (capability, not fully deployed) |
-| Gemini 1.5 Pro | 2 million |
-| Claude 3.5 | 200K |
+#### CRITICAL RESEARCH FINDING (February 2026)
 
-**10 million tokens = ~7.5 million words = ~75 novels**
+**Llama 4 Scout's 10M context is NOT usable.** Research shows accuracy drops to ~15.6% after 128K-256K tokens due to "attention dilution" - the signal drowns in noise.
 
-Can fit:
-- Entire Unity documentation
-- Entire Unreal Engine documentation
-- Full game project codebase
-- Plus conversation history
+**Recommended: Gemini 2.5 Flash (1M tokens)** - maintains 90%+ accuracy across full window, specifically optimized for codebase analysis.
+
+Full research report: `research/wall-mode-model-research.md`
+
+**Effective Context Windows (actual performance, not marketing):**
+| Model | Claimed | Effective | Accuracy |
+|-------|---------|-----------|----------|
+| Llama 4 Scout | 10M | 128K-256K | ~15.6% after |
+| **Gemini 2.5 Flash** | **1M** | **~1M** | **<5% degradation** |
+| Gemini 2.5 Pro | 1-2M | 1-2M | <5% degradation |
+| Claude | 200K | 200K | <5% degradation |
+
+**Wall Mode v2 Architecture:**
+```
+COLLECTOR (built) → GEMINI 2.5 FLASH (1M) → CLAUDE (200K reasoning)
+```
+
+- Gemini: Initial codebase analysis, identify relevant files
+- Claude: Focused reasoning on specific fixes
 
 **Architecture:**
 ```

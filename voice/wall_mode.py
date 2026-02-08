@@ -23,11 +23,18 @@ from dataclasses import dataclass, field
 CHARS_PER_TOKEN = 3.5
 
 # Context window limits
+# NOTE: These are EFFECTIVE limits based on research, not marketing claims.
+# Llama 4 Scout's 10M is not usable - accuracy drops to 15.6% after 256K.
+# See research/wall-mode-model-research.md for details.
 CONTEXT_LIMITS = {
-    "llama4_scout": 10_000_000,  # 10M tokens
-    "gemini_1_5_pro": 2_000_000,  # 2M tokens
-    "claude": 200_000,  # 200K tokens
+    "gemini_flash": 800_000,     # 800K safe limit (1M claimed, leave margin)
+    "gemini_pro": 900_000,       # 900K safe limit (1-2M claimed)
+    "claude": 180_000,           # 180K safe limit (200K claimed)
+    "llama4_scout": 200_000,     # 200K EFFECTIVE limit (10M is marketing)
 }
+
+# Default model for Wall Mode
+DEFAULT_WALL_MODEL = "gemini_flash"
 
 
 @dataclass
@@ -218,7 +225,7 @@ class WallCollector:
         self,
         subsystem: Optional[str] = None,
         query: Optional[str] = None,
-        max_tokens: int = CONTEXT_LIMITS["llama4_scout"],
+        max_tokens: int = CONTEXT_LIMITS[DEFAULT_WALL_MODEL],
         include_scenes: bool = False
     ) -> CollectionResult:
         """
