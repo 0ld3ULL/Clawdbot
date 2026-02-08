@@ -11,6 +11,7 @@ import os
 import sys
 import tempfile
 import time
+import re
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -25,6 +26,7 @@ from personality.deva import get_deva_prompt, DEVA_VOICE
 from voice.memory import DevaMemory, GroupMemory, GameMemory
 from voice.wall_mode import WallCollector, CONTEXT_LIMITS
 from voice.gemini_client import GeminiClient, GeminiResponse
+from voice.tools.tool_executor import ToolExecutor, ToolExecutorConfig, ConsoleLogWatcher
 
 # Initialize pygame mixer
 pygame.mixer.init()
@@ -91,6 +93,22 @@ class VoiceAssistant:
         except ValueError:
             self.gemini = None
             print("  Gemini: No API key (wall mode will use Claude)")
+
+        # Initialize Tool Executor for code editing
+        print("  Loading tools...")
+        tool_config = ToolExecutorConfig(
+            allowed_roots=[self.project_path] if self.project_path else [],
+            max_tool_calls=15,
+            require_confirmation=False  # DEVA can edit freely
+        )
+        self.tool_executor = ToolExecutor(tool_config)
+        self.tools_enabled = True  # Toggle with "tools on/off"
+        print(f"  Tools: {len(self.tool_executor.tools)} available")
+
+        # Console Log Watcher for Unity feedback
+        self.log_watcher = ConsoleLogWatcher()
+        self._setup_log_watcher()
+        print(f"  Logs: {len(self.log_watcher.log_paths)} watched")
 
         self.active_game = self.memory.get_user("active_game")
         if self.active_game:
@@ -189,6 +207,29 @@ class VoiceAssistant:
             except:
                 pass
 
+    def _setup_log_watcher(self):
+        """Set up log file watching for Unity editor and production builds."""
+        # Auto-discover logs based on project path
+        added = self.log_watcher.auto_discover_logs(self.project_path)
+
+        # Project console log (if using console redirect)
+        if self.project_path:
+            project_console = os.path.join(os.path.dirname(self.project_path), "console_log.txt")
+            self.log_watcher.add_log_path(project_console)
+
+        # Known PLAYA3ULL GAMES projects
+        locallow = os.path.expandvars(r"%USERPROFILE%\AppData\LocalLow")
+        if os.path.exists(locallow):
+            known_projects = [
+                ("PLAYA3ULL GAMES", "Amphitheatre"),
+                ("PLAYA3ULL GAMES", "AMPHI-Island"),
+            ]
+            for company, product in known_projects:
+                player_log = os.path.join(locallow, company, product, "Player.log")
+                self.log_watcher.add_log_path(player_log)
+                output_log = os.path.join(locallow, company, product, "output_log.txt")
+                self.log_watcher.add_log_path(output_log)
+
     def _detect_engine(self, text: str) -> str:
         """Detect which game engine is being discussed."""
         text_lower = text.lower()
@@ -199,6 +240,70 @@ class VoiceAssistant:
         elif any(w in text_lower for w in ["godot", "gdscript", "node2d", "node3d"]):
             return "godot"
         return "general"
+
+    def _needs_tools(self, text: str) -> bool:
+        """Detect if the user's request requires tool use (code editing)."""
+        text_lower = text.lower()
+        action_words = [
+            "fix", "edit", "change", "update", "modify", "add", "remove",
+            "delete", "create", "write", "replace", "rename", "refactor",
+            "implement", "make it", "can you", "please", "i need you to"
+        ]
+        return any(word in text_lower for word in action_words) and self.tools_enabled
+
+    def think_with_tools(self, user_input: str) -> str:
+        """Get DEVA's response using tools to modify code."""
+        # Build system prompt with tool context
+        system_prompt = self.base_system_prompt + """
+
+YOU HAVE TOOLS. Use them to help the developer.
+
+When asked to fix, edit, or modify code:
+1. Use search_code or read_file to find the relevant code
+2. Use edit_file to make precise changes
+3. Explain what you changed
+
+Project path: """ + (self.project_path or "Not set") + """
+
+Be direct. Make the changes. Report what you did."""
+
+        # Add wall context if available
+        if self.wall_context:
+            system_prompt += f"\n\n[CODEBASE CONTEXT - {len(self.wall_context)} chars loaded]\n"
+            system_prompt += "You have the codebase in context. Reference specific files and line numbers."
+
+        # Build messages for this request
+        messages = [{"role": "user", "content": user_input}]
+
+        # Check for new log content
+        new_logs = self.log_watcher.check_for_new_content()
+        if new_logs:
+            log_context = "\n\n[CONSOLE LOG UPDATE]\n"
+            for path, content in new_logs.items():
+                log_name = os.path.basename(path)
+                # Only include last 50 lines
+                lines = content.strip().split("\n")[-50:]
+                log_context += f"\n--- {log_name} ---\n" + "\n".join(lines)
+            messages[0]["content"] = user_input + log_context
+
+        try:
+            # Run with tools
+            response_text, updated_messages = self.tool_executor.run_with_tools(
+                client=self.client,
+                messages=messages,
+                system_prompt=system_prompt,
+                model="claude-sonnet-4-20250514",
+                max_tokens=1000
+            )
+
+            # Add to conversation history
+            self.messages.append({"role": "user", "content": user_input})
+            self.messages.append({"role": "assistant", "content": response_text})
+
+            return response_text
+
+        except Exception as e:
+            return f"Tool error: {str(e)}"
 
     def _is_solution(self, user_input: str, response: str) -> bool:
         """Check if this exchange contains a solution worth saving."""
@@ -216,6 +321,10 @@ class VoiceAssistant:
 
     def think(self, user_input: str) -> str:
         """Get DEVA's response from Claude with memory context."""
+        # Check if this needs tools (code editing)
+        if self._needs_tools(user_input) and self.project_path:
+            return self.think_with_tools(user_input)
+
         self.messages.append({"role": "user", "content": user_input})
 
         # Use active engine if set, otherwise auto-detect
@@ -523,11 +632,16 @@ def main():
                     assistant.speak(response)
                     continue
 
-                import os
                 if os.path.exists(project):
                     assistant.project_path = project
                     assistant.memory.set_user("project_path", project)
-                    response = f"Project path set. I can now use Wall Mode to analyze the codebase."
+                    # Update tool executor allowed paths
+                    assistant.tool_executor.config.allowed_roots = [project]
+                    assistant.tool_executor.file_tools.allowed_roots = [project]
+                    assistant.tool_executor.command_tools.allowed_directories = [project]
+                    # Update log watcher
+                    assistant._setup_log_watcher()
+                    response = f"Project set. Wall Mode and code editing ready."
                     print(f"[Project: {project}]")
                 else:
                     response = f"Path not found: {project}"
@@ -595,6 +709,68 @@ def main():
             if "clear wall" in text_lower:
                 assistant.wall_context = None
                 response = "Wall context cleared."
+                print(f"DEVA: {response}")
+                assistant.speak(response)
+                continue
+
+            # ==================== TOOLS MODE ====================
+            # "Tools on/off" - Toggle tool capabilities
+            if "tools on" in text_lower or "enable tools" in text_lower:
+                assistant.tools_enabled = True
+                response = "Tools enabled. I can now edit code directly."
+                print(f"DEVA: {response}")
+                assistant.speak(response)
+                continue
+
+            if "tools off" in text_lower or "disable tools" in text_lower:
+                assistant.tools_enabled = False
+                response = "Tools disabled. I'll only analyze and advise."
+                print(f"DEVA: {response}")
+                assistant.speak(response)
+                continue
+
+            # "What tools" or "Tool status"
+            if any(phrase in text_lower for phrase in ["what tools", "tool status", "tools status", "list tools"]):
+                status = "enabled" if assistant.tools_enabled else "disabled"
+                tool_count = len(assistant.tool_executor.tools)
+                exec_count = len(assistant.tool_executor.execution_history)
+                response = f"Tools are {status}. {tool_count} tools available, {exec_count} operations this session."
+                print(f"DEVA: {response}")
+                # Print tool list
+                print("  Available: " + ", ".join(assistant.tool_executor.tools.keys()))
+                assistant.speak(response)
+                continue
+
+            # "Check logs" or "Any errors"
+            if any(phrase in text_lower for phrase in ["check logs", "check console", "any errors", "show errors", "what errors"]):
+                new_content = assistant.log_watcher.check_for_new_content()
+                if new_content:
+                    print("\n[LOG UPDATES]")
+                    for path, content in new_content.items():
+                        print(f"\n--- {os.path.basename(path)} ---")
+                        # Show last 20 lines
+                        lines = content.strip().split("\n")[-20:]
+                        print("\n".join(lines))
+
+                    # Check for errors
+                    has_errors = any(
+                        "error" in content.lower() or "exception" in content.lower()
+                        for content in new_content.values()
+                    )
+                    if has_errors:
+                        response = "Found new errors in the logs. Showing on screen."
+                    else:
+                        response = "New log content, no errors detected."
+                else:
+                    response = "No new log content since last check."
+                print(f"\nDEVA: {response}")
+                assistant.speak(response)
+                continue
+
+            # "Watch log [path]" - Add custom log path
+            if "watch log" in text_lower or "add log" in text_lower:
+                # Try to extract a path - this is tricky with voice
+                response = "To watch a custom log, I need the file path. What's the full path to the log file?"
                 print(f"DEVA: {response}")
                 assistant.speak(response)
                 continue
