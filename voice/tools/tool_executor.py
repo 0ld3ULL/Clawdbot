@@ -253,6 +253,14 @@ class ToolExecutor:
                     "content": response.content
                 })
 
+                # Show any thinking text Claude included alongside tool calls
+                for block in response.content:
+                    if hasattr(block, 'text') and block.text:
+                        # Strip [SAY] tags for console - this is internal narration
+                        clean = block.text.replace("[SAY]", "").replace("[/SAY]", "").strip()
+                        if clean:
+                            print(f"  [Thinking] {clean}")
+
                 # Execute each tool call
                 tool_results = []
                 for block in response.content:

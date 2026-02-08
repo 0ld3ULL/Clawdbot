@@ -1093,6 +1093,9 @@ e13e4f4 feat: Introduce DEVA - The Dev Diva (game development assistant)
 
 **DEVA:**
 - [x] Wall Mode - COMPLETE (using Gemini 2.5 Flash, not Llama 4)
+- [x] Tool System - COMPLETE (file editing, command execution, git operations)
+- [x] Conversation Persistence - COMPLETE (saves/loads between restarts)
+- [x] "Execute Program" trigger - COMPLETE (chat first, trigger to act)
 - [ ] Computer Use integration
 - [ ] Unity console log monitoring
 
@@ -1141,5 +1144,96 @@ Response includes:
 - `SeatStation.cs:78` - Seat claim logic
 - Network sync, animation handling, NPC reactions
 - Complete flow with line numbers
+
+---
+
+## Session Log - February 8, 2026 (DEVA Major Overhaul - ASUS ROG Laptop)
+
+### Context:
+Working on the ASUS ROG laptop (David's laptop, not main PC). Setting up DEVA to be fully functional on this machine.
+
+### What Was Accomplished:
+
+1. **DEVA Tool System Fixed - Three Issues Resolved:**
+   - **Tools not executing:** `_needs_tools()` had `and self.project_path` gate blocking tool activation when no project was set. Removed.
+   - **DEVA reading tool actions aloud:** Implemented `[SAY]...[/SAY]` tag system. Claude wraps only the spoken result in tags. Everything else is console-only. If no tags found, says "Done." instead of narrating everything.
+   - **Intelligence too low:** Upgraded from Claude Sonnet to Claude Opus. Removed all token limits (was 150, now 4096).
+
+2. **"Execute Program" Trigger Word System:**
+   - DEVA now operates in TWO modes:
+     - **Conversation mode (default):** Normal chat. Discuss the problem, plan approach, brainstorm.
+     - **Action mode:** Triggered ONLY by saying "DEVA, execute program" (or "execute program", "deva execute").
+   - When triggered, DEVA reviews the full conversation history to understand what was discussed, then acts with tools.
+   - If unclear, she asks ONE clarifying question before acting.
+   - `_needs_tools()` now checks for explicit trigger phrases only — no more accidental tool activation from casual words like "please", "open", "add".
+
+3. **Conversation Persistence:**
+   - Full conversation history saved to `data/conversation_history.json` after every exchange.
+   - Last 50 exchanges (100 messages) kept — older ones fade naturally.
+   - Every user message timestamped: `[2026-02-08 14:32] Hey DEVA...`
+   - On startup, DEVA loads previous conversation and knows how long it's been since last chat.
+   - Session gap marker injected so she picks up naturally.
+   - `think_with_tools()` now passes full conversation history (was starting blank — so "execute program" had no context about what to program).
+
+4. **Memory Seeded:**
+   - DevaMemory: User profile (Jono, 0ld3ULL, PLAYA3ULL GAMES, not a programmer, Australian)
+   - DevaMemory: Knowledge entries (DEVA identity, Amphitheatre project, trigger words, Wall Mode, working setup)
+   - GameMemory: Amphitheatre registered as Unity project at `C:\Games\Amphitheatre`
+
+5. **STT Sensitivity Tuned:**
+   - `silero_sensitivity`: 0.4 → 0.2 (harder to trigger on background noise)
+   - `min_length_of_recording`: 0.3s → 1.0s (ignores sounds under 1 second)
+   - `post_speech_silence_duration`: 0.5s → 0.8s (waits longer before cutting off)
+
+6. **Amphitheatre Project Setup:**
+   - Extracted from D: drive (20GB zip, 60,374 files) to `C:\Games\Amphitheatre`
+   - Unity project structure: Assets, Packages, ProjectSettings all present
+   - Project requires Unity 2022.3.62f3
+   - Registered in Unity Hub's `projects-v1.json`
+
+7. **Unity 2022.3.62f3 Installed:**
+   - Extracted from D: drive (4GB zip) to `C:\Unity\2022.3.62f3`
+   - `secondaryInstallPath.json` updated to point Unity Hub at `C:\Unity`
+   - (Couldn't extract to `C:\Program Files\Unity\Hub\Editor` — Windows path length limit exceeded)
+
+8. **7-Zip Installed:**
+   - Via `winget install 7zip.7zip` — PowerShell's `Expand-Archive` couldn't handle the large zips.
+
+### Files Modified:
+- `voice/deva_voice.py` — Major changes: trigger word system, conversation persistence, [SAY] tags, STT tuning, Opus upgrade, tool context fix
+- `voice/tools/tool_executor.py` — Added `[Thinking]` console output for tool calls
+
+### Files Created:
+- `data/conversation_history.json` — Persistent conversation (auto-created)
+- `seed_memory.py` — Seeds DEVA's databases with core knowledge
+
+### Laptop Setup Summary:
+| Item | Location | Status |
+|------|----------|--------|
+| Clawdbot code | `C:\Projects\Clawdbot` | Working |
+| Amphitheatre project | `C:\Games\Amphitheatre` | Extracted (60K files) |
+| Unity 2022.3.62f3 | `C:\Unity\2022.3.62f3` | Extracted |
+| Unity 6000.3.7f1 | `C:\Program Files\Unity\Hub\Editor\6000.3.7f1` | Pre-existing |
+| Unity Hub | `C:\Program Files\Unity Hub` | Installed |
+| 7-Zip | `C:\Program Files\7-Zip` | Installed |
+| DEVA databases | `C:\Projects\Clawdbot\data\` | Seeded |
+
+### DEVA Current Architecture:
+```
+YOU ──voice──▶ [RealtimeSTT/Whisper] ──text──▶ DEVA (Claude Opus)
+                                                    │
+YOU ◀──voice── [ElevenLabs TTS] ◀──[SAY] text──────┘
+
+Conversation mode (default):
+  Talk naturally → Claude responds → speaks response
+
+"DEVA, execute program":
+  Reviews conversation → activates tools → does the work
+  → speaks only result (1-2 sentences) via [SAY] tags
+  → full internal process shown on console
+```
+
+### Key Design Decision:
+Moved from keyword-based tool detection to explicit trigger words. Old system had broad words like "please", "can you", "add" triggering tool mode during casual conversation. New system: chat freely, say "execute program" when ready for action. DEVA reviews the conversation to understand what to do.
 
 ---

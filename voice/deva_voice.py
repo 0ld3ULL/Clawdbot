@@ -46,11 +46,11 @@ class VoiceAssistant:
         self.recorder = AudioToTextRecorder(
             model="small",                 # Larger model = better accent handling
             language="en",                 # Still English but multilingual model handles accents better
-            silero_sensitivity=0.4,        # Voice detection sensitivity
-            webrtc_sensitivity=3,          # WebRTC VAD sensitivity (0-3)
-            post_speech_silence_duration=0.5,  # Stop after 0.5s silence
-            min_length_of_recording=0.3,   # Minimum recording length
-            min_gap_between_recordings=0,
+            silero_sensitivity=0.2,        # Lower = harder to trigger (was 0.4)
+            webrtc_sensitivity=3,          # WebRTC VAD sensitivity (0-3, 3 = least sensitive)
+            post_speech_silence_duration=0.8,  # Wait longer for pause (was 0.5)
+            min_length_of_recording=1.0,   # Ignore anything under 1 second (was 0.3)
+            min_gap_between_recordings=0.5, # Brief cooldown between recordings (was 0)
             enable_realtime_transcription=False,  # Disable for speed
             spinner=False,
             level=50,  # Reduce logging
@@ -66,6 +66,10 @@ class VoiceAssistant:
         self.client = anthropic.Anthropic()
         self.base_system_prompt = get_deva_prompt(mode="voice")
         self.messages = []
+        self._conversation_file = os.path.join(
+            os.path.dirname(__file__), "..", "data", "conversation_history.json"
+        )
+        self._load_conversation()
 
         # Memory systems
         print("  Loading memory...")
@@ -103,6 +107,7 @@ class VoiceAssistant:
         )
         self.tool_executor = ToolExecutor(tool_config)
         self.tools_enabled = True  # Toggle with "tools on/off"
+        self._last_full_response = None  # Full response for console (tool mode)
         print(f"  Tools: {len(self.tool_executor.tools)} available")
 
         # Console Log Watcher for Unity feedback
@@ -125,6 +130,68 @@ class VoiceAssistant:
 
         print("Ready!")
         print("(First response may take longer as model warms up)\n")
+
+    def _load_conversation(self):
+        """Load previous conversation history so DEVA remembers what was discussed."""
+        try:
+            if os.path.exists(self._conversation_file):
+                import json
+                from datetime import datetime
+                with open(self._conversation_file, 'r') as f:
+                    data = json.load(f)
+                # Load last 20 exchanges (40 messages) to keep context manageable
+                self.messages = data.get("messages", [])[-40:]
+                if self.messages:
+                    # Work out how long it's been since last conversation
+                    last_ts = None
+                    for msg in reversed(self.messages):
+                        if msg["role"] == "user" and msg["content"].startswith("["):
+                            try:
+                                ts_str = msg["content"][1:msg["content"].index("]")]
+                                last_ts = datetime.strptime(ts_str, "%Y-%m-%d %H:%M")
+                                break
+                            except (ValueError, IndexError):
+                                pass
+
+                    time_gap = ""
+                    if last_ts:
+                        diff = datetime.now() - last_ts
+                        if diff.days > 0:
+                            time_gap = f" (last spoke {diff.days} day{'s' if diff.days != 1 else ''} ago)"
+                        elif diff.seconds > 3600:
+                            hours = diff.seconds // 3600
+                            time_gap = f" (last spoke {hours} hour{'s' if hours != 1 else ''} ago)"
+                        elif diff.seconds > 60:
+                            mins = diff.seconds // 60
+                            time_gap = f" (last spoke {mins} min ago)"
+                        else:
+                            time_gap = " (just now)"
+
+                    print(f"  Conversation: {len(self.messages)//2} recent exchanges loaded{time_gap}")
+
+                    # Inject a system-style note so DEVA knows the time context
+                    if time_gap and last_ts:
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+                        gap_note = f"[{now_str}] [SESSION START - It is now {now_str}. Our last conversation was at {last_ts.strftime('%Y-%m-%d %H:%M')}{time_gap}. Pick up where we left off naturally.]"
+                        self.messages.append({"role": "user", "content": gap_note})
+                        self.messages.append({"role": "assistant", "content": "Got it, I remember our conversation. What's up?"})
+        except Exception as e:
+            print(f"  Conversation: could not load ({e})")
+            self.messages = []
+
+    def _save_conversation(self):
+        """Save conversation history to disk so DEVA remembers between restarts."""
+        try:
+            import json
+            os.makedirs(os.path.dirname(self._conversation_file), exist_ok=True)
+            # Keep last 50 exchanges (100 messages) - older ones fade like real memory
+            data = {
+                "messages": self.messages[-100:]
+            }
+            with open(self._conversation_file, 'w') as f:
+                json.dump(data, f, indent=2)
+        except Exception:
+            pass  # Don't crash if save fails
 
     def _create_beep(self):
         """Create a short beep sound to indicate ready."""
@@ -242,33 +309,59 @@ class VoiceAssistant:
         return "general"
 
     def _needs_tools(self, text: str) -> bool:
-        """Detect if the user's request requires tool use (code editing, commands)."""
-        text_lower = text.lower()
-        action_words = [
-            # Code editing
-            "fix", "edit", "change", "update", "modify", "add", "remove",
-            "delete", "create", "write", "replace", "rename", "refactor",
-            "implement", "make it", "can you", "please", "i need you to",
-            # Running commands
-            "open", "run", "start", "load", "build", "test", "compile",
-            "launch", "execute", "commit", "push", "pull",
-            # File operations
-            "read", "show me", "find", "search", "look for", "where is"
+        """Detect if the user's request requires tool use.
+
+        Uses explicit trigger words rather than guessing from conversation.
+        The user says a trigger word (e.g. 'program') when they're ready
+        for DEVA to take action. Everything else is normal conversation.
+        """
+        if not self.tools_enabled:
+            return False
+        text_lower = text.lower().strip()
+
+        # Explicit trigger phrases - clear, deliberate commands
+        # Normal conversation never accidentally triggers these
+        trigger_phrases = [
+            "execute program",      # Primary trigger: "DEVA, execute program"
+            "deva execute",         # Alternate phrasing
         ]
-        return any(word in text_lower for word in action_words) and self.tools_enabled
+        return any(trigger in text_lower for trigger in trigger_phrases)
+
+    def _extract_spoken_text(self, response: str) -> tuple[str, str]:
+        """
+        Extract spoken text from response. Claude wraps what should be
+        spoken aloud in [SAY]...[/SAY] tags. Everything else is internal.
+
+        Returns:
+            Tuple of (spoken_text, full_text_for_console)
+        """
+        import re
+        # Find all [SAY]...[/SAY] blocks
+        say_blocks = re.findall(r'\[SAY\](.*?)\[/SAY\]', response, re.DOTALL)
+        if say_blocks:
+            spoken = " ".join(block.strip() for block in say_blocks)
+            return spoken, response
+        else:
+            # No [SAY] tags in a tool response = Claude forgot to tag
+            # Don't speak internal tool narration - just say "Done."
+            return "", response
 
     def think_with_tools(self, user_input: str) -> str:
         """Get DEVA's response using tools to modify code."""
         # Build system prompt with tool context
         system_prompt = self.base_system_prompt + """
 
-YOU HAVE TOOLS. Use them to help the developer.
+YOU HAVE TOOLS. The developer has said "Execute Program" which means GO.
+Review the conversation history to understand what needs to be done.
+If the task is clear, DO IT immediately with your tools.
+If you're unsure what exactly to do, ask ONE short clarifying question in [SAY] tags
+before acting. Don't guess - clarify.
 
 == COMMON TASKS ==
 
 OPEN UNITY:
+- run_command: "start Unity" (Windows)
 - run_command: "Unity -projectPath <path>"
-- Or just: "start Unity"
 
 BUILD PROJECT:
 - Unity: run_command "dotnet build" or use Unity command line
@@ -284,19 +377,36 @@ GIT OPERATIONS:
 
 == PROJECT ==
 Path: """ + (self.project_path or "Not set") + """
+OS: Windows
+
+== OUTPUT FORMAT ==
+CRITICAL: Wrap ONLY what should be SPOKEN ALOUD in [SAY]...[/SAY] tags.
+Everything outside these tags is internal and will only show on screen.
+
+Example good response:
+  Reading the file... Found the issue on line 342.
+  [SAY]Fixed it. Line 342 had the collider disabled but never re-enabled.[/SAY]
+
+Example bad response (DON'T do this):
+  [SAY]I'm going to read the file now. Let me search for the collider code. OK I found it on line 342. The issue is that the collider gets disabled but never re-enabled. I'll edit the file now. Done, I've fixed it.[/SAY]
+
+Keep spoken output to 1-2 sentences. Just the result, not the process.
 
 == RULES ==
 - Don't say "I can't" - USE YOUR TOOLS
 - Make the change, then report what you did
-- Be direct. One sentence if possible."""
+- Be direct. One sentence spoken if possible.
+- NEVER narrate your tool actions in [SAY] tags."""
 
         # Add wall context if available
         if self.wall_context:
             system_prompt += f"\n\n[CODEBASE CONTEXT - {len(self.wall_context)} chars loaded]\n"
             system_prompt += "You have the codebase in context. Reference specific files and line numbers."
 
-        # Build messages for this request
-        messages = [{"role": "user", "content": user_input}]
+        # Build messages WITH conversation history so DEVA knows what was discussed
+        # When user says "Program", DEVA needs the prior conversation for context
+        messages = list(self.messages)  # Copy existing conversation
+        messages.append({"role": "user", "content": user_input})
 
         # Check for new log content
         new_logs = self.log_watcher.check_for_new_content()
@@ -315,15 +425,23 @@ Path: """ + (self.project_path or "Not set") + """
                 client=self.client,
                 messages=messages,
                 system_prompt=system_prompt,
-                model="claude-sonnet-4-20250514",
-                max_tokens=1000
+                model="claude-opus-4-20250514",
+                max_tokens=4096
             )
 
-            # Add to conversation history
-            self.messages.append({"role": "user", "content": user_input})
+            # Add to conversation history with timestamp
+            from datetime import datetime
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+            self.messages.append({"role": "user", "content": f"[{ts}] {user_input}"})
             self.messages.append({"role": "assistant", "content": response_text})
+            self._save_conversation()
 
-            return response_text
+            # Extract spoken part vs console-only part
+            spoken, full = self._extract_spoken_text(response_text)
+            # Store full text for console, return spoken text for TTS
+            self._last_full_response = full
+            # If no [SAY] tags were found, say "Done" rather than nothing
+            return spoken if spoken else "Done."
 
         except Exception as e:
             return f"Tool error: {str(e)}"
@@ -344,11 +462,13 @@ Path: """ + (self.project_path or "Not set") + """
 
     def think(self, user_input: str) -> str:
         """Get DEVA's response from Claude with memory context."""
-        # Check if this needs tools (code editing)
-        if self._needs_tools(user_input) and self.project_path:
+        # Check if this needs tools (code editing, commands)
+        if self._needs_tools(user_input):
             return self.think_with_tools(user_input)
 
-        self.messages.append({"role": "user", "content": user_input})
+        from datetime import datetime
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+        self.messages.append({"role": "user", "content": f"[{ts}] {user_input}"})
 
         # Use active engine if set, otherwise auto-detect
         detected_engine = self._detect_engine(user_input)
@@ -381,6 +501,7 @@ Path: """ + (self.project_path or "Not set") + """
                 gemini_response = self.gemini.analyze(self.wall_context, user_input)
                 deva_response = gemini_response.text
                 self.messages.append({"role": "assistant", "content": deva_response})
+                self._save_conversation()
                 return deva_response
             except Exception as e:
                 # Fall back to Claude without wall context
@@ -399,15 +520,14 @@ Path: """ + (self.project_path or "Not set") + """
 
         # Adjust max tokens based on wall mode
         if self.wall_context:
-            # Wall mode needs more detailed responses
-            max_response_tokens = 500
-            system_prompt += "\n\nBe specific about file paths and line numbers. Keep it under 4 sentences."
+            # Wall mode needs detailed responses
+            max_response_tokens = 4096
+            system_prompt += "\n\nBe specific about file paths and line numbers."
         else:
-            max_response_tokens = 150
-            system_prompt += "\n\nKeep responses to 1-2 sentences max."
+            max_response_tokens = 4096
 
         response = self.client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-opus-4-20250514",
             max_tokens=max_response_tokens,
             system=system_prompt,
             messages=self.messages,
@@ -415,6 +535,7 @@ Path: """ + (self.project_path or "Not set") + """
 
         deva_response = response.content[0].text
         self.messages.append({"role": "assistant", "content": deva_response})
+        self._save_conversation()
 
         # Check if this is a solution worth saving
         if self._is_solution(user_input, deva_response):
@@ -877,11 +998,22 @@ def main():
 
             # Think
             t2 = time.time()
+            assistant._last_full_response = None
             response = assistant.think(user_text)
             think_time = time.time() - t2
 
-            # Speak
-            print(f"DEVA: {response}")
+            # Show full response on console (includes internal tool narration)
+            full_response = assistant._last_full_response or response
+            if full_response != response:
+                # Tool mode: show full text on console, speak only the [SAY] part
+                # Strip [SAY] tags for clean console output
+                console_text = full_response.replace("[SAY]", "").replace("[/SAY]", "")
+                print(f"DEVA: {console_text}")
+                print(f"[Speaking: {response}]")
+            else:
+                print(f"DEVA: {response}")
+
+            # Speak (only the spoken part)
             t3 = time.time()
             assistant.speak(response)
             speak_time = time.time() - t3
