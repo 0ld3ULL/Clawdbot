@@ -23,6 +23,7 @@ import numpy as np
 import pygame
 from personality.deva import get_deva_prompt, DEVA_VOICE
 from voice.memory import DevaMemory, GroupMemory, GameMemory
+from voice.wall_mode import WallCollector, CONTEXT_LIMITS
 
 # Initialize pygame mixer
 pygame.mixer.init()
@@ -74,6 +75,12 @@ class VoiceAssistant:
         if self.active_engine:
             self.active_engine = self.active_engine.lower()
             print(f"  Active engine: {self.active_engine.upper()}")
+
+        # Wall Mode - project path
+        self.project_path = self.memory.get_user("project_path")
+        if self.project_path:
+            print(f"  Project path: {self.project_path}")
+        self.wall_context = None  # Cached wall context for analysis
 
         self.active_game = self.memory.get_user("active_game")
         if self.active_game:
@@ -225,6 +232,18 @@ class VoiceAssistant:
         if memory_context:
             system_prompt = f"{memory_context}\n\n{self.base_system_prompt}"
 
+        # WALL MODE: If wall context is loaded, include it
+        if self.wall_context:
+            # For wall mode, we need more tokens and use the codebase context
+            system_prompt = f"""You have the FULL CODEBASE loaded (Wall Mode).
+Analyze the code to answer the question. Reference specific files and line numbers.
+
+{self.wall_context}
+
+---
+
+{self.base_system_prompt}"""
+
         # Add engine-specific context when active
         if self.active_engine:
             engine_context = {
@@ -235,11 +254,18 @@ class VoiceAssistant:
             if self.active_engine in engine_context:
                 system_prompt += f"\n\n[Active Engine: {self.active_engine.upper()}]\n{engine_context[self.active_engine]}"
 
-        system_prompt += "\n\nKeep responses to 1-2 sentences max."
+        # Adjust max tokens based on wall mode
+        if self.wall_context:
+            # Wall mode needs more detailed responses
+            max_response_tokens = 500
+            system_prompt += "\n\nBe specific about file paths and line numbers. Keep it under 4 sentences."
+        else:
+            max_response_tokens = 150
+            system_prompt += "\n\nKeep responses to 1-2 sentences max."
 
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=150,
+            max_tokens=max_response_tokens,
             system=system_prompt,
             messages=self.messages,
         )
@@ -465,6 +491,99 @@ def main():
                 by_engine = group_stats.get("by_engine", {})
                 engine_breakdown = ", ".join(f"{k}: {v}" for k, v in by_engine.items()) if by_engine else "empty"
                 response = f"Active engine: {current_engine}. Group: {group_stats['total_solutions']} solutions. Games: {game_stats['games']} with {game_stats['bugs']} solved bugs."
+                print(f"DEVA: {response}")
+                assistant.speak(response)
+                continue
+
+            # ==================== WALL MODE ====================
+            # "Set project path" or "Project is at"
+            if any(phrase in text_lower for phrase in ["set project", "project path", "project is at", "project folder"]):
+                import re
+                # Try to extract path from speech
+                # Common pattern: "project is at D Games Amphitheatre" -> need to handle this better
+                # For now, use a default known path if mentioned
+                if "amphitheatre" in text_lower:
+                    project = r"D:\Games\PLAYA3ULL GAMES games\Amphitheatre\Amphitheatre"
+                elif "amphi" in text_lower and "island" in text_lower:
+                    project = r"D:\Games\PLAYA3ULL GAMES games\AMPHI-Island"
+                else:
+                    response = "I need a project path. Say 'project is Amphitheatre' or 'project is AMPHI Island'."
+                    print(f"DEVA: {response}")
+                    assistant.speak(response)
+                    continue
+
+                import os
+                if os.path.exists(project):
+                    assistant.project_path = project
+                    assistant.memory.set_user("project_path", project)
+                    response = f"Project path set. I can now use Wall Mode to analyze the codebase."
+                    print(f"[Project: {project}]")
+                else:
+                    response = f"Path not found: {project}"
+                print(f"DEVA: {response}")
+                assistant.speak(response)
+                continue
+
+            # "Wall [subsystem]" or "Wall mode" - Load codebase into context
+            if text_lower.startswith("wall ") or text_lower == "wall" or "wall mode" in text_lower:
+                if not assistant.project_path:
+                    response = "No project path set. Say 'project is Amphitheatre' first."
+                    print(f"DEVA: {response}")
+                    assistant.speak(response)
+                    continue
+
+                # Parse wall command
+                import re
+                subsystem = None
+                query = None
+
+                # "wall voice" -> subsystem filter
+                # "wall player falls through floor" -> query filter
+                # "wall" -> full project
+                if text_lower.startswith("wall "):
+                    arg = text_lower[5:].strip()
+                    # Check if it's a known subsystem
+                    known_subsystems = ["voice", "networking", "player", "seating", "ui",
+                                       "camera", "animation", "rendering", "physics", "events"]
+                    if arg in known_subsystems:
+                        subsystem = arg
+                    elif arg and arg != "mode":
+                        query = arg
+
+                try:
+                    print(f"\n[WALL MODE: Loading {subsystem or query or 'full project'}...]")
+                    collector = WallCollector(assistant.project_path, engine=assistant.active_engine or "unity")
+
+                    t_wall = time.time()
+                    result = collector.collect(subsystem=subsystem, query=query)
+                    wall_time = time.time() - t_wall
+
+                    # Cache the context for subsequent questions
+                    assistant.wall_context = result.context_text
+
+                    print(f"[WALL LOADED: {result.total_files} files, {result.total_tokens:,} tokens, {wall_time:.1f}s]")
+
+                    # Show subsystem breakdown
+                    if not subsystem and not query:
+                        summary = collector.get_subsystem_summary()
+                        print("\nSubsystems found:")
+                        for sub, count in list(summary.items())[:5]:
+                            print(f"  {sub}: {count} files")
+
+                    response = f"Wall loaded. {result.total_files} files, {result.total_tokens:,} tokens. Ask me anything about the code."
+                    print(f"\nDEVA: {response}")
+                    assistant.speak(response)
+
+                except Exception as e:
+                    response = f"Wall mode error: {str(e)}"
+                    print(f"DEVA: {response}")
+                    assistant.speak(response)
+                continue
+
+            # "Clear wall" - Clear wall context
+            if "clear wall" in text_lower:
+                assistant.wall_context = None
+                response = "Wall context cleared."
                 print(f"DEVA: {response}")
                 assistant.speak(response)
                 continue
