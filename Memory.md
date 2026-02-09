@@ -11,9 +11,20 @@ D:\Claude_Code\Projects\Clawdbot
 | `Memory.md` | Full project knowledge base (this file) |
 | `tasks/lessons.md` | Hard-won rules and patterns |
 | `tasks/todo.md` | Current task list |
+| `personality/david_worldview.md` | David Flip comprehensive worldview (968 lines) |
+| `personality/david_flip.py` | David Flip active personality code (846 lines) |
+| `docs/david-source/` | Original David Flip vision docs (see below) |
 | `research/OpenClaw-Full-Research-Report.md` | 970-line deep research on OpenClaw |
 | `transcripts/` | Matt Ganzak video transcripts (2 videos) |
 | `C:\Users\PC\.claude\plans\parallel-sprouting-star.md` | Full architecture plan |
+
+### David Flip Source Documents (`docs/david-source/`)
+| File | Lines | Use For |
+|------|-------|---------|
+| `David_Flip_The_AI_Founder.md` | 618 | Legend, 5 simulation stories, Project Helix details |
+| `David_Flip_Story.md` | 191 | First-person "Why I'm Passionate" essay |
+| `David_Flip_AI_System.md` | 1096 | Original architecture reference |
+| `David_Flip_AI_Implementation_Guide.md` | 949 | Build guide reference |
 
 ## At Session Start
 1. Read `tasks/lessons.md`
