@@ -230,25 +230,37 @@ class ContentScheduler:
             return False
 
 
-# Time slot suggestions for social media
-def suggest_time_slots(count: int = 4) -> list[datetime]:
-    """
-    Suggest optimal posting times.
+# Platform-specific optimal posting times (UTC) — matches dashboard/app.py
+PLATFORM_OPTIMAL_HOURS = {
+    "twitter": [9, 12, 15, 18],
+    "youtube": [14, 17, 20],
+    "tiktok": [11, 15, 19, 21],
+}
 
-    Returns times spaced throughout the day at high-engagement periods.
+
+def suggest_time_slots(count: int = 4, platforms: list[str] | None = None) -> list[datetime]:
     """
-    now = datetime.now()
+    Suggest optimal posting times based on platform engagement research.
+
+    Uses UTC hours. Returns the soonest slots at least 30 minutes from now.
+    """
+    if platforms is None:
+        platforms = ["twitter", "youtube", "tiktok"]
+
+    now = datetime.utcnow()
+    min_post_time = now + timedelta(minutes=30)
+
+    candidate_hours = set()
+    for platform in platforms:
+        hours = PLATFORM_OPTIMAL_HOURS.get(platform, [12, 18])
+        candidate_hours.update(hours)
+
     slots = []
-
-    # High engagement times (in local time)
-    optimal_hours = [9, 12, 17, 20]  # 9am, noon, 5pm, 8pm
-
-    for hour in optimal_hours:
+    for hour in sorted(candidate_hours):
         slot = now.replace(hour=hour, minute=0, second=0, microsecond=0)
-        if slot <= now:
+        if slot <= min_post_time:
             slot += timedelta(days=1)
         slots.append(slot)
 
-    # Sort and return requested count
     slots.sort()
     return slots[:count]

@@ -44,7 +44,10 @@ class TelegramBot:
                  audit_log: AuditLog,
                  on_command: Any = None,
                  research_agent: Any = None,
-                 memory_manager: Any = None):
+                 memory_manager: Any = None,
+                 content_agent: Any = None,
+                 interview_agent: Any = None,
+                 scheduler: Any = None):
         """
         Args:
             on_command: Async callback(command: str, args: str) -> str
@@ -52,9 +55,19 @@ class TelegramBot:
                         handle directly (passed to agent engine).
             research_agent: Optional ResearchAgent for /research and /goals commands.
             memory_manager: Optional MemoryManager for /memory command.
+            content_agent: Optional ContentAgent for /videogen and /themes commands.
+            interview_agent: Optional InterviewAgent for /interview commands.
+            scheduler: Optional ContentScheduler for /schedule command.
         """
         self.token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-        self.operator_id = int(os.environ.get("TELEGRAM_OPERATOR_CHAT_ID", "0"))
+        # Support multiple operator IDs (comma-separated in env)
+        operator_ids_str = os.environ.get("TELEGRAM_OPERATOR_CHAT_ID", "0")
+        self.operator_ids = set()
+        for oid in operator_ids_str.split(","):
+            oid = oid.strip()
+            if oid:
+                self.operator_ids.add(int(oid))
+        self.operator_id = int(operator_ids_str.split(",")[0].strip())  # Primary (for sending alerts)
         self.queue = approval_queue
         self.kill = kill_switch
         self.budget = token_budget
@@ -62,12 +75,16 @@ class TelegramBot:
         self.on_command = on_command
         self.research_agent = research_agent
         self.memory_manager = memory_manager
+        self.content_agent = content_agent
+        self.interview_agent = interview_agent
+        self.scheduler = scheduler
         self.app: Application | None = None
         self.two_fa = TwoFactorAuth(session_duration_minutes=60)  # 1 hour sessions
+        self._active_interview_id = None  # For file upload routing
 
     def _is_operator(self, update: Update) -> bool:
-        """Only respond to the operator."""
-        return update.effective_user and update.effective_user.id == self.operator_id
+        """Only respond to authorized operators."""
+        return update.effective_user and update.effective_user.id in self.operator_ids
 
     async def _require_2fa(self, update: Update) -> bool:
         """
@@ -122,18 +139,30 @@ class TelegramBot:
         # Research agent commands
         self.app.add_handler(CommandHandler("research", self.cmd_research))
         self.app.add_handler(CommandHandler("goals", self.cmd_goals))
+        self.app.add_handler(CommandHandler("podcast", self.cmd_podcast))
+        self.app.add_handler(CommandHandler("findings", self.cmd_findings))
 
         # Memory command
         self.app.add_handler(CommandHandler("memory", self.cmd_memory))
+
+        # Video generation commands (Pillar 1 & 2)
+        self.app.add_handler(CommandHandler("videogen", self.cmd_videogen))
+        self.app.add_handler(CommandHandler("themes", self.cmd_themes))
+
+        # Interview commands
+        self.app.add_handler(CommandHandler("interview", self.cmd_interview))
+        self.app.add_handler(CommandHandler("interviews", self.cmd_interviews))
+        self.app.add_handler(CommandHandler("checkanswers", self.cmd_checkanswers))
+        self.app.add_handler(CommandHandler("compose", self.cmd_compose))
 
         # 2FA commands (no 2FA required for these)
         self.app.add_handler(CommandHandler("auth", self.cmd_auth))
         self.app.add_handler(CommandHandler("logout", self.cmd_logout))
         self.app.add_handler(CommandHandler("setup2fa", self.cmd_setup_2fa))
 
-        # Approval callbacks
+        # Approval callbacks (includes video distribute actions)
         self.app.add_handler(CallbackQueryHandler(
-            self.handle_approval_callback, pattern=r"^(approve|reject|edit|postnow|posttwitter|postyoutube|postboth|schedule|scheduleat)_"
+            self.handle_approval_callback, pattern=r"^(approve|reject|edit|postnow|posttwitter|postyoutube|postboth|posttiktok|postall|schedule|scheduleat)_"
         ))
 
         # News create callbacks
@@ -144,6 +173,16 @@ class TelegramBot:
         # David action callbacks (post_debasement, post_debasement_chart, etc.)
         self.app.add_handler(CallbackQueryHandler(
             self.handle_david_callback, pattern=r"^post_debasement"
+        ))
+
+        # Research feedback callbacks (useful/noise ratings)
+        self.app.add_handler(CallbackQueryHandler(
+            self.handle_research_feedback, pattern=r"^research_fb_"
+        ))
+
+        # Video file upload handler (for interview answer videos)
+        self.app.add_handler(MessageHandler(
+            filters.VIDEO | filters.Document.VIDEO, self.handle_video_upload
         ))
 
         # Catch-all for agent commands
@@ -165,9 +204,17 @@ class TelegramBot:
             BotCommand("news", "Get news digest for David"),
             BotCommand("debasement", "Money printing report"),
             BotCommand("video", "Generate a David Flip video"),
+            BotCommand("videogen", "Generate Pillar 1/2 video"),
+            BotCommand("themes", "List video themes"),
+            BotCommand("interview", "Start interview with expert"),
+            BotCommand("interviews", "List active interviews"),
+            BotCommand("checkanswers", "Check interview answer uploads"),
+            BotCommand("compose", "Compose final interview video"),
             BotCommand("schedule", "Show scheduled posts"),
             BotCommand("research", "Run research cycle"),
             BotCommand("goals", "View research goals"),
+            BotCommand("podcast", "Latest AI Agent Intelligence Brief"),
+            BotCommand("findings", "Recent high-value findings"),
             BotCommand("memory", "View David's memory stats"),
             BotCommand("help", "Show all commands"),
         ])
@@ -217,10 +264,20 @@ class TelegramBot:
             "/debasement - Money printing report\n"
             "/research - Run research cycle now\n"
             "/goals - View research goals\n"
+            "/podcast - Latest Intelligence Brief\n"
+            "/findings - Recent high-value findings\n"
             "/memory - View David's memory stats\n\n"
             "**Content:**\n"
-            "/video - Generate video\n"
+            "/video - Generate video (episodes)\n"
+            "/videogen [p1|p2] - Generate Pillar 1/2 video\n"
+            "/videogen batch N - Generate N videos\n"
+            "/themes - List video themes\n"
             "/schedule - Show scheduled posts\n\n"
+            "**Interviews:**\n"
+            "/interview <topic> <expert> - Start interview\n"
+            "/interviews - List active interviews\n"
+            "/checkanswers <id> - Check answer uploads\n"
+            "/compose <id> - Compose final interview\n\n"
             "**Security:**\n"
             "/auth <code> - Enter 2FA code\n"
             "/logout - End authenticated session\n"
@@ -358,12 +415,14 @@ class TelegramBot:
                 f"**Research Complete**\n\n"
                 f"Scraped: {result['scraped']} items\n"
                 f"New: {result['new']} items\n"
-                f"Relevant: {result['relevant']} items\n\n"
+                f"Relevant: {result['relevant']} items\n"
+                f"Trends: {result.get('trends', 0)}\n\n"
                 f"**Actions:**\n"
                 f"  Alerts: {result['alerts']}\n"
                 f"  Tasks: {result['tasks']}\n"
                 f"  Content: {result['content']}\n"
-                f"  Knowledge: {result['knowledge']}",
+                f"  Knowledge: {result['knowledge']}\n"
+                f"  Watch: {result.get('watch', 0)}",
                 parse_mode="Markdown"
             )
         except Exception as e:
@@ -395,6 +454,157 @@ class TelegramBot:
             text += f"    Action: {g.get('action', 'knowledge')}\n"
 
         await update.message.reply_text(text)
+
+    async def cmd_podcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show the latest David Flip Intelligence Brief."""
+        if not self._is_operator(update):
+            return
+
+        if not self.research_agent:
+            await update.message.reply_text("Research Agent not configured.")
+            return
+
+        podcast = self.research_agent.get_last_podcast()
+        if not podcast:
+            await update.message.reply_text(
+                "No podcast generated yet.\n\n"
+                "Run /research to trigger a full research cycle, "
+                "or wait for the next daily run (2:00 UTC / 6:00 AM Dubai)."
+            )
+            return
+
+        # Check if user wants full script or newsletter
+        show_full = context.args and context.args[0].lower() == "full"
+
+        if show_full:
+            # Show podcast script (for TTS)
+            script = podcast.get("podcast_script", "No script available.")
+            duration = podcast.get("estimated_duration_seconds", 0)
+            minutes = duration // 60
+            seconds = duration % 60
+
+            header = (
+                f"PODCAST SCRIPT (~{minutes}:{seconds:02d})\n"
+                f"Generated: {podcast.get('generated_at', 'unknown')}\n\n"
+            )
+
+            text = header + script
+            # Telegram limit is 4096
+            if len(text) > 4096:
+                text = text[:4050] + "\n\n[Truncated]"
+
+            await update.message.reply_text(text)
+        else:
+            # Show newsletter (default)
+            newsletter = podcast.get("newsletter_text", "No newsletter available.")
+            headlines = podcast.get("headline_count", 0)
+            duration = podcast.get("estimated_duration_seconds", 0)
+
+            header = (
+                f"DAVID FLIP INTELLIGENCE BRIEF\n"
+                f"Headlines: {headlines} | "
+                f"Podcast: ~{duration // 60}:{duration % 60:02d}\n\n"
+            )
+
+            text = header + newsletter
+            if len(text) > 4096:
+                text = text[:4050] + "\n\n[Truncated - use /podcast full]"
+
+            await update.message.reply_text(text)
+
+    async def cmd_findings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show recent high-value research findings with feedback buttons."""
+        if not self._is_operator(update):
+            return
+
+        if not self.research_agent:
+            await update.message.reply_text("Research Agent not configured.")
+            return
+
+        # Parse hours argument (default 24)
+        hours = 24
+        if context.args:
+            try:
+                hours = int(context.args[0])
+            except ValueError:
+                pass
+
+        items = await self.research_agent.get_recent_findings(hours=hours, min_relevance=5)
+
+        if not items:
+            await update.message.reply_text(
+                f"No high-value findings in the last {hours} hours.\n"
+                "Try /findings 48 to look back further."
+            )
+            return
+
+        for item in items[:10]:  # Max 10 to avoid spam
+            score_bar = "=" * int(item.relevance_score)
+            text = (
+                f"[{item.relevance_score}/10] {score_bar}\n"
+                f"**{item.title}**\n"
+                f"Source: {item.source} | {item.priority}\n"
+            )
+            if item.summary:
+                text += f"{item.summary[:200]}\n"
+            if item.url:
+                text += f"{item.url}\n"
+            if item.matched_goals:
+                text += f"Goals: {', '.join(item.matched_goals[:3])}"
+
+            # Add feedback buttons
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "Useful", callback_data=f"research_fb_useful_{item.id}"
+                    ),
+                    InlineKeyboardButton(
+                        "Noise", callback_data=f"research_fb_noise_{item.id}"
+                    ),
+                ]
+            ])
+
+            try:
+                await update.message.reply_text(
+                    text, reply_markup=keyboard, parse_mode="Markdown"
+                )
+            except Exception:
+                # Fallback without markdown if formatting fails
+                await update.message.reply_text(text, reply_markup=keyboard)
+
+        await update.message.reply_text(
+            f"Showing {min(len(items), 10)} of {len(items)} findings.\n"
+            "Rate them useful/noise to improve future results."
+        )
+
+    async def handle_research_feedback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle useful/noise feedback on research findings."""
+        query = update.callback_query
+        await query.answer()
+
+        if not self._is_operator(update):
+            return
+
+        # Parse: research_fb_useful_123 or research_fb_noise_123
+        data = query.data
+        parts = data.split("_")
+        if len(parts) < 4:
+            return
+
+        rating = parts[2]  # "useful" or "noise"
+        item_id = parts[3]
+
+        # Record feedback in knowledge store
+        if self.research_agent:
+            try:
+                self.research_agent.store.record_feedback(item_id, rating)
+                await query.edit_message_reply_markup(reply_markup=None)
+                await query.message.reply_text(
+                    f"Feedback recorded: {rating}",
+                )
+            except Exception as e:
+                logger.error(f"Failed to record feedback: {e}")
+                await query.message.reply_text(f"Feedback error: {e}")
 
     async def cmd_memory(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show memory system stats."""
@@ -794,106 +1004,484 @@ class TelegramBot:
     async def _generate_episode_video(self, update: Update, episode_num: int):
         """Generate a video for a specific story episode."""
         try:
-            import sys
-            sys.path.insert(0, '.')
             from content.story_series import get_episode
-            
+
             episode = get_episode(episode_num)
             if not episode:
-                await update.message.reply_text(f"Episode {episode_num} not found. Episodes 1-12 available.")
+                await update.message.reply_text(f"Episode {episode_num} not found. Episodes 1-13 available.")
                 return
-            
+
+            if not self.content_agent:
+                await update.message.reply_text("Content Agent not configured.")
+                return
+
             await update.message.reply_text(
                 f"Generating Episode {episode_num}: {episode['title']}...\n"
-                f"This takes ~2 minutes. I'll send the video when ready."
+                f"This takes ~2 minutes. I'll notify you when ready."
             )
-            
-            # Generate video
-            from video_pipeline.video_creator import VideoCreator
-            from dotenv import load_dotenv
-            load_dotenv()
-            
-            creator = VideoCreator()
-            result = await creator.create_video(
-                script=episode['script'],
-                output_path=f"output/ep{episode_num}_{episode['title'].replace(' ', '_').lower()}.mp4",
-                auto_music=True,
-            )
-            
-            # Create approval buttons
-            keyboard = InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton("Twitter", callback_data=f"posttwitter_video_{episode_num}"),
-                    InlineKeyboardButton("YouTube", callback_data=f"postyoutube_video_{episode_num}"),
-                ],
-                [
-                    InlineKeyboardButton("Both", callback_data=f"postboth_video_{episode_num}"),
-                    InlineKeyboardButton("Schedule", callback_data=f"schedule_video_{episode_num}"),
-                ],
-                [
-                    InlineKeyboardButton("Reject", callback_data=f"reject_video_{episode_num}"),
-                ],
-            ])
 
-            # Send video WITH buttons attached (no separate message)
-            with open(result['video_path'], 'rb') as video_file:
-                await update.message.reply_video(
-                    video=video_file,
-                    caption=f"**Episode {episode_num}: {episode['title']}**\n\n"
-                            f"Post where?",
-                    parse_mode="Markdown",
-                    reply_markup=keyboard
-                )
-            
+            result = await self.content_agent.create_video_for_approval(
+                script=episode['script'],
+                pillar=1,
+                mood=episode.get('mood', 'epic'),
+                theme_title=f"Episode {episode_num}: {episode['title']}",
+                category="origin",
+            )
+
+            approval_id = result.get("approval_id")
+            await update.message.reply_text(
+                f"Episode {episode_num}: {episode['title']}\n"
+                f"Video rendered! Review in the dashboard.\n\n"
+                f"Approval #{approval_id}"
+            )
+
         except Exception as e:
             await update.message.reply_text(f"Error generating video: {e}")
 
     async def _generate_custom_video(self, update: Update, script: str):
         """Generate a video with custom script."""
+        if not self.content_agent:
+            await update.message.reply_text("Content Agent not configured.")
+            return
+
         await update.message.reply_text(
             f"Generating custom video...\n"
             f"Script: {script[:100]}...\n"
             f"This takes ~2 minutes."
         )
-        
+
         try:
-            from video_pipeline.video_creator import VideoCreator
-            from dotenv import load_dotenv
-            load_dotenv()
-            
-            creator = VideoCreator()
-            result = await creator.create_video(
+            result = await self.content_agent.create_video_for_approval(
                 script=script,
-                output_path="output/custom_video.mp4",
-                auto_music=True,
+                pillar=1,
             )
-            
-            # Create approval buttons
+
+            approval_id = result.get("approval_id")
+            await update.message.reply_text(
+                f"Custom video rendered! Review in the dashboard.\n\n"
+                f"Approval #{approval_id}"
+            )
+
+        except Exception as e:
+            await update.message.reply_text(f"Error: {e}")
+
+    # --- Video Generation Commands (Pillar 1 & 2) ---
+
+    async def cmd_videogen(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Generate a video using ContentAgent with pillar support."""
+        if not self._is_operator(update):
+            return
+        if not await self._require_2fa(update):
+            return
+
+        if not self.content_agent:
+            await update.message.reply_text("Content Agent not configured.")
+            return
+
+        args = context.args or []
+
+        # /videogen batch N
+        if args and args[0].lower() == "batch":
+            count = 3
+            if len(args) > 1:
+                try:
+                    count = int(args[1])
+                except ValueError:
+                    pass
+            count = max(1, min(10, count))
+
+            await update.message.reply_text(
+                f"Generating {count} videos (respecting category ratios)...\n"
+                f"This may take a while. Check /queue when done."
+            )
+
+            try:
+                results = await self.content_agent.generate_content_batch(count)
+                await update.message.reply_text(
+                    f"Batch complete: {len(results)} videos generated.\n"
+                    f"Use /queue to review and approve."
+                )
+            except Exception as e:
+                await update.message.reply_text(f"Batch generation failed: {e}")
+            return
+
+        # /videogen p1 or /videogen p2
+        pillar = None
+        custom_topic = None
+        if args:
+            arg = args[0].lower()
+            if arg in ("p1", "1", "pillar1"):
+                pillar = 1
+            elif arg in ("p2", "2", "pillar2"):
+                pillar = 2
+            else:
+                custom_topic = " ".join(args)
+
+        pillar_label = f"Pillar {pillar}" if pillar else "weighted random"
+        await update.message.reply_text(
+            f"Generating script ({pillar_label})..."
+        )
+
+        try:
+            result = await self.content_agent.generate_script_for_approval(
+                pillar=pillar,
+                custom_topic=custom_topic,
+            )
+
+            script = result.get("script", "")
+            p = result.get("pillar", "?")
+            category = result.get("category", "")
+            theme_title = result.get("theme_title", "")
+            word_count = result.get("word_count", 0)
+            approval_id = result.get("approval_id")
+
+            await update.message.reply_text(
+                f"Script generated! Review it in the dashboard.\n\n"
+                f"Pillar {p} | {category}\n"
+                f"{theme_title}\n"
+                f"{word_count} words\n\n"
+                f"Script: {script[:200]}...\n\n"
+                f"Approval #{approval_id}\n"
+                f"Stage 1: Approve the script in the dashboard, then video renders automatically."
+            )
+
+        except Exception as e:
+            await update.message.reply_text(f"Script generation failed: {e}")
+
+    async def cmd_themes(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """List available video themes from both pillars."""
+        if not self._is_operator(update):
+            return
+
+        if not self.content_agent:
+            await update.message.reply_text("Content Agent not configured.")
+            return
+
+        themes = self.content_agent.list_themes()
+        categories = self.content_agent.content_categories
+
+        text = "VIDEO THEMES\n\n"
+
+        for cat_name, cat_info in categories.items():
+            pillar = cat_info.get("pillar", 1)
+            ratio = cat_info.get("ratio", 0)
+            text += f"--- Pillar {pillar}: {cat_name.upper()} ({int(ratio*100)}%) ---\n"
+
+            cat_themes = [t for t in themes if t.get("category") == cat_name]
+            for t in cat_themes:
+                text += f"  {t.get('id', '?')}: {t.get('title', '')}\n"
+            text += "\n"
+
+        text += (
+            "Usage:\n"
+            "/videogen p1 - Random Pillar 1 theme\n"
+            "/videogen p2 - Random Pillar 2 theme\n"
+            "/videogen batch 5 - Generate 5 videos\n"
+        )
+
+        await update.message.reply_text(text)
+
+    # --- Interview Commands ---
+
+    async def cmd_interview(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start a new interview: generate questions + David clips."""
+        if not self._is_operator(update):
+            return
+        if not await self._require_2fa(update):
+            return
+
+        if not self.interview_agent:
+            await update.message.reply_text("Interview Agent not configured.")
+            return
+
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text(
+                "Usage: /interview <topic> <expert_name>\n\n"
+                "Example:\n"
+                '/interview "AI Agents" "John Smith"\n'
+                "/interview decentralization Alice\n\n"
+                "Tip: Use quotes for multi-word topics/names."
+            )
+            return
+
+        # Parse topic and expert name
+        # Support quoted arguments
+        raw = " ".join(context.args)
+        import shlex
+        try:
+            parts = shlex.split(raw)
+        except ValueError:
+            parts = context.args
+
+        if len(parts) >= 2:
+            topic = parts[0]
+            expert_name = " ".join(parts[1:])
+        else:
+            topic = parts[0]
+            expert_name = "Expert"
+
+        await update.message.reply_text(
+            f"Creating interview on '{topic}' with {expert_name}...\n"
+            f"Generating questions and rendering David's clips.\n"
+            f"This takes a few minutes."
+        )
+
+        try:
+            result = await self.interview_agent.create_interview(
+                topic=topic,
+                expert_name=expert_name,
+            )
+
+            if "error" in result:
+                await update.message.reply_text(f"Error: {result['error']}")
+                return
+
+            interview_id = result["interview_id"]
+            questions = result.get("questions", [])
+            rendered = result.get("rendered", [])
+
+            # Track for file uploads
+            self._active_interview_id = interview_id
+
+            text = (
+                f"Interview created: {interview_id}\n\n"
+                f"Topic: {topic}\n"
+                f"Expert: {expert_name}\n"
+                f"Questions: {len(questions)}\n\n"
+            )
+
+            for i, q in enumerate(questions, 1):
+                status = "rendered" if i <= len(rendered) and "error" not in rendered[i-1] else "failed"
+                text += f"Q{i} [{status}]: {q}\n\n"
+
+            text += (
+                f"\nNext steps:\n"
+                f"1. Send these questions to {expert_name}\n"
+                f"2. Have them record video answers\n"
+                f"3. Upload answer videos here (I'll save them)\n"
+                f"4. Run /compose {interview_id} when answers are in"
+            )
+
+            await update.message.reply_text(text)
+
+            # Also send the David question videos
+            for r in rendered:
+                if "error" not in r and os.path.exists(r.get("video_path", "")):
+                    with open(r["video_path"], "rb") as vf:
+                        await update.message.reply_video(
+                            video=vf,
+                            caption=f"Q{r['question_num']}: {r['question'][:100]}",
+                        )
+
+        except Exception as e:
+            await update.message.reply_text(f"Interview creation failed: {e}")
+
+    async def cmd_interviews(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """List active interviews and their status."""
+        if not self._is_operator(update):
+            return
+
+        if not self.interview_agent:
+            await update.message.reply_text("Interview Agent not configured.")
+            return
+
+        interviews = self.interview_agent.list_interviews()
+
+        if not interviews:
+            await update.message.reply_text(
+                "No interviews yet.\n\n"
+                "Start one with: /interview <topic> <expert>"
+            )
+            return
+
+        text = "INTERVIEWS\n\n"
+        for iv in interviews[:10]:
+            text += (
+                f"[{iv['status']}] {iv['id']}\n"
+                f"  {iv['topic']} with {iv['expert_name']}\n"
+                f"  Questions: {iv['question_count']} | Created: {iv['created_at'][:10]}\n\n"
+            )
+
+        await update.message.reply_text(text)
+
+    async def cmd_checkanswers(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Check upload progress for expert answer videos."""
+        if not self._is_operator(update):
+            return
+
+        if not self.interview_agent:
+            await update.message.reply_text("Interview Agent not configured.")
+            return
+
+        if not context.args:
+            await update.message.reply_text("Usage: /checkanswers <interview_id>")
+            return
+
+        interview_id = context.args[0]
+        result = self.interview_agent.check_answers(interview_id)
+
+        if "error" in result:
+            await update.message.reply_text(f"Error: {result['error']}")
+            return
+
+        text = (
+            f"Interview: {interview_id}\n"
+            f"Topic: {result.get('topic', '')}\n"
+            f"Expert: {result.get('expert_name', '')}\n"
+            f"Status: {result.get('status', '')}\n\n"
+            f"Questions: {result.get('total_questions', 0)}\n"
+            f"Answers uploaded: {result.get('total_answers', 0)}\n"
+            f"Complete pairs: {result.get('complete_pairs', 0)}\n\n"
+        )
+
+        if result.get("all_complete"):
+            text += "All answers received! Run /compose " + interview_id
+        elif result.get("ready_to_compose"):
+            text += (
+                f"Partial answers received. You can:\n"
+                f"- Upload more answers (send video files here)\n"
+                f"- Compose with what you have: /compose {interview_id}"
+            )
+        else:
+            text += "No answers yet. Upload video files here."
+
+        # Track for file uploads
+        self._active_interview_id = interview_id
+
+        await update.message.reply_text(text)
+
+    async def cmd_compose(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Compose final interview video from Q&A clips."""
+        if not self._is_operator(update):
+            return
+        if not await self._require_2fa(update):
+            return
+
+        if not self.interview_agent:
+            await update.message.reply_text("Interview Agent not configured.")
+            return
+
+        if not context.args:
+            await update.message.reply_text("Usage: /compose <interview_id>")
+            return
+
+        interview_id = context.args[0]
+
+        await update.message.reply_text(
+            f"Composing interview {interview_id}...\n"
+            f"Normalizing clips and joining. This may take a few minutes."
+        )
+
+        try:
+            result = await self.interview_agent.compose_final(interview_id)
+
+            if "error" in result:
+                await update.message.reply_text(f"Error: {result['error']}")
+                return
+
+            output_path = result.get("output_path", "")
+            approval_id = result.get("approval_id")
+            qa_pairs = result.get("qa_pairs", 0)
+            duration = result.get("duration", 0)
+
+            # Build approval buttons
             keyboard = InlineKeyboardMarkup([
                 [
-                    InlineKeyboardButton("Twitter", callback_data="posttwitter_video_custom"),
-                    InlineKeyboardButton("YouTube", callback_data="postyoutube_video_custom"),
+                    InlineKeyboardButton("Twitter", callback_data=f"posttwitter_vd_{approval_id}"),
+                    InlineKeyboardButton("YouTube", callback_data=f"postyoutube_vd_{approval_id}"),
                 ],
                 [
-                    InlineKeyboardButton("Both", callback_data="postboth_video_custom"),
-                    InlineKeyboardButton("Schedule", callback_data="schedule_video_custom"),
+                    InlineKeyboardButton("TikTok", callback_data=f"posttiktok_vd_{approval_id}"),
+                    InlineKeyboardButton("All Platforms", callback_data=f"postall_vd_{approval_id}"),
                 ],
                 [
-                    InlineKeyboardButton("Reject", callback_data="reject_video_custom"),
+                    InlineKeyboardButton("Reject", callback_data=f"reject_{approval_id}"),
                 ],
             ])
 
-            # Send video WITH buttons attached
-            with open(result['video_path'], 'rb') as video_file:
-                await update.message.reply_video(
-                    video=video_file,
-                    caption="**Custom David Flip Video**\n\nPost where?",
-                    parse_mode="Markdown",
-                    reply_markup=keyboard
+            caption = (
+                f"Interview composed!\n\n"
+                f"Q&A pairs: {qa_pairs}\n"
+                f"Duration: {int(duration)}s\n"
+                f"Approval #{approval_id}"
+            )
+
+            if os.path.exists(output_path):
+                with open(output_path, "rb") as vf:
+                    await update.message.reply_video(
+                        video=vf,
+                        caption=caption,
+                        reply_markup=keyboard,
+                    )
+            else:
+                await update.message.reply_text(
+                    f"{caption}\n\n(Video: {output_path})",
+                    reply_markup=keyboard,
                 )
-            
+
         except Exception as e:
-            await update.message.reply_text(f"Error: {e}")
+            await update.message.reply_text(f"Composition failed: {e}")
+
+    async def handle_video_upload(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle uploaded video files — save as interview answer clips."""
+        if not self._is_operator(update):
+            return
+
+        if not self.interview_agent:
+            await update.message.reply_text(
+                "Interview Agent not configured. Video upload ignored."
+            )
+            return
+
+        if not self._active_interview_id:
+            await update.message.reply_text(
+                "No active interview for uploads.\n\n"
+                "Use /checkanswers <id> to set the active interview first,\n"
+                "or /interviews to see available interviews."
+            )
+            return
+
+        interview_id = self._active_interview_id
+
+        # Download the video file
+        try:
+            if update.message.video:
+                file = await update.message.video.get_file()
+                filename = update.message.video.file_name or f"answer_{update.message.video.file_unique_id}.mp4"
+            elif update.message.document:
+                file = await update.message.document.get_file()
+                filename = update.message.document.file_name or f"answer_{update.message.document.file_unique_id}.mp4"
+            else:
+                return
+
+            file_data = await file.download_as_bytearray()
+
+            result = self.interview_agent.save_answer_video(
+                interview_id=interview_id,
+                file_data=bytes(file_data),
+                filename=filename,
+            )
+
+            if "error" in result:
+                await update.message.reply_text(f"Save failed: {result['error']}")
+                return
+
+            # Check current status
+            status = self.interview_agent.check_answers(interview_id)
+
+            await update.message.reply_text(
+                f"Answer saved: {result['saved_as']}\n"
+                f"Interview: {interview_id}\n\n"
+                f"Progress: {status.get('total_answers', 0)}/{status.get('total_questions', 0)} answers\n\n"
+                + (
+                    f"All answers received! Run /compose {interview_id}"
+                    if status.get("all_complete")
+                    else "Upload more answers or /compose when ready."
+                )
+            )
+
+        except Exception as e:
+            await update.message.reply_text(f"Upload failed: {e}")
 
     async def cmd_schedule(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show scheduled posts."""
@@ -901,7 +1489,10 @@ class TelegramBot:
             return
 
         try:
-            scheduler = ContentScheduler()
+            scheduler = self.scheduler
+            if not scheduler:
+                from core.scheduler import ContentScheduler
+                scheduler = ContentScheduler()
             pending = scheduler.get_pending()
 
             if not pending:
@@ -1145,7 +1736,23 @@ class TelegramBot:
         parts = data.split("_")
         action = parts[0]
 
-        # Handle video-specific actions
+        # Handle video distribute actions (from /videogen and /compose)
+        if action in ("posttwitter", "postyoutube", "posttiktok", "postall") and len(parts) >= 3 and parts[1] == "vd":
+            approval_id_str = parts[2]
+            try:
+                vid_approval_id = int(approval_id_str)
+            except ValueError:
+                return
+            platforms = {
+                "posttwitter": ["twitter"],
+                "postyoutube": ["youtube"],
+                "posttiktok": ["tiktok"],
+                "postall": ["twitter", "youtube", "tiktok"],
+            }
+            await self._distribute_video(query, vid_approval_id, platforms[action])
+            return
+
+        # Handle legacy video-specific actions (from /video episodes)
         if action == "posttwitter" and len(parts) >= 3 and parts[1] == "video":
             episode_id = parts[2]
             await self._post_video_twitter(query, episode_id)
@@ -1345,6 +1952,46 @@ class TelegramBot:
 
         except Exception as e:
             await query.edit_message_text(f"Failed: {e}")
+
+    async def _distribute_video(self, query, approval_id: int, platforms: list[str]):
+        """Distribute a video from the approval queue to selected platforms."""
+        platform_str = ", ".join(platforms)
+        await query.edit_message_text(f"Distributing to {platform_str}...")
+
+        try:
+            approval = self.queue.get_by_id(approval_id)
+            if not approval:
+                await query.edit_message_text(f"Approval #{approval_id} not found.")
+                return
+
+            action_data = json.loads(approval["action_data"])
+            action_data["platforms"] = platforms
+
+            # Mark as approved
+            self.queue.approve(approval_id)
+            self.audit.log(
+                "david-flip", "info", "approval",
+                f"Approved #{approval_id} for {platform_str}"
+            )
+
+            # Execute distribution via the command handler
+            if self.on_command:
+                result = await self.on_command(
+                    "execute_video_distribute",
+                    json.dumps(action_data),
+                )
+                self.queue.mark_executed(approval_id)
+                await query.edit_message_text(
+                    f"Distribution complete!\n\n{result}"
+                )
+            else:
+                await query.edit_message_text(
+                    f"Approved #{approval_id} but no executor connected."
+                )
+
+        except Exception as e:
+            logger.error(f"Distribution failed: {e}", exc_info=True)
+            await query.edit_message_text(f"Distribution failed: {e}")
 
     async def _show_schedule_options(self, query, episode_id: str):
         """Show scheduling time options."""

@@ -6,7 +6,7 @@
 # - description: What we're looking for
 # - keywords: Terms that indicate relevance (case-insensitive matching)
 # - priority: critical, high, medium, low
-# - action: What to do when found (alert, task, content, knowledge, ignore)
+# - action: What to do when found (alert, task, content, knowledge, watch, ignore)
 #
 # SCORING: Items are evaluated by TWO rubrics:
 # 1. David Flip rubric (surveillance/control focus) - for david_content goal
@@ -32,6 +32,9 @@ goals:
       - orchestration
       - multi-agent
       - agent framework
+      - agent protocol
+      - agent-to-agent
+      - A2A
       # Memory & context
       - memory
       - context window
@@ -40,12 +43,15 @@ goals:
       - retrieval augmented
       - vector database
       - embedding
+      - knowledge graph
       # Prompting & reasoning
       - prompt engineering
       - chain of thought
       - reasoning
       - system prompt
       - few-shot
+      - reflection
+      - planning agent
       # Infrastructure
       - MCP
       - model context protocol
@@ -54,6 +60,7 @@ goals:
       - API integration
       - webhook
       - streaming
+      - server-sent events
       # Voice / assistant
       - voice assistant
       - speech to text
@@ -62,6 +69,8 @@ goals:
       - TTS
       - whisper
       - real-time voice
+      - conversational AI
+      - voice agent
       # Our projects
       - Clawdbot
       - DEVA
@@ -92,6 +101,13 @@ goals:
       - age verification
       - KYC
       - mass surveillance
+      - online safety bill
+      - encryption backdoor
+      - bank account closed
+      - social scoring
+      - digital pound
+      - digital euro
+      - digital yuan
     priority: high
     action: content
 
@@ -110,6 +126,9 @@ goals:
       - prompt injection
       - jailbreak
       - sandbox escape
+      - supply chain attack
+      - token leak
+      - credential leak
     priority: critical
     action: alert
 
@@ -129,6 +148,10 @@ goals:
       - pricing
       - rate limit
       - token budget
+      - prompt caching
+      - context caching
+      - distillation
+      - fine-tuning cost
     priority: medium
     action: task
 
@@ -155,6 +178,11 @@ goals:
       - Replit Agent
       - GitHub Copilot
       - Amazon Q
+      - OpenHands
+      - OpenDevin
+      - SWE-agent
+      - Codex
+      - Claude Code
       # Categories
       - AI founder
       - autonomous agent
@@ -166,6 +194,7 @@ goals:
       - AI pair programmer
       - coding agent
       - vibe coding
+      - AI software engineer
     priority: high
     action: knowledge
 
@@ -208,6 +237,10 @@ goals:
       - extended thinking
       - computer use
       - MCP server
+      - Claude Max
+      - Claude Pro
+      - Anthropic API
+      - claude model
     priority: high
     action: alert
 
@@ -250,22 +283,86 @@ goals:
     priority: high
     action: knowledge
 
-# Sources configuration
+  - id: model_releases
+    name: "New model releases and benchmarks"
+    description: "New LLM releases, benchmark results, capability changes that affect our model routing"
+    keywords:
+      - model release
+      - new model
+      - benchmark
+      - MMLU
+      - HumanEval
+      - SWE-bench
+      - GPT-5
+      - GPT-4.5
+      - Gemini 2
+      - Gemini 3
+      - Llama 4
+      - Llama 5
+      - Mistral
+      - Qwen
+      - DeepSeek
+      - open source model
+      - open weight
+      - context window
+      - tokens per second
+      - inference speed
+    priority: high
+    action: alert
+
+# =============================================================
+# SOURCES CONFIGURATION
+# =============================================================
+
 sources:
+  # --- GitHub: Specific repos ---
   github:
     repos:
+      # Anthropic ecosystem
       - anthropics/anthropic-sdk-python
       - anthropics/claude-code
+      - modelcontextprotocol/servers
+      # Agent frameworks
       - langchain-ai/langchain
       - langchain-ai/langgraph
       - microsoft/autogen
       - joaomdmoura/crewAI
       - Significant-Gravitas/AutoGPT
+      - All-Hands-AI/OpenHands
+      # Coding agents
       - paul-gauthier/aider
+      - browser-use/browser-use
+      # Competitor SDKs
+      - openai/openai-python
+      - google/generative-ai-python
+      # AI tooling
+      - vercel/ai
     check_releases: true
     check_commits: true
     check_issues: false
 
+  # --- GitHub: Trending repos ---
+  github_trending:
+    enabled: true
+    frequency: warm  # Every 8-12 hours
+    languages: ["", "python", "typescript"]
+    min_stars_today: 50
+    relevance_keywords:
+      - agent
+      - AI
+      - LLM
+      - Claude
+      - GPT
+      - voice
+      - autonomous
+      - coding
+      - game
+      - Unity
+      - MCP
+      - agentic
+      - copilot
+
+  # --- YouTube: Channel monitoring (needs API key) ---
   youtube:
     channels:
       - "@GodaGo"            # AI agent tutorials
@@ -278,7 +375,30 @@ sources:
       - "@firaboraalern"     # Fireship - tech news
       - "@TheCodingTrain"    # Creative coding
 
+  # --- YouTube: Transcript extraction (free, no API key) ---
+  transcripts:
+    frequency: daily
+    youtube_channels:
+      - "@GodaGo"
+      - "@AIJason"
+      - "@matthew_berman"
+      - "@DaveShapiro"
+      - "@IndyDevDan"
+      - "@AllAboutAI"
+      - "@PeterYangYT"
+    tiktok_accounts:
+      - "@tristynnmcgowan"
+      - "@chase_ai_"
+      - "@gregisenberg"
+      - "@olleai"
+      - "@vibewithkevin"
+      - "@mattganzak"
+    max_transcript_length: 15000
+    delay_between_fetches: 5
+
+  # --- Reddit ---
   reddit:
+    frequency: warm  # Every 8-12 hours
     subreddits:
       - ClaudeAI
       - LocalLLaMA
@@ -287,27 +407,12 @@ sources:
       - MachineLearning
       - gamedev
       - Unity3D
+      - singularity
+      - ChatGPT
 
-  transcripts:
-    youtube_channels:
-      - "@GodaGo"             # AI agent tutorials
-      - "@AIJason"            # Agent development
-      - "@matthew_berman"     # AI news (note: underscore, not camelCase)
-      - "@DaveShapiro"        # Autonomous agents
-      - "@IndyDevDan"         # Claude Code / AI coding
-      - "@AllAboutAI"         # AI tools and agents
-      - "@PeterYangYT"       # OpenClaw, AI tools
-    tiktok_accounts:
-      - "@tristynnmcgowan"   # AI content
-      - "@chase_ai_"         # AI content
-      - "@gregisenberg"      # AI / startup content
-      - "@olleai"            # AI content
-      - "@vibewithkevin"     # AI / vibe coding
-      - "@mattganzak"        # AI content
-    max_transcript_length: 15000  # Chars - truncate longer transcripts
-    delay_between_fetches: 5      # Seconds between YouTube transcript fetches
-
+  # --- RSS Feeds ---
   rss:
+    frequency: warm  # Every 8-12 hours
     feeds:
       # AI/Tech news
       - name: "TechCrunch AI"
@@ -316,6 +421,12 @@ sources:
         url: "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml"
       - name: "Ars Technica"
         url: "https://feeds.arstechnica.com/arstechnica/technology-lab"
+      - name: "Anthropic Blog"
+        url: "https://www.anthropic.com/rss.xml"
+      - name: "OpenAI Blog"
+        url: "https://openai.com/blog/rss.xml"
+      - name: "Google AI Blog"
+        url: "https://blog.google/technology/ai/rss/"
 
       # Privacy/Surveillance
       - name: "EFF"
@@ -331,14 +442,143 @@ sources:
       - name: "The Block"
         url: "https://www.theblock.co/rss.xml"
 
-# Scheduling
+  # --- Hacker News ---
+  hackernews:
+    enabled: true
+    frequency: hot  # Every 2-4 hours
+    max_stories: 30
+    min_score: 20
+    keywords:
+      - AI
+      - agent
+      - Claude
+      - LLM
+      - GPT
+      - Anthropic
+      - OpenAI
+      - voice
+      - autonomous
+      - MCP
+      - coding agent
+      - Cursor
+      - Devin
+      - surveillance
+      - CBDC
+      - privacy
+      - game dev
+      - Unity
+
+  # --- Twitter/X Monitoring ---
+  twitter_monitor:
+    enabled: true
+    frequency: hot  # Every 2-4 hours
+    accounts:
+      # Anthropic / Claude ecosystem
+      - alexalbert__       # Claude Code lead at Anthropic
+      - AnthropicAI        # Official Anthropic
+      - AmandaAskell       # Anthropic researcher
+      # Competitors
+      - OpenAI             # Official OpenAI
+      - GoogleDeepMind     # Official DeepMind
+      # AI agent builders & thought leaders
+      - swyx               # AI thought leader, latent.space
+      - mcabornedev        # AI builder
+      - kabornedev         # AI builder
+      - GodaGo_            # AI agent tutorials
+      - IndyDevDan         # Claude Code content creator
+      - mattganzak         # AI content
+      - skiabornedev       # AI agent content
+      # AI coding tools
+      - cursor_ai          # Cursor
+      - aabornedev         # Aider
+      - replabornedev      # Replit
+    min_engagement: 10
+    max_tweets_per_account: 10
+    include_replies: false
+
+  # --- ArXiv Research Papers ---
+  arxiv:
+    enabled: true
+    frequency: daily
+    categories:
+      - cs.AI    # Artificial Intelligence
+      - cs.CL    # Computation and Language
+      - cs.MA    # Multi-Agent Systems
+    search_keywords:
+      - agent
+      - tool use
+      - autonomous
+      - reasoning
+      - multi-agent
+      - language model
+      - voice assistant
+      - code generation
+    max_results_per_category: 20
+    days_back: 3
+
+# =============================================================
+# FREQUENCY TIERS
+# =============================================================
+# Hot sources check every 2-4 hours (breaking news)
+# Warm sources check every 8-12 hours (daily coverage)
+# Daily sources check once per day (deep content)
+
+frequency_tiers:
+  hot:
+    interval_hours: 3
+    sources:
+      - hackernews
+      - twitter_monitor
+  warm:
+    interval_hours: 10
+    sources:
+      - rss
+      - reddit
+      - github
+      - github_trending
+  daily:
+    interval_hours: 24
+    sources:
+      - transcripts
+      - youtube
+      - arxiv
+
+# =============================================================
+# SCHEDULING
+# =============================================================
+
 schedule:
+  # Legacy daily run (still used for full cycle)
   daily_run_time: "02:00"  # UTC (6am UAE)
+  # Multi-frequency enabled
+  multi_frequency_enabled: true
   digest_enabled: true
   alerts_enabled: true
+  # Podcast generation
+  podcast_generation_time: "03:00"  # UTC (7am UAE) - after research completes
 
-# Budget limits
+# =============================================================
+# PODCAST / NEWSLETTER
+# =============================================================
+
+podcast:
+  enabled: true
+  name: "David Flip Intelligence Brief"
+  tagline: "I read the entire internet so you don't have to."
+  target_duration_minutes: 4  # ~600 words
+  sections:
+    - breaking       # Top 1-2 stories
+    - trending       # Cross-source trends
+    - tools_releases # New tools and updates
+    - research       # ArXiv papers in plain English
+    - watch_list     # Things to keep an eye on
+  voice: "Matt - The Young Professor"  # ElevenLabs voice for TTS
+
+# =============================================================
+# BUDGET LIMITS
+# =============================================================
+
 budget:
   max_daily_cost: 5.00  # USD
   default_model: "haiku"  # For bulk evaluation
-  quality_model: "sonnet"  # For content drafting
+  quality_model: "sonnet"  # For content drafting and podcast scripts

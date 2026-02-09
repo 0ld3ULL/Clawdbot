@@ -1,12 +1,12 @@
 """
 David Flip Dashboard - Flask Web Application
 
-Provides a web interface to:
-- View system status
-- Review pending approvals
-- See research findings
-- View activity timeline
-- Check tweet history
+Mission Control for AI personalities. Provides:
+- Content review queue (video/script cards with Approve/Reject)
+- Per-platform feeds (X, YouTube, TikTok)
+- Approve = schedule to optimal time slot, Oprah posts automatically
+- Reject = feedback goes into David's memory to improve
+- System status, research findings, activity timeline
 """
 
 import json
@@ -16,7 +16,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from functools import wraps
 
-from flask import Flask, render_template, jsonify, request, redirect, url_for, session
+from flask import (
+    Flask, render_template, jsonify, request, redirect,
+    url_for, session, send_file
+)
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,12 +30,25 @@ app.secret_key = os.environ.get("DASHBOARD_SECRET_KEY", "david-flip-dashboard-se
 # Paths
 BASE_DIR = Path(__file__).parent.parent
 DATA_DIR = BASE_DIR / "data"
-APPROVAL_DB = DATA_DIR / "approvals.db"
+APPROVAL_DB = DATA_DIR / "approval_queue.db"
 RESEARCH_DB = DATA_DIR / "research.db"
 AUDIT_LOG = DATA_DIR / "audit.db"
+SCHEDULER_DB = DATA_DIR / "scheduler.db"
+FEEDBACK_DIR = DATA_DIR / "content_feedback"
+
+# Ensure feedback directory exists
+Path(FEEDBACK_DIR).mkdir(parents=True, exist_ok=True)
 
 # Simple auth (single operator)
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "flipt2026")
+
+# Platform-specific optimal posting times (UTC)
+# Based on engagement research — Oprah schedules to the next available slot
+PLATFORM_OPTIMAL_HOURS = {
+    "twitter": [9, 12, 15, 18],     # 9am, noon, 3pm, 6pm UTC
+    "youtube": [14, 17, 20],          # 2pm, 5pm, 8pm UTC (afternoon/evening)
+    "tiktok": [11, 15, 19, 21],      # 11am, 3pm, 7pm, 9pm UTC
+}
 
 
 def get_db(db_path):
@@ -79,14 +95,13 @@ def logout():
 def index():
     """Dashboard home - overview of everything."""
     stats = get_stats()
+    stats["content_queue"] = get_content_count()
     recent_activity = get_recent_activity(limit=20)
-    pending_count = get_pending_approval_count()
 
     return render_template(
         "index.html",
         stats=stats,
         recent_activity=recent_activity,
-        pending_count=pending_count
     )
 
 
@@ -122,24 +137,276 @@ def activity():
     return render_template("activity.html", timeline=timeline)
 
 
-# ============== API ENDPOINTS ==============
-
-@app.route("/api/approve/<int:approval_id>", methods=["POST"])
+@app.route("/content")
 @login_required
-def api_approve(approval_id):
-    """Approve a pending item."""
+def content_queue():
+    """Content review queue — the main Mission Control feed."""
+    platform_filter = request.args.get("platform", "")
+
+    # Get all pending video/content approvals
+    content_items = get_pending_content(platform_filter=platform_filter)
+    platform_counts = get_content_platform_counts()
+    scheduled_items = get_scheduled_content()
+
+    return render_template(
+        "content.html",
+        content_items=content_items,
+        platform_filter=platform_filter,
+        platform_counts=platform_counts,
+        scheduled_items=scheduled_items,
+        personality_name="David Flip",
+    )
+
+
+# ============== CONTENT API ENDPOINTS ==============
+
+@app.route("/api/video/<int:approval_id>")
+@login_required
+def api_serve_video(approval_id):
+    """Serve a video file for preview in the content queue."""
     try:
         conn = get_db(APPROVAL_DB)
         cursor = conn.cursor()
         cursor.execute(
-            "UPDATE approvals SET status = 'approved', decided_at = ? WHERE id = ?",
+            "SELECT action_data FROM approvals WHERE id = ?", (approval_id,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+
+        action_data = json.loads(row["action_data"])
+        video_path = action_data.get("video_path", "")
+
+        # Resolve relative paths from project root
+        if video_path and not os.path.isabs(video_path):
+            video_path = str(BASE_DIR / video_path)
+
+        if video_path and os.path.exists(video_path):
+            return send_file(video_path, mimetype="video/mp4")
+
+        return jsonify({"error": "Video file not found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/content/approve/<int:approval_id>", methods=["POST"])
+@login_required
+def api_content_approve(approval_id):
+    """
+    Approve content and schedule to optimal time slots per platform.
+
+    Oprah picks up scheduled items and posts automatically.
+    """
+    try:
+        data = request.json or {}
+        platforms = data.get("platforms", ["twitter", "youtube", "tiktok"])
+
+        conn = get_db(APPROVAL_DB)
+        cursor = conn.cursor()
+
+        # Get the approval record
+        cursor.execute("SELECT * FROM approvals WHERE id = ?", (approval_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "error": "Approval not found"})
+
+        action_data = json.loads(row["action_data"])
+
+        # Mark as approved
+        cursor.execute(
+            "UPDATE approvals SET status = 'approved', operator_notes = ?, reviewed_at = ? WHERE id = ?",
+            (json.dumps({"platforms": platforms}), datetime.now().isoformat(), approval_id)
+        )
+        conn.commit()
+        conn.close()
+
+        # Schedule to optimal time slots per platform
+        scheduled_time = _get_next_optimal_slot(platforms)
+
+        # Write a schedule request file that main.py's poller picks up
+        schedule_request = {
+            "approval_id": approval_id,
+            "action_data": action_data,
+            "platforms": platforms,
+            "scheduled_time": scheduled_time.isoformat(),
+            "approved_at": datetime.now().isoformat(),
+        }
+        request_path = FEEDBACK_DIR / f"schedule_{approval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(request_path, "w") as f:
+            json.dump(schedule_request, f, indent=2)
+
+        log_activity("content", f"Approved content #{approval_id} for {', '.join(platforms)} at {scheduled_time.strftime('%I:%M %p')}")
+
+        return jsonify({
+            "success": True,
+            "scheduled_time": scheduled_time.strftime("%b %d, %I:%M %p"),
+            "platforms": platforms,
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/content/approve-script/<int:approval_id>", methods=["POST"])
+@login_required
+def api_content_approve_script(approval_id):
+    """
+    Approve a script and trigger video rendering.
+
+    Stage 1 -> Stage 2 transition. Writes a render_{id}.json file
+    that main.py's poller picks up to start video rendering.
+    """
+    try:
+        conn = get_db(APPROVAL_DB)
+        cursor = conn.cursor()
+
+        # Get the approval record
+        cursor.execute("SELECT * FROM approvals WHERE id = ?", (approval_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "error": "Approval not found"})
+
+        if row["action_type"] != "script_review":
+            conn.close()
+            return jsonify({"success": False, "error": "Not a script review item"})
+
+        action_data = json.loads(row["action_data"])
+
+        # Mark script as approved
+        cursor.execute(
+            "UPDATE approvals SET status = 'approved', operator_notes = 'script_approved_for_render', reviewed_at = ? WHERE id = ?",
             (datetime.now().isoformat(), approval_id)
         )
         conn.commit()
         conn.close()
 
-        # Log the action
-        log_activity("approval", f"Approved item #{approval_id}")
+        # Write render request file for main.py poller
+        render_request = {
+            "approval_id": approval_id,
+            "script": action_data.get("script", ""),
+            "pillar": action_data.get("pillar", 1),
+            "theme_title": action_data.get("theme_title", ""),
+            "category": action_data.get("category", ""),
+            "mood": action_data.get("mood", ""),
+            "approved_at": datetime.now().isoformat(),
+        }
+        request_path = FEEDBACK_DIR / f"render_{approval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(request_path, "w") as f:
+            json.dump(render_request, f, indent=2)
+
+        log_activity("content", f"Script #{approval_id} approved — rendering video")
+
+        return jsonify({"success": True, "message": "Script approved. Video rendering started."})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route("/api/content/reject/<int:approval_id>", methods=["POST"])
+@login_required
+def api_content_reject(approval_id):
+    """
+    Reject content with feedback.
+
+    The feedback is saved to David's memory so he learns and adjusts
+    future content generation.
+    """
+    try:
+        data = request.json or {}
+        reason = data.get("reason", "").strip()
+
+        if not reason:
+            return jsonify({"success": False, "error": "Feedback reason required"})
+
+        conn = get_db(APPROVAL_DB)
+        cursor = conn.cursor()
+
+        # Get the approval record for context
+        cursor.execute("SELECT * FROM approvals WHERE id = ?", (approval_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "error": "Approval not found"})
+
+        action_data = json.loads(row["action_data"])
+
+        # Mark as rejected with feedback
+        cursor.execute(
+            "UPDATE approvals SET status = 'rejected', operator_notes = ?, reviewed_at = ? WHERE id = ?",
+            (reason, datetime.now().isoformat(), approval_id)
+        )
+        conn.commit()
+        conn.close()
+
+        # Save feedback for David's memory (picked up by main.py poller)
+        feedback = {
+            "type": "content_rejection",
+            "approval_id": approval_id,
+            "reason": reason,
+            "content_context": {
+                "script": action_data.get("script", "")[:500],
+                "theme_title": action_data.get("theme_title", ""),
+                "category": action_data.get("category", ""),
+                "pillar": action_data.get("pillar", ""),
+                "mood": action_data.get("mood", ""),
+            },
+            "timestamp": datetime.now().isoformat(),
+        }
+        feedback_path = FEEDBACK_DIR / f"feedback_{approval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(feedback_path, "w") as f:
+            json.dump(feedback, f, indent=2)
+
+        log_activity("content", f"Rejected content #{approval_id}: {reason[:100]}")
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+# ============== API ENDPOINTS ==============
+
+@app.route("/api/approve/<int:approval_id>", methods=["POST"])
+@login_required
+def api_approve(approval_id):
+    """Approve a pending item and trigger execution via Oprah."""
+    try:
+        conn = get_db(APPROVAL_DB)
+        cursor = conn.cursor()
+
+        # Get the approval record
+        cursor.execute("SELECT * FROM approvals WHERE id = ?", (approval_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "error": "Not found"})
+
+        action_data = json.loads(row["action_data"])
+        action_type = row["action_type"]
+
+        cursor.execute(
+            "UPDATE approvals SET status = 'approved', reviewed_at = ? WHERE id = ?",
+            (datetime.now().isoformat(), approval_id)
+        )
+        conn.commit()
+        conn.close()
+
+        # Write execution request for main.py poller
+        execute_request = {
+            "approval_id": approval_id,
+            "action_type": action_type,
+            "action_data": action_data,
+            "approved_at": datetime.now().isoformat(),
+        }
+        request_path = FEEDBACK_DIR / f"execute_{approval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(request_path, "w") as f:
+            json.dump(execute_request, f, indent=2)
+
+        log_activity("approval", f"Approved {action_type} #{approval_id}")
 
         return jsonify({"success": True})
     except Exception as e:
@@ -149,19 +416,46 @@ def api_approve(approval_id):
 @app.route("/api/reject/<int:approval_id>", methods=["POST"])
 @login_required
 def api_reject(approval_id):
-    """Reject a pending item."""
+    """Reject a pending item with feedback for David's memory."""
     reason = request.json.get("reason", "Rejected by operator")
     try:
         conn = get_db(APPROVAL_DB)
         cursor = conn.cursor()
+
+        # Get record for context
+        cursor.execute("SELECT * FROM approvals WHERE id = ?", (approval_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "error": "Not found"})
+
+        action_data = json.loads(row["action_data"])
+        action_type = row["action_type"]
+
         cursor.execute(
-            "UPDATE approvals SET status = 'rejected', decided_at = ?, rejection_reason = ? WHERE id = ?",
-            (datetime.now().isoformat(), reason, approval_id)
+            "UPDATE approvals SET status = 'rejected', operator_notes = ?, reviewed_at = ? WHERE id = ?",
+            (reason, datetime.now().isoformat(), approval_id)
         )
         conn.commit()
         conn.close()
 
-        log_activity("approval", f"Rejected item #{approval_id}: {reason}")
+        # Save feedback for David's memory
+        if reason and reason != "Rejected by operator":
+            feedback = {
+                "type": "content_rejection",
+                "approval_id": approval_id,
+                "reason": reason,
+                "content_context": {
+                    "action_type": action_type,
+                    "text": action_data.get("text", action_data.get("script", ""))[:500],
+                },
+                "timestamp": datetime.now().isoformat(),
+            }
+            feedback_path = FEEDBACK_DIR / f"feedback_{approval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            with open(feedback_path, "w") as f:
+                json.dump(feedback, f, indent=2)
+
+        log_activity("approval", f"Rejected {action_type} #{approval_id}: {reason}")
 
         return jsonify({"success": True})
     except Exception as e:
@@ -171,7 +465,7 @@ def api_reject(approval_id):
 @app.route("/api/edit/<int:approval_id>", methods=["POST"])
 @login_required
 def api_edit(approval_id):
-    """Edit and approve a pending item."""
+    """Edit and approve a pending item, then trigger execution."""
     new_text = request.json.get("text", "")
     if not new_text:
         return jsonify({"success": False, "error": "No text provided"})
@@ -180,22 +474,35 @@ def api_edit(approval_id):
         conn = get_db(APPROVAL_DB)
         cursor = conn.cursor()
 
-        # Get current action_data
-        cursor.execute("SELECT action_data FROM approvals WHERE id = ?", (approval_id,))
+        cursor.execute("SELECT * FROM approvals WHERE id = ?", (approval_id,))
         row = cursor.fetchone()
-        if row:
-            action_data = json.loads(row["action_data"])
-            action_data["text"] = new_text
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "error": "Not found"})
 
-            cursor.execute(
-                "UPDATE approvals SET action_data = ?, status = 'approved', decided_at = ? WHERE id = ?",
-                (json.dumps(action_data), datetime.now().isoformat(), approval_id)
-            )
-            conn.commit()
+        action_data = json.loads(row["action_data"])
+        action_type = row["action_type"]
+        action_data["text"] = new_text
 
+        cursor.execute(
+            "UPDATE approvals SET action_data = ?, status = 'approved', reviewed_at = ? WHERE id = ?",
+            (json.dumps(action_data), datetime.now().isoformat(), approval_id)
+        )
+        conn.commit()
         conn.close()
 
-        log_activity("approval", f"Edited and approved item #{approval_id}")
+        # Write execution request with edited data
+        execute_request = {
+            "approval_id": approval_id,
+            "action_type": action_type,
+            "action_data": action_data,
+            "approved_at": datetime.now().isoformat(),
+        }
+        request_path = FEEDBACK_DIR / f"execute_{approval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(request_path, "w") as f:
+            json.dump(execute_request, f, indent=2)
+
+        log_activity("approval", f"Edited and approved {action_type} #{approval_id}")
 
         return jsonify({"success": True})
     except Exception as e:
@@ -260,7 +567,7 @@ def get_stats():
             # Tweets today
             today = datetime.now().date().isoformat()
             cursor.execute(
-                "SELECT COUNT(*) FROM approvals WHERE status = 'approved' AND action_type = 'tweet' AND decided_at LIKE ?",
+                "SELECT COUNT(*) FROM approvals WHERE status = 'approved' AND action_type = 'tweet' AND reviewed_at LIKE ?",
                 (f"{today}%",)
             )
             stats["tweets_today"] = cursor.fetchone()[0]
@@ -268,7 +575,7 @@ def get_stats():
             # Tweets this week
             week_ago = (datetime.now() - timedelta(days=7)).isoformat()
             cursor.execute(
-                "SELECT COUNT(*) FROM approvals WHERE status = 'approved' AND action_type = 'tweet' AND decided_at > ?",
+                "SELECT COUNT(*) FROM approvals WHERE status = 'approved' AND action_type = 'tweet' AND reviewed_at > ?",
                 (week_ago,)
             )
             stats["tweets_week"] = cursor.fetchone()[0]
@@ -368,10 +675,10 @@ def get_tweet_history(limit=50):
             conn = get_db(APPROVAL_DB)
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT id, action_data, context_summary, decided_at
+                SELECT id, action_data, context_summary, reviewed_at
                 FROM approvals
                 WHERE status = 'approved' AND action_type = 'tweet'
-                ORDER BY decided_at DESC
+                ORDER BY reviewed_at DESC
                 LIMIT ?
             """, (limit,))
             for row in cursor.fetchall():
@@ -421,6 +728,196 @@ def log_activity(category, message):
             conn.close()
     except Exception as e:
         print(f"Error logging activity: {e}")
+
+
+# ============== CONTENT DATA FUNCTIONS ==============
+
+def get_pending_content(platform_filter: str = "") -> list[dict]:
+    """Get pending video/content items for the content review queue.
+
+    Returns both script_review (Stage 1) and video_distribute (Stage 2) items.
+    """
+    items = []
+    try:
+        if APPROVAL_DB.exists():
+            conn = get_db(APPROVAL_DB)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, project_id, agent_id, action_type, action_data,
+                       context_summary, created_at
+                FROM approvals
+                WHERE status = 'pending'
+                AND action_type IN ('script_review', 'video_distribute', 'video_create', 'video_tweet')
+                ORDER BY created_at DESC
+            """)
+            for row in cursor.fetchall():
+                item = dict(row)
+                action_data = json.loads(item["action_data"])
+
+                # Determine stage based on action_type
+                if item["action_type"] == "script_review":
+                    stage = 1
+                    stage_label = "Stage 1: Script Review"
+                else:
+                    stage = 2
+                    stage_label = "Stage 2: Video Review"
+
+                item.update({
+                    "script": action_data.get("script", ""),
+                    "video_path": action_data.get("video_path", ""),
+                    "mood": action_data.get("mood", ""),
+                    "pillar": action_data.get("pillar", ""),
+                    "theme_title": action_data.get("theme_title", ""),
+                    "category": action_data.get("category", ""),
+                    "word_count": action_data.get("word_count", 0),
+                    "estimated_duration": action_data.get("estimated_duration", 0),
+                    "stage": stage,
+                    "stage_label": stage_label,
+                })
+                items.append(item)
+            conn.close()
+    except Exception as e:
+        print(f"Error getting content: {e}")
+    return items
+
+
+def get_content_platform_counts() -> dict:
+    """Get count of pending content per platform.
+
+    Since all video content targets all platforms, counts are the same.
+    This will differ when platform-specific content is supported.
+    """
+    total = 0
+    try:
+        if APPROVAL_DB.exists():
+            conn = get_db(APPROVAL_DB)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) FROM approvals
+                WHERE status = 'pending'
+                AND action_type IN ('script_review', 'video_distribute', 'video_create', 'video_tweet')
+            """)
+            total = cursor.fetchone()[0]
+            conn.close()
+    except Exception:
+        pass
+    return {"twitter": total, "youtube": total, "tiktok": total}
+
+
+def get_content_count():
+    """Get count of pending content items."""
+    try:
+        if APPROVAL_DB.exists():
+            conn = get_db(APPROVAL_DB)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) FROM approvals
+                WHERE status = 'pending'
+                AND action_type IN ('script_review', 'video_distribute', 'video_create', 'video_tweet')
+            """)
+            count = cursor.fetchone()[0]
+            conn.close()
+            return count
+    except Exception:
+        pass
+    return 0
+
+
+def get_scheduled_content() -> list[dict]:
+    """Get upcoming scheduled content posts."""
+    items = []
+    try:
+        if SCHEDULER_DB.exists():
+            conn = get_db(SCHEDULER_DB)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT job_id, content_type, content_data, scheduled_time, status
+                FROM scheduled_content
+                WHERE status = 'pending'
+                ORDER BY scheduled_time ASC
+                LIMIT 20
+            """)
+            items = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+    except Exception as e:
+        print(f"Error getting scheduled content: {e}")
+    return items
+
+
+def _get_next_optimal_slot(platforms: list[str]) -> datetime:
+    """
+    Find the next optimal posting time based on platform engagement research.
+
+    Picks the soonest time that's at least 30 minutes from now,
+    across all target platforms.
+    """
+    now = datetime.utcnow()
+    min_post_time = now + timedelta(minutes=30)
+
+    # Collect all candidate hours across requested platforms
+    candidate_hours = set()
+    for platform in platforms:
+        hours = PLATFORM_OPTIMAL_HOURS.get(platform, [12, 18])
+        candidate_hours.update(hours)
+
+    # Find the next available slot
+    candidates = []
+    for hour in sorted(candidate_hours):
+        slot = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+        if slot <= min_post_time:
+            slot += timedelta(days=1)
+        candidates.append(slot)
+
+    if candidates:
+        return min(candidates)
+
+    # Fallback: 2 hours from now
+    return now + timedelta(hours=2)
+
+
+# ============== TEMPLATE CONTEXT ==============
+
+# Registered AI personalities
+PERSONALITIES = [
+    {
+        "id": "david-flip",
+        "name": "David Flip",
+        "role": "Content Creator",
+        "color": "#58a6ff",
+        "gradient": "linear-gradient(135deg, #58a6ff, #a371f7)",
+    },
+    {
+        "id": "echo",
+        "name": "Echo",
+        "role": "Intelligence Analyst",
+        "color": "#3fb950",
+        "gradient": "linear-gradient(135deg, #3fb950, #58a6ff)",
+    },
+    {
+        "id": "oprah",
+        "name": "Oprah",
+        "role": "Operations",
+        "color": "#f0883e",
+        "gradient": "linear-gradient(135deg, #f0883e, #da3633)",
+    },
+    {
+        "id": "deva",
+        "name": "Deva",
+        "role": "Game Developer",
+        "color": "#a371f7",
+        "gradient": "linear-gradient(135deg, #a371f7, #f778ba)",
+    },
+]
+
+
+@app.context_processor
+def inject_counts():
+    """Inject counts and personality info into all templates."""
+    return {
+        "pending_count": get_pending_approval_count(),
+        "content_count": get_content_count(),
+        "personalities": PERSONALITIES,
+    }
 
 
 # ============== MAIN ==============

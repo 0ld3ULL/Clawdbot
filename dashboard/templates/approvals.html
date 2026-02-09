@@ -14,37 +14,72 @@
 <div class="approval-card" id="approval-{{ approval.id }}">
     <div class="meta">
         <strong>#{{ approval.id }}</strong> |
-        {{ approval.action_type|capitalize }} |
+        <span class="action-type-badge action-{{ approval.action_type }}">{{ approval.action_type }}</span> |
         {{ approval.agent_id }} |
         {{ approval.created_at[:16] }}
     </div>
 
+    {% if approval.action_type in ('tweet', 'reply') %}
+    <!-- Tweet/Reply content -->
     <div class="tweet-text" id="text-{{ approval.id }}">
         {{ approval.action_data.text }}
     </div>
+    {% if approval.action_type == 'reply' and approval.action_data.tweet_id %}
+    <div style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 12px;">
+        Replying to tweet {{ approval.action_data.tweet_id }}
+    </div>
+    {% endif %}
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="char-count">
+            <span>{{ approval.action_data.text|length }}</span>/280 characters
+        </div>
+        <div class="actions">
+            <button class="btn" onclick="openEditModal({{ approval.id }}, `{{ approval.action_data.text|replace('`', '') }}`)">Edit</button>
+            <button class="btn btn-danger" onclick="rejectApproval({{ approval.id }})">Reject</button>
+            <button class="btn btn-primary" onclick="approveApproval({{ approval.id }})">Approve & Post</button>
+        </div>
+    </div>
 
-    {% if approval.context_summary %}
-    <div style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 16px;">
-        <strong>Context:</strong> {{ approval.context_summary }}
+    {% elif approval.action_type == 'thread' %}
+    <!-- Thread content -->
+    <div style="margin-bottom: 16px;">
+        {% for tweet_text in approval.action_data.get('tweets', []) %}
+        <div class="tweet-text" style="margin-bottom: 8px;">
+            <span style="color: var(--text-muted); font-size: 0.75rem;">[{{ loop.index }}/{{ approval.action_data.get('tweets', [])|length }}]</span>
+            {{ tweet_text }}
+        </div>
+        {% endfor %}
+    </div>
+    <div class="actions" style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button class="btn btn-danger" onclick="rejectApproval({{ approval.id }})">Reject</button>
+        <button class="btn btn-primary" onclick="approveApproval({{ approval.id }})">Approve & Post Thread</button>
+    </div>
+
+    {% elif approval.action_type in ('video_distribute', 'video_create', 'video_tweet') %}
+    <!-- Video content — redirect to content queue -->
+    <div class="tweet-text">
+        {{ approval.action_data.get('script', '')[:300] }}{% if approval.action_data.get('script', '')|length > 300 %}...{% endif %}
+    </div>
+    <div class="actions" style="display: flex; justify-content: flex-end; gap: 12px;">
+        <a href="/content" class="btn btn-primary">Review in Content Queue</a>
+    </div>
+
+    {% else %}
+    <!-- Generic content -->
+    <div class="tweet-text">
+        {{ approval.action_data.get('text', approval.action_data|string)[:500] }}
+    </div>
+    <div class="actions" style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button class="btn btn-danger" onclick="rejectApproval({{ approval.id }})">Reject</button>
+        <button class="btn btn-primary" onclick="approveApproval({{ approval.id }})">Approve & Execute</button>
     </div>
     {% endif %}
 
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div class="char-count">
-            <span id="char-{{ approval.id }}">{{ approval.action_data.text|length }}</span>/280 characters
-        </div>
-        <div class="actions">
-            <button class="btn" onclick="openEditModal({{ approval.id }}, '{{ approval.action_data.text|replace("'", "\\'") }}')">
-                Edit
-            </button>
-            <button class="btn btn-danger" onclick="rejectApproval({{ approval.id }})">
-                Reject
-            </button>
-            <button class="btn btn-primary" onclick="approveApproval({{ approval.id }})">
-                Approve & Post
-            </button>
-        </div>
+    {% if approval.context_summary %}
+    <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 12px;">
+        {{ approval.context_summary }}
     </div>
+    {% endif %}
 </div>
 {% endfor %}
 
@@ -74,11 +109,27 @@
         </div>
     </div>
 </div>
+
+<!-- Reject Modal -->
+<div class="modal" id="rejectModal">
+    <div class="modal-content">
+        <h3 style="margin-bottom: 8px;">Reject</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 16px;">
+            Tell David what you didn't like. This feedback goes into his memory.
+        </p>
+        <textarea id="rejectReason" placeholder="What didn't work? Be specific..." rows="3"></textarea>
+        <div class="modal-actions" style="margin-top: 12px;">
+            <button class="btn" onclick="closeRejectModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="submitReject()">Reject & Send Feedback</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 let currentEditId = null;
+let currentRejectId = null;
 
 function openEditModal(id, text) {
     currentEditId = id;
@@ -100,39 +151,76 @@ function updateCharCount() {
     countEl.parentElement.classList.toggle('over', count > 280);
 }
 
-async function approveApproval(id) {
-    if (!confirm('Approve and post this tweet?')) return;
-
-    try {
-        const response = await fetch(`/api/approve/${id}`, { method: 'POST' });
-        const data = await response.json();
-
-        if (data.success) {
-            document.getElementById(`approval-${id}`).remove();
-            showNotification('Tweet approved and queued for posting!', 'success');
-        } else {
-            showNotification('Error: ' + data.error, 'error');
-        }
-    } catch (e) {
-        showNotification('Error: ' + e.message, 'error');
-    }
+function openRejectModal(id) {
+    currentRejectId = id;
+    document.getElementById('rejectReason').value = '';
+    document.getElementById('rejectModal').classList.add('active');
+    document.getElementById('rejectReason').focus();
 }
 
-async function rejectApproval(id) {
-    const reason = prompt('Rejection reason (optional):');
-    if (reason === null) return; // Cancelled
+function closeRejectModal() {
+    document.getElementById('rejectModal').classList.remove('active');
+    currentRejectId = null;
+}
+
+async function approveApproval(id) {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = 'Posting...';
 
     try {
-        const response = await fetch(`/api/reject/${id}`, {
+        const response = await fetch(`/api/approve/${id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason: reason || 'Rejected by operator' })
+            body: JSON.stringify({})
         });
         const data = await response.json();
 
         if (data.success) {
-            document.getElementById(`approval-${id}`).remove();
-            showNotification('Tweet rejected', 'info');
+            const card = document.getElementById(`approval-${id}`);
+            card.style.opacity = '0.5';
+            card.style.transition = 'opacity 0.3s';
+            setTimeout(() => card.remove(), 500);
+            showNotification('Approved! Oprah will handle it.', 'success');
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+            btn.disabled = false;
+            btn.textContent = 'Approve & Post';
+        }
+    } catch (e) {
+        showNotification('Error: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Approve & Post';
+    }
+}
+
+function rejectApproval(id) {
+    openRejectModal(id);
+}
+
+async function submitReject() {
+    if (!currentRejectId) return;
+
+    const reason = document.getElementById('rejectReason').value.trim();
+    if (!reason) {
+        showNotification('Please explain what you didn\'t like — David needs feedback to improve', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/reject/${currentRejectId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            const card = document.getElementById(`approval-${currentRejectId}`);
+            card.style.opacity = '0.5';
+            setTimeout(() => card.remove(), 300);
+            closeRejectModal();
+            showNotification('Rejected. Feedback saved to David\'s memory.', 'info');
         } else {
             showNotification('Error: ' + data.error, 'error');
         }
@@ -146,7 +234,7 @@ async function saveEdit() {
 
     const text = document.getElementById('editText').value.trim();
     if (!text) {
-        showNotification('Tweet text cannot be empty', 'error');
+        showNotification('Text cannot be empty', 'error');
         return;
     }
     if (text.length > 280) {
@@ -163,9 +251,11 @@ async function saveEdit() {
         const data = await response.json();
 
         if (data.success) {
-            document.getElementById(`approval-${currentEditId}`).remove();
+            const card = document.getElementById(`approval-${currentEditId}`);
+            card.style.opacity = '0.5';
+            setTimeout(() => card.remove(), 300);
             closeEditModal();
-            showNotification('Tweet edited and approved!', 'success');
+            showNotification('Edited and approved! Oprah will handle it.', 'success');
         } else {
             showNotification('Error: ' + data.error, 'error');
         }
@@ -175,7 +265,6 @@ async function saveEdit() {
 }
 
 function showNotification(message, type) {
-    // Simple notification
     const notification = document.createElement('div');
     notification.style.cssText = `
         position: fixed;
@@ -187,23 +276,25 @@ function showNotification(message, type) {
         color: white;
         z-index: 1001;
         animation: slideIn 0.3s ease;
+        max-width: 400px;
     `;
     notification.textContent = message;
     document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
+    setTimeout(() => notification.remove(), 4000);
 }
 
-// Close modal on outside click
+// Close modals on outside click / Escape
 document.getElementById('editModal').addEventListener('click', function(e) {
     if (e.target === this) closeEditModal();
 });
-
-// Close modal on Escape
+document.getElementById('rejectModal').addEventListener('click', function(e) {
+    if (e.target === this) closeRejectModal();
+});
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeEditModal();
+    if (e.key === 'Escape') {
+        closeEditModal();
+        closeRejectModal();
+    }
 });
 </script>
 
@@ -211,6 +302,51 @@ document.addEventListener('keydown', function(e) {
 @keyframes slideIn {
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
+}
+
+.action-type-badge {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.action-tweet {
+    background: rgba(29, 161, 242, 0.2);
+    color: #1da1f2;
+}
+
+.action-thread {
+    background: rgba(88, 166, 255, 0.2);
+    color: var(--accent-blue);
+}
+
+.action-reply {
+    background: rgba(210, 153, 34, 0.2);
+    color: var(--accent-yellow);
+}
+
+.action-video_distribute, .action-video_create, .action-video_tweet {
+    background: rgba(163, 113, 247, 0.2);
+    color: var(--accent-purple);
+}
+
+#rejectReason {
+    width: 100%;
+    min-height: 80px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    padding: 12px;
+    font-size: 0.95rem;
+    resize: vertical;
+    font-family: inherit;
+}
+
+#rejectReason:focus {
+    outline: none;
+    border-color: var(--accent-blue);
 }
 </style>
 {% endblock %}

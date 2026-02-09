@@ -41,7 +41,7 @@ def get_project_allowed_tools(project_id: str,
     return project.get("allowed_tools", [])
 
 
-def build_registry(twitter_tool=None) -> ToolRegistry:
+def build_registry(twitter_tool=None, tiktok_tool=None) -> ToolRegistry:
     """
     Build the tool registry with all available tools.
     Tools are registered but access is controlled per-project.
@@ -155,6 +155,40 @@ def build_registry(twitter_tool=None) -> ToolRegistry:
         requires_approval=False,
         execute_fn=brave_search_execute,
     ))
+
+    # --- TikTok Tool ---
+    if tiktok_tool:
+        async def tiktok_execute(**kwargs):
+            return await tiktok_tool.execute(kwargs)
+
+        registry.register(ToolDefinition(
+            name="tiktok_post",
+            description=(
+                "Post a video to TikTok as David Flip. "
+                "Currently operates in manual mode: prepares video + caption "
+                "for operator to upload. Provide video_path and script."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "video_path": {
+                        "type": "string",
+                        "description": "Path to the video file to post",
+                    },
+                    "script": {
+                        "type": "string",
+                        "description": "Video script (used for caption generation)",
+                    },
+                    "theme_title": {
+                        "type": "string",
+                        "description": "Optional theme title for caption",
+                    },
+                },
+                "required": ["video_path", "script"],
+            },
+            requires_approval="tiktok_post" in approval_required,
+            execute_fn=tiktok_execute,
+        ))
 
     # --- File Tools (memory only) ---
     async def read_file_execute(**kwargs):

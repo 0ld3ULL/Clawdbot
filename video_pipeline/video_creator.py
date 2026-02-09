@@ -60,8 +60,8 @@ class VideoCreator:
 
         paths = [
             "ffmpeg",
-            r"C:fmpeginfmpeg.exe",
-            r"C:\Program Filesfmpeginfmpeg.exe",
+            r"C:\ffmpeg\bin\ffmpeg.exe",
+            r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
             "/usr/bin/ffmpeg",
             "/usr/local/bin/ffmpeg",
         ]

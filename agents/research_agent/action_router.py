@@ -6,6 +6,7 @@ Actions:
 - task: Create task in todo list
 - content: Draft David Flip content and queue for approval
 - knowledge: Add to knowledge base
+- watch: Track item for future trend detection (not actionable yet)
 - ignore: No action needed
 """
 
@@ -102,6 +103,10 @@ class ActionRouter:
             self._update_knowledge(item)
             return "knowledge_added"
 
+        elif action == "watch":
+            self._add_to_watchlist(item)
+            return "watch_added"
+
         else:  # ignore
             return "ignored"
 
@@ -197,6 +202,40 @@ class ActionRouter:
         except Exception as e:
             logger.error(f"Failed to draft content: {e}")
 
+    def _add_to_watchlist(self, item: ResearchItem):
+        """Add item to the watch list for future trend tracking."""
+        watch_dir = KNOWLEDGE_PATH / "watchlist"
+        watch_dir.mkdir(exist_ok=True)
+
+        date_str = datetime.now().strftime("%Y%m%d")
+        safe_title = "".join(c if c.isalnum() or c in " -_" else "" for c in item.title[:50])
+        filename = f"{date_str}_{safe_title}.md"
+
+        content = f"""# [WATCH] {item.title}
+
+**Source:** {item.source}
+**URL:** {item.url}
+**Added:** {datetime.now().isoformat()}
+**Score:** {item.relevance_score}/10
+**Goals:** {', '.join(item.matched_goals)}
+
+## Why Watch
+
+{item.reasoning}
+
+## Summary
+
+{item.summary or item.content[:500]}
+"""
+
+        try:
+            filepath = watch_dir / filename
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(content)
+            logger.info(f"Watch item added: {item.title[:50]}")
+        except Exception as e:
+            logger.error(f"Failed to add watch item: {e}")
+
     def _update_knowledge(self, item: ResearchItem):
         """Add item to knowledge base."""
         # Organize by source
@@ -251,6 +290,7 @@ class ActionRouter:
             "task_created": 0,
             "content_queued": 0,
             "knowledge_added": 0,
+            "watch_added": 0,
             "ignored": 0,
         }
 

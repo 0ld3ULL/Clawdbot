@@ -111,6 +111,32 @@ class KnowledgeStore:
             )
         """)
 
+        # Feedback table for learning
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_id INTEGER,
+                rating TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (item_id) REFERENCES research_items(id)
+            )
+        """)
+
+        # Watch list table for tracking emerging topics
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS watch_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                topic TEXT NOT NULL,
+                first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+                mention_count INTEGER DEFAULT 1,
+                sources TEXT,
+                last_score REAL DEFAULT 0,
+                status TEXT DEFAULT 'watching',
+                UNIQUE(topic)
+            )
+        """)
+
         # Index for faster queries
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_research_items_scraped
@@ -283,6 +309,75 @@ class KnowledgeStore:
             action_taken=row["action_taken"],
             action_id=row["action_id"]
         )
+
+    # --- Feedback ---
+
+    def record_feedback(self, item_id: int, rating: str):
+        """Record user feedback on a research item. rating = 'useful' or 'noise'."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO feedback (item_id, rating) VALUES (?, ?)",
+            (item_id, rating)
+        )
+        conn.commit()
+        conn.close()
+        logger.info(f"Feedback recorded: item {item_id} = {rating}")
+
+    def get_feedback_stats(self) -> dict:
+        """Get feedback summary."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT rating, COUNT(*) FROM feedback GROUP BY rating")
+        stats = {row[0]: row[1] for row in cursor.fetchall()}
+        conn.close()
+        return stats
+
+    # --- Watch List ---
+
+    def update_watch_item(self, topic: str, source: str, score: float):
+        """Track a topic on the watch list. Increments mention count if exists."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Check if exists
+        cursor.execute("SELECT id, mention_count, sources FROM watch_items WHERE topic = ?", (topic,))
+        row = cursor.fetchone()
+
+        if row:
+            existing_sources = row[2] or ""
+            if source not in existing_sources:
+                existing_sources = f"{existing_sources},{source}" if existing_sources else source
+            cursor.execute("""
+                UPDATE watch_items
+                SET mention_count = mention_count + 1,
+                    last_seen = CURRENT_TIMESTAMP,
+                    sources = ?,
+                    last_score = ?
+                WHERE id = ?
+            """, (existing_sources, score, row[0]))
+        else:
+            cursor.execute("""
+                INSERT INTO watch_items (topic, sources, last_score)
+                VALUES (?, ?, ?)
+            """, (topic, source, score))
+
+        conn.commit()
+        conn.close()
+
+    def get_hot_watch_items(self, min_mentions: int = 3) -> list:
+        """Get watch items with enough mentions to be notable."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM watch_items
+            WHERE mention_count >= ? AND status = 'watching'
+            ORDER BY mention_count DESC, last_seen DESC
+        """, (min_mentions,))
+        items = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return items
 
     # --- Digest Tracking ---
 

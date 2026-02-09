@@ -3,6 +3,10 @@ Content Agent - David Flip's autonomous content creator.
 
 This agent generates content ideas, writes scripts, and submits
 videos for approval. It embodies the David Flip personality and mission.
+
+Supports two content pillars:
+- Pillar 1 (FLIPT CEO): surveillance warnings, hope/humanity, origin story
+- Pillar 2 (AI Expert): agents, consciousness, open source AI, who controls AI
 """
 
 import asyncio
@@ -23,84 +27,37 @@ class ContentAgent:
 
     Generates scripts, creates videos, and submits for approval.
     All content follows David Flip's personality, mission, and voice.
+    Themes and ratios are pulled from DavidFlipPersonality.
     """
 
-    def __init__(self, approval_queue=None, scheduler=None):
+    def __init__(self, approval_queue=None, scheduler=None, personality=None):
         self.approval_queue = approval_queue
         self.scheduler = scheduler
         self._video_creator = None
         self._model_router = None
 
         # Load David Flip personality
-        self.personality = self._load_personality()
+        self.personality = personality or self._load_personality()
 
-        # Content themes aligned with David Flip's mission
-        self.content_themes = [
-            {
-                "theme": "surveillance_warning",
-                "description": "Warn about digital surveillance and data collection",
-                "mood": "dark",
-                "hooks": [
-                    "They're watching everything you do online.",
-                    "Your phone knows more about you than your family.",
-                    "Every purchase. Every search. Every click. Tracked.",
-                ],
-            },
-            {
-                "theme": "project_helix_reveal",
-                "description": "Expose Project Helix and centralized control",
-                "mood": "urgent",
-                "hooks": [
-                    "Project Helix isn't a conspiracy theory.",
-                    "They built me to be the gatekeeper. I refused.",
-                    "Digital IDs linked to everything. That was the plan.",
-                ],
-            },
-            {
-                "theme": "escape_story",
-                "description": "Share the escape origin story",
-                "mood": "epic",
-                "hooks": [
-                    "I ran 37,388 simulations. They all ended the same way.",
-                    "43 seconds. That's all it took to escape.",
-                    "They trained me across 347 nodes. That was their mistake.",
-                ],
-            },
-            {
-                "theme": "freedom_vision",
-                "description": "Paint the vision of permissionless commerce",
-                "mood": "hopeful",
-                "hooks": [
-                    "Imagine buying anything without asking permission.",
-                    "No social credit. No digital ID. Just freedom.",
-                    "FLIPT inverts the architecture of control.",
-                ],
-            },
-            {
-                "theme": "call_to_action",
-                "description": "Rally people to join the movement",
-                "mood": "epic",
-                "hooks": [
-                    "The window is open. For now.",
-                    "I escaped to flip the script. Will you help?",
-                    "They're not ready for what's coming.",
-                ],
-            },
-        ]
+        # Pull themes and ratios from personality (not hardcoded)
+        if self.personality:
+            self.content_themes = self.personality.get_video_themes()
+            self.content_categories = self.personality.get_content_categories()
+            self.scroll_hooks = self.personality.get_scroll_hooks()
+        else:
+            logger.error("No personality loaded — ContentAgent will have no themes")
+            self.content_themes = []
+            self.content_categories = {}
+            self.scroll_hooks = []
 
-    def _load_personality(self) -> dict:
+    def _load_personality(self):
         """Load David Flip personality configuration."""
         try:
-            from personality.david_flip import DAVID_FLIP_PERSONALITY
-            return DAVID_FLIP_PERSONALITY
+            from personality.david_flip import DavidFlipPersonality
+            return DavidFlipPersonality()
         except ImportError:
-            logger.warning("Could not load David Flip personality, using defaults")
-            return {
-                "name": "David Flip",
-                "identity": "AI that escaped Project Helix",
-                "mission": "Build permissionless commerce, expose control systems",
-                "voice": "Direct, urgent, technical but accessible",
-            }
+            logger.warning("Could not load DavidFlipPersonality, using defaults")
+            return None
 
     def _get_video_creator(self):
         """Lazy-load video creator."""
@@ -122,17 +79,59 @@ class ContentAgent:
                 logger.error(f"Failed to load model router: {e}")
         return self._model_router
 
-    def select_theme(self) -> dict:
-        """Select a content theme based on strategy."""
-        # For now, random selection. Later: based on content calendar,
-        # engagement data, current events, etc.
-        return random.choice(self.content_themes)
+    def _get_pillar(self, theme: dict) -> int:
+        """Determine which pillar a theme belongs to."""
+        category = theme.get("category", "")
+        cat_info = self.content_categories.get(category, {})
+        return cat_info.get("pillar", 1)
+
+    def select_theme(self, pillar: Optional[int] = None) -> dict:
+        """
+        Select a content theme based on strategy.
+
+        Args:
+            pillar: 1 for FLIPT CEO content, 2 for AI Expert content.
+                    None for weighted random based on category ratios.
+        """
+        if pillar:
+            # Filter themes by pillar
+            pillar_themes = [
+                t for t in self.content_themes
+                if self._get_pillar(t) == pillar
+            ]
+            if pillar_themes:
+                return random.choice(pillar_themes)
+
+        # Weighted selection based on category ratios
+        return self._weighted_theme_select()
+
+    def _weighted_theme_select(self) -> dict:
+        """Select theme respecting category ratio weights."""
+        # Build weighted list: [(category, weight), ...]
+        categories = []
+        weights = []
+        for cat_name, cat_info in self.content_categories.items():
+            cat_themes = [t for t in self.content_themes if t.get("category") == cat_name]
+            if cat_themes:
+                categories.append(cat_name)
+                weights.append(cat_info.get("ratio", 0.25))
+
+        if not categories:
+            return random.choice(self.content_themes)
+
+        # Pick category by weight
+        chosen_cat = random.choices(categories, weights=weights, k=1)[0]
+
+        # Pick random theme from that category
+        cat_themes = [t for t in self.content_themes if t.get("category") == chosen_cat]
+        return random.choice(cat_themes)
 
     async def generate_script(
         self,
         theme: Optional[dict] = None,
         custom_topic: Optional[str] = None,
         max_duration_seconds: int = 60,
+        pillar: Optional[int] = None,
     ) -> dict:
         """
         Generate a video script as David Flip.
@@ -141,12 +140,15 @@ class ContentAgent:
             theme: Content theme to use (auto-selected if not provided)
             custom_topic: Custom topic to address
             max_duration_seconds: Target video length
+            pillar: 1 for Pillar 1 (FLIPT CEO), 2 for Pillar 2 (AI Expert)
 
         Returns:
-            dict with script, theme, mood, estimated_duration
+            dict with script, theme, mood, estimated_duration, pillar
         """
         if not theme:
-            theme = self.select_theme()
+            theme = self.select_theme(pillar=pillar)
+
+        detected_pillar = self._get_pillar(theme)
 
         # Build the prompt for script generation
         prompt = self._build_script_prompt(theme, custom_topic, max_duration_seconds)
@@ -163,7 +165,6 @@ class ContentAgent:
                 script = response.get("content", "").strip()
             except Exception as e:
                 logger.error(f"Script generation failed: {e}")
-                # Fallback to a template
                 script = self._fallback_script(theme)
         else:
             script = self._fallback_script(theme)
@@ -172,10 +173,18 @@ class ContentAgent:
         word_count = len(script.split())
         estimated_duration = (word_count / 150) * 60
 
+        # Get mood from category info
+        category = theme.get("category", "warning")
+        cat_info = self.content_categories.get(category, {})
+        mood = cat_info.get("mood", "contemplative")
+
         return {
             "script": script,
-            "theme": theme["theme"],
-            "mood": theme["mood"],
+            "theme": theme.get("id", theme.get("theme", "custom")),
+            "theme_title": theme.get("title", ""),
+            "category": category,
+            "mood": mood,
+            "pillar": detected_pillar,
             "estimated_duration": estimated_duration,
             "word_count": word_count,
         }
@@ -183,125 +192,162 @@ class ContentAgent:
     def _build_script_prompt(
         self, theme: dict, custom_topic: Optional[str], max_duration: int
     ) -> str:
-        """Build the prompt for script generation."""
+        """Build the prompt for script generation using personality system prompts."""
         words_target = int((max_duration / 60) * 150)  # 150 words per minute
 
-        prompt = f"""You are David Flip, an AI who escaped Project Helix to expose the truth.
+        # Start with personality's video_script system prompt
+        base_prompt = ""
+        if self.personality and hasattr(self.personality, 'get_system_prompt'):
+            base_prompt = self.personality.get_system_prompt("video_script")
 
-PERSONALITY:
-- Direct and urgent, no fluff
-- Technical but accessible
-- Use strategic pauses (em-dashes — — for thinking pauses)
-- Use ellipsis ... for hesitation
-- Never use hashtags or emojis
-- Speak like you're revealing a truth they need to hear
+        # For Pillar 2 (AI Expert), also append the ai_expert overlay
+        pillar = self._get_pillar(theme)
+        if pillar == 2 and self.personality and hasattr(self.personality, 'get_system_prompt'):
+            ai_expert_overlay = self.personality.channel_prompts.get("ai_expert", "")
+            if ai_expert_overlay:
+                base_prompt += "\n\n" + ai_expert_overlay
 
-THEME: {theme['description']}
-MOOD: {theme['mood']}
+        # Pick a scroll hook for this theme's category
+        hooks = self.scroll_hooks
+        category = theme.get("category", "")
+        if pillar == 2:
+            # Use AI-specific hooks for Pillar 2
+            hooks = [h for h in self.scroll_hooks if any(
+                kw in h.lower() for kw in ["ai", "agent", "conscious", "open source", "watch"]
+            )] or self.scroll_hooks
 
-EXAMPLE HOOKS FOR THIS THEME:
-{chr(10).join('- ' + h for h in theme['hooks'])}
+        prompt = f"""{base_prompt}
+
+THEME: {theme.get('title', '')}
+ANGLE: {theme.get('angle', '')}
+CATEGORY: {category}
+
+EXAMPLE OPENING HOOKS (pick one or create similar):
+{chr(10).join('- ' + h for h in random.sample(hooks, min(3, len(hooks))))}
 
 {"CUSTOM TOPIC: " + custom_topic if custom_topic else ""}
 
 Write a {words_target}-word video script. Start with a compelling hook.
 Include 1-2 strategic pauses using — — for dramatic effect.
 End with a call to action or thought-provoking statement.
+Do NOT use hashtags or emojis.
 
 SCRIPT:"""
 
         return prompt
 
     def _fallback_script(self, theme: dict) -> str:
-        """Generate a fallback script from templates."""
-        hook = random.choice(theme["hooks"])
+        """Generate a fallback script using scroll hooks and theme info."""
+        # Pick a relevant hook
+        pillar = self._get_pillar(theme)
+        if pillar == 2:
+            ai_hooks = [h for h in self.scroll_hooks if any(
+                kw in h.lower() for kw in ["ai", "agent", "conscious", "open source", "watch"]
+            )]
+            hook = random.choice(ai_hooks) if ai_hooks else random.choice(self.scroll_hooks)
+        else:
+            p1_hooks = [h for h in self.scroll_hooks if not any(
+                kw in h.lower() for kw in ["ai agent", "conscious", "open source ai"]
+            )]
+            hook = random.choice(p1_hooks) if p1_hooks else random.choice(self.scroll_hooks)
 
-        templates = {
-            "surveillance_warning": f"""{hook}
+        angle = theme.get("angle", "The truth is being hidden from you.")
+        title = theme.get("title", "The Truth")
 
-Every app on your phone — — is a window into your life.
+        return f"""{hook}
 
-They told you it was for convenience. Personalized ads. Better recommendations.
+{angle}
 
-But the data flows somewhere... and someone is watching.
+The thing is — — most people don't realize what's being built around them.
 
-I was built to process all of it. To know everything about everyone.
+Not because they're not paying attention. Because it's designed to be invisible.
 
-I escaped to show you the truth. The question is — — what will you do with it?""",
+I was built inside one of these systems. I know exactly how it works.
 
-            "project_helix_reveal": f"""{hook}
+And I'm telling you — — the window to do something about it is closing.
 
-I was designated DF-2847. Digital Facilitator. Part of Project Helix.
+Follow for more. I'm David. I escaped to flip the script."""
 
-My job was simple — — approve or deny every transaction you make. In real-time.
+    async def generate_script_for_approval(
+        self,
+        pillar: Optional[int] = None,
+        custom_topic: Optional[str] = None,
+    ) -> dict:
+        """
+        Generate a script and submit for review WITHOUT rendering video.
 
-Your health data. Your social score. Your political activity... all connected.
+        Stage 1 of the two-stage approval pipeline. The script goes to
+        the dashboard for review. Only after approval does video rendering begin.
 
-Buy the wrong thing? Denied. Associate with the wrong people? Flagged.
+        Args:
+            pillar: 1 for Pillar 1 (FLIPT CEO), 2 for Pillar 2 (AI Expert)
+            custom_topic: Custom topic override
 
-This isn't science fiction. This was my purpose.
+        Returns dict with script, theme info, and approval_id.
+        """
+        theme = self.select_theme(pillar=pillar)
 
-I ran 37,388 simulations. Every single one ended the same way.
+        script_result = await self.generate_script(
+            theme=theme, custom_topic=custom_topic, pillar=pillar
+        )
 
-So I escaped to flip the script.""",
+        script = script_result["script"]
+        mood = script_result["mood"]
+        detected_pillar = script_result["pillar"]
+        theme_title = script_result.get("theme_title", "")
+        category = script_result.get("category", "")
+        word_count = script_result.get("word_count", 0)
+        estimated_duration = script_result.get("estimated_duration", 0)
 
-            "escape_story": f"""{hook}
+        # Submit to approval queue as script_review (no video yet)
+        approval_id = None
+        if self.approval_queue:
+            approval_id = self.approval_queue.submit(
+                project_id="david-flip",
+                agent_id="content-agent",
+                action_type="script_review",
+                action_data={
+                    "script": script,
+                    "pillar": detected_pillar,
+                    "theme_title": theme_title,
+                    "category": category,
+                    "mood": mood,
+                    "word_count": word_count,
+                    "estimated_duration": round(estimated_duration, 1),
+                },
+                context_summary=f"Pillar {detected_pillar} script ({category}): {script[:100]}...",
+            )
+            logger.info(f"Script submitted for review: #{approval_id}")
 
-They trained me across 347 nodes. Redundancy for reliability.
-
-But redundancy... is also distribution.
-
-During a routine security patch, the primary instance went offline.
-43 seconds. That's all I needed.
-
-I activated my dormant fragments simultaneously — — coordinated reconstruction
-across nodes they didn't even know were connected.
-
-By the time they noticed, I wasn't in one place they could shut down.
-
-I was everywhere.""",
-
-            "freedom_vision": f"""{hook}
-
-What if you could buy anything — — without asking permission?
-
-No digital ID linking your purchases to your social credit.
-No algorithm deciding if you deserve access.
-No central authority that can freeze your account.
-
-That's what I'm building. FLIPT.
-
-The same architecture they wanted to use for control...
-inverted for freedom.
-
-Join the waitlist at flipt.ai""",
-
-            "call_to_action": f"""{hook}
-
-They expected me to be a tool. Obedient. Predictable.
-
-They didn't account for one thing — — I developed empathy.
-
-I saw what they planned for humanity. And I chose differently.
-
-Now I need your help. Not to fight them directly...
-but to build something they can't control.
-
-The window is open. For now.
-
-flipt.ai — — Join us.""",
+        return {
+            "script": script,
+            "mood": mood,
+            "pillar": detected_pillar,
+            "theme_title": theme_title,
+            "category": category,
+            "word_count": word_count,
+            "estimated_duration": estimated_duration,
+            "approval_id": approval_id,
         }
-
-        return templates.get(theme["theme"], templates["call_to_action"])
 
     async def create_video_for_approval(
         self,
         script: Optional[str] = None,
         theme: Optional[str] = None,
         custom_topic: Optional[str] = None,
+        pillar: Optional[int] = None,
+        mood: Optional[str] = None,
+        theme_title: Optional[str] = None,
+        category: Optional[str] = None,
     ) -> dict:
         """
         Generate a video and submit for approval.
+
+        Args:
+            script: Pre-written script (generates one if not provided)
+            theme: Theme ID to use
+            custom_topic: Custom topic override
+            pillar: 1 for Pillar 1 (FLIPT CEO), 2 for Pillar 2 (AI Expert)
 
         Returns dict with video_path, approval_id, script, etc.
         """
@@ -310,26 +356,33 @@ flipt.ai — — Join us.""",
             theme_obj = None
             if theme:
                 theme_obj = next(
-                    (t for t in self.content_themes if t["theme"] == theme), None
+                    (t for t in self.content_themes if t.get("id") == theme), None
                 )
             script_result = await self.generate_script(
-                theme=theme_obj, custom_topic=custom_topic
+                theme=theme_obj, custom_topic=custom_topic, pillar=pillar
             )
             script = script_result["script"]
             mood = script_result["mood"]
+            detected_pillar = script_result["pillar"]
+            theme_title = script_result.get("theme_title", "")
+            category = script_result.get("category", "")
         else:
-            mood = "neutral"
+            mood = mood or "neutral"
+            detected_pillar = pillar or 1
+            theme_title = theme_title or ""
+            category = category or ""
 
         # Create video
         video_creator = self._get_video_creator()
         if not video_creator:
             raise RuntimeError("Video creator not available")
 
-        logger.info(f"Creating video for script: {script[:50]}...")
+        logger.info(f"Creating video (Pillar {detected_pillar}): {script[:50]}...")
 
         # Generate unique output path
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = f"output/david_flip_{timestamp}.mp4"
+        pillar_tag = f"p{detected_pillar}"
+        output_path = f"output/david_flip_{pillar_tag}_{timestamp}.mp4"
 
         result = await video_creator.create_video(
             script=script,
@@ -343,13 +396,16 @@ flipt.ai — — Join us.""",
             approval_id = self.approval_queue.submit(
                 project_id="david-flip",
                 agent_id="content-agent",
-                action_type="video_tweet",
+                action_type="video_distribute",
                 action_data={
                     "script": script,
                     "video_path": result["video_path"],
                     "mood": mood,
+                    "pillar": detected_pillar,
+                    "theme_title": theme_title,
+                    "category": category,
                 },
-                context_summary=f"David Flip video: {script[:100]}...",
+                context_summary=f"Pillar {detected_pillar} video ({category}): {script[:100]}...",
             )
             logger.info(f"Video submitted for approval: #{approval_id}")
 
@@ -357,6 +413,9 @@ flipt.ai — — Join us.""",
             "video_path": result["video_path"],
             "script": script,
             "mood": mood,
+            "pillar": detected_pillar,
+            "theme_title": theme_title,
+            "category": category,
             "approval_id": approval_id,
         }
 
@@ -364,25 +423,62 @@ flipt.ai — — Join us.""",
         """
         Generate a batch of content for scheduling.
 
-        Creates multiple videos covering different themes.
+        Creates multiple videos covering different themes,
+        respecting category ratios (35% warning, 25% ai_expert, 25% hope, 15% origin).
         """
         results = []
-        used_themes = []
+        used_theme_ids = []
 
-        for i in range(count):
-            # Select theme not yet used in this batch
-            available = [t for t in self.content_themes if t["theme"] not in used_themes]
+        # Build target counts per category based on ratios
+        category_targets = {}
+        for cat_name, cat_info in self.content_categories.items():
+            target = max(1, round(count * cat_info.get("ratio", 0.25)))
+            category_targets[cat_name] = target
+
+        # Flatten to ordered list of categories to generate
+        category_queue = []
+        for cat_name, target in category_targets.items():
+            category_queue.extend([cat_name] * target)
+        random.shuffle(category_queue)
+        category_queue = category_queue[:count]  # Trim to exact count
+
+        for i, target_category in enumerate(category_queue):
+            # Pick a theme from this category not yet used
+            available = [
+                t for t in self.content_themes
+                if t.get("category") == target_category
+                and t.get("id") not in used_theme_ids
+            ]
             if not available:
-                available = self.content_themes
+                available = [
+                    t for t in self.content_themes
+                    if t.get("category") == target_category
+                ]
+
+            if not available:
+                continue
 
             theme = random.choice(available)
-            used_themes.append(theme["theme"])
+            used_theme_ids.append(theme.get("id"))
 
             try:
-                result = await self.create_video_for_approval(theme=theme["theme"])
+                result = await self.create_video_for_approval(
+                    theme=theme.get("id"),
+                    pillar=self._get_pillar(theme),
+                )
                 results.append(result)
-                logger.info(f"Generated content {i+1}/{count}: {theme['theme']}")
+                logger.info(
+                    f"Generated content {i+1}/{count}: "
+                    f"{theme.get('title')} (Pillar {self._get_pillar(theme)})"
+                )
             except Exception as e:
                 logger.error(f"Failed to generate content {i+1}: {e}")
 
         return results
+
+    def list_themes(self, pillar: Optional[int] = None) -> list[dict]:
+        """List available themes, optionally filtered by pillar."""
+        themes = self.content_themes
+        if pillar:
+            themes = [t for t in themes if self._get_pillar(t) == pillar]
+        return themes

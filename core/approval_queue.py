@@ -220,5 +220,37 @@ class ApprovalQueue:
         elif action_type == "video_create":
             script = action_data.get("script", "")
             return f'Video script: "{script[:200]}..."'
+        elif action_type == "script_review":
+            script = action_data.get("script", "")
+            pillar = action_data.get("pillar", "")
+            category = action_data.get("category", "")
+            word_count = action_data.get("word_count", 0)
+            est_dur = action_data.get("estimated_duration", 0)
+            pillar_label = f"Pillar {pillar}" if pillar else ""
+            parts = []
+            if pillar_label:
+                parts.append(pillar_label)
+            if category:
+                parts.append(f"[{category}]")
+            parts.append(f"{word_count} words")
+            parts.append(f"~{est_dur:.0f}s")
+            header = " | ".join(parts)
+            return f'{header}\nScript: "{script[:200]}..."'
+        elif action_type in ("video_distribute", "video_tweet"):
+            script = action_data.get("script", "")
+            pillar = action_data.get("pillar", "")
+            category = action_data.get("category", "")
+            video_path = action_data.get("video_path", "")
+            pillar_label = f"Pillar {pillar}" if pillar else ""
+            parts = []
+            if pillar_label:
+                parts.append(pillar_label)
+            if category:
+                parts.append(f"[{category}]")
+            header = " ".join(parts)
+            preview = f'{header}\nScript: "{script[:200]}..."' if header else f'Script: "{script[:200]}..."'
+            if video_path:
+                preview += f"\nVideo: {video_path}"
+            return preview
         else:
             return json.dumps(action_data, indent=2)[:500]

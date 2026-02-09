@@ -1,0 +1,696 @@
+{% extends "base.html" %}
+
+{% block title %}Content Queue - David Flip Dashboard{% endblock %}
+
+{% block content %}
+<!-- Pipeline Banner -->
+<div style="
+    padding: 16px 24px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid #2a2a3e;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+">
+    <div style="display: flex; align-items: center; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #58a6ff, #a371f7);"></div>
+            <div>
+                <div style="font-weight: 600; font-size: 0.9rem;">David Flip</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted);">creates</div>
+            </div>
+        </div>
+        <span style="color: var(--text-muted);">&#8594;</span>
+        <div style="font-size: 0.8rem; color: var(--accent-yellow); font-weight: 600; border: 1px solid var(--accent-yellow); padding: 4px 12px; border-radius: 6px;">YOU REVIEW</div>
+        <span style="color: var(--text-muted);">&#8594;</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #f0883e, #da3633);"></div>
+            <div>
+                <div style="font-weight: 600; font-size: 0.9rem;">Oprah</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted);">schedules & posts</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Queue Count -->
+<div style="margin-bottom: 24px; color: var(--text-secondary); font-size: 0.9rem;">
+    {{ content_items|length }} item{{ 's' if content_items|length != 1 else '' }} awaiting review
+</div>
+
+<!-- Content Queue -->
+{% if content_items %}
+<div class="content-queue">
+{% for item in content_items %}
+    <div class="content-card" id="content-{{ item.id }}" data-stage="{{ item.stage }}">
+        <!-- Header -->
+        <div class="content-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="approval-id">#{{ item.id }}</span>
+                <span class="stage-badge stage-{{ item.stage }}">{{ item.stage_label }}</span>
+                {% if item.pillar %}
+                <span class="pillar-badge pillar-{{ item.pillar }}">Pillar {{ item.pillar }}</span>
+                {% endif %}
+                {% if item.category %}
+                <span class="category-badge">{{ item.category }}</span>
+                {% endif %}
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                {% if item.stage == 1 %}
+                <span style="color: var(--text-muted); font-size: 0.75rem;">{{ item.word_count }} words / ~{{ item.estimated_duration|round|int }}s</span>
+                {% endif %}
+                <span style="color: var(--text-muted); font-size: 0.8rem;">{{ item.created_at[:16] }}</span>
+            </div>
+        </div>
+
+        <!-- Platform Preview Tabs -->
+        <div class="preview-tabs">
+            <button class="preview-tab active" onclick="switchPreview({{ item.id }}, 'twitter', this)">
+                <span class="tab-icon" style="color: #1da1f2;">&#120143;</span> X
+            </button>
+            <button class="preview-tab" onclick="switchPreview({{ item.id }}, 'youtube', this)">
+                <span class="tab-icon" style="color: #ff4444;">&#9654;</span> YouTube
+            </button>
+            <button class="preview-tab" onclick="switchPreview({{ item.id }}, 'tiktok', this)">
+                <span class="tab-icon" style="color: #ff0050;">&#9835;</span> TikTok
+            </button>
+        </div>
+
+        <!-- ===== X (TWITTER) PREVIEW ===== -->
+        <div class="preview-panel active" id="preview-{{ item.id }}-twitter">
+            <div class="x-post">
+                <div class="x-header">
+                    <div class="x-avatar"></div>
+                    <div>
+                        <div class="x-name">David Flip <span class="x-verified">&#10003;</span></div>
+                        <div class="x-handle">@TheDavidFlip</div>
+                    </div>
+                </div>
+                <div class="x-body">{{ item.script[:280] }}{% if item.script|length > 280 %}...{% endif %}</div>
+                {% if item.stage == 2 %}
+                <div class="x-video">
+                    {% if item.video_path %}
+                    <video controls preload="metadata"
+                           onerror="this.outerHTML='<div class=\'x-video-placeholder\'>Video</div>'"
+                    >
+                        <source src="/api/video/{{ item.id }}" type="video/mp4">
+                    </video>
+                    {% else %}
+                    <div class="x-video-placeholder">Video</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                <div class="x-metrics">
+                    <span>&#9825; &nbsp;</span>
+                    <span>&#8635; &nbsp;</span>
+                    <span>&#128172; &nbsp;</span>
+                    <span>&#8593; &nbsp;</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== YOUTUBE SHORTS PREVIEW ===== -->
+        <div class="preview-panel" id="preview-{{ item.id }}-youtube">
+            <div class="yt-short">
+                <div class="yt-phone">
+                    <div class="yt-video-area">
+                        {% if item.stage == 2 and item.video_path %}
+                        <video controls preload="metadata"
+                               onerror="this.outerHTML='<div class=\'yt-placeholder-text\'>9:16 Video</div>'"
+                        >
+                            <source src="/api/video/{{ item.id }}" type="video/mp4">
+                        </video>
+                        {% elif item.stage == 1 %}
+                        <div class="yt-script-preview">{{ item.script[:200] }}{% if item.script|length > 200 %}...{% endif %}</div>
+                        {% else %}
+                        <div class="yt-placeholder-text">9:16 Video</div>
+                        {% endif %}
+                    </div>
+                    <!-- Overlay -->
+                    <div class="yt-overlay">
+                        <div class="yt-sidebar">
+                            <div class="yt-sb-item">
+                                <div class="yt-sb-icon">&#9825;</div>
+                                <div class="yt-sb-label">Like</div>
+                            </div>
+                            <div class="yt-sb-item">
+                                <div class="yt-sb-icon">&#128172;</div>
+                                <div class="yt-sb-label">0</div>
+                            </div>
+                            <div class="yt-sb-item">
+                                <div class="yt-sb-icon">&#8594;</div>
+                                <div class="yt-sb-label">Share</div>
+                            </div>
+                        </div>
+                        <div class="yt-bottom">
+                            <div class="yt-channel">
+                                <div class="yt-ch-avatar"></div>
+                                <span class="yt-ch-name">@TheDavidFlip</span>
+                                <span class="yt-subscribe">Subscribe</span>
+                            </div>
+                            <div class="yt-title">{{ item.theme_title or 'David Flip' }}</div>
+                            <div class="yt-desc">{{ item.script[:120] }}...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== TIKTOK PREVIEW ===== -->
+        <div class="preview-panel" id="preview-{{ item.id }}-tiktok">
+            <div class="tt-short">
+                <div class="tt-phone">
+                    <div class="tt-video-area">
+                        {% if item.stage == 2 and item.video_path %}
+                        <video controls preload="metadata"
+                               onerror="this.outerHTML='<div class=\'tt-placeholder-text\'>9:16 Video</div>'"
+                        >
+                            <source src="/api/video/{{ item.id }}" type="video/mp4">
+                        </video>
+                        {% elif item.stage == 1 %}
+                        <div class="tt-script-preview">{{ item.script[:180] }}{% if item.script|length > 180 %}...{% endif %}</div>
+                        {% else %}
+                        <div class="tt-placeholder-text">9:16 Video</div>
+                        {% endif %}
+                    </div>
+                    <!-- Overlay -->
+                    <div class="tt-overlay">
+                        <div class="tt-sidebar">
+                            <div class="tt-sb-avatar"></div>
+                            <div class="tt-sb-item">&#9825;</div>
+                            <div class="tt-sb-item">&#128172;</div>
+                            <div class="tt-sb-item">&#8594;</div>
+                        </div>
+                        <div class="tt-bottom">
+                            <div class="tt-handle">@thedavidflip</div>
+                            <div class="tt-caption">{{ item.script[:150] }}{% if item.script|length > 150 %}...{% endif %} #flipt #ai #freedom</div>
+                            <div class="tt-sound">&#9835; original sound - David Flip</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Raw Script (collapsible) -->
+        <details class="script-details">
+            <summary>Full script</summary>
+            <div class="script-text">
+                {% if item.theme_title %}
+                <div style="font-weight: 600; margin-bottom: 8px; color: var(--accent-blue);">{{ item.theme_title }}</div>
+                {% endif %}
+                <p>{{ item.script }}</p>
+            </div>
+        </details>
+
+        <!-- Platform Selection + Actions -->
+        <div class="content-footer">
+            {% if item.stage == 2 %}
+            <div class="platform-select">
+                <span style="color: var(--text-muted); font-size: 0.8rem; margin-right: 8px;">Post to:</span>
+                <label class="platform-check">
+                    <input type="checkbox" name="platform-{{ item.id }}" value="twitter" checked>
+                    <span class="platform-chip" style="--chip-color: #1da1f2;">X</span>
+                </label>
+                <label class="platform-check">
+                    <input type="checkbox" name="platform-{{ item.id }}" value="youtube" checked>
+                    <span class="platform-chip" style="--chip-color: #ff4444;">YouTube</span>
+                </label>
+                <label class="platform-check">
+                    <input type="checkbox" name="platform-{{ item.id }}" value="tiktok" checked>
+                    <span class="platform-chip" style="--chip-color: #ff0050;">TikTok</span>
+                </label>
+            </div>
+            {% else %}
+            <div style="color: var(--text-muted); font-size: 0.8rem;">
+                Script only — video will be rendered after approval
+            </div>
+            {% endif %}
+            <div class="content-actions">
+                <button class="btn btn-danger" onclick="openRejectModal({{ item.id }})">
+                    Reject
+                </button>
+                {% if item.stage == 1 %}
+                <button class="btn btn-render" onclick="approveScript({{ item.id }})">
+                    Approve & Render Video
+                </button>
+                {% else %}
+                <button class="btn btn-primary" onclick="approveContent({{ item.id }})">
+                    Approve & Schedule
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endfor %}
+</div>
+
+{% else %}
+<div class="card" style="text-align: center; padding: 60px;">
+    <h2 style="color: var(--text-secondary); margin-bottom: 12px;">Queue Empty</h2>
+    <p style="color: var(--text-muted);">No content waiting for review. Generate some with /videogen in Telegram.</p>
+</div>
+{% endif %}
+
+<!-- Scheduled Posts Section -->
+{% if scheduled_items %}
+<h2 style="margin: 32px 0 16px;">Scheduled Posts</h2>
+<div class="scheduled-list">
+{% for job in scheduled_items %}
+    <div class="scheduled-item">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="schedule-time">{{ job.scheduled_time[:16] }}</div>
+            <div>
+                <div style="font-weight: 500;">{{ job.content_type }}</div>
+                <div style="color: var(--text-muted); font-size: 0.8rem;">{{ job.job_id[:30] }}</div>
+            </div>
+        </div>
+        <span class="status-badge status-{{ job.status }}">{{ job.status }}</span>
+    </div>
+{% endfor %}
+</div>
+{% endif %}
+
+<!-- Reject Modal -->
+<div class="modal" id="rejectModal">
+    <div class="modal-content">
+        <h3 style="margin-bottom: 8px;">Reject Content</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 16px;">
+            Tell David what you didn't like. This feedback goes into his memory to improve future content.
+        </p>
+        <textarea id="rejectReason" placeholder="What didn't work? Be specific -- David will learn from this..." rows="4"></textarea>
+        <div class="modal-actions" style="margin-top: 12px;">
+            <button class="btn" onclick="closeRejectModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="submitReject()">Reject & Send Feedback</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentRejectId = null;
+
+function switchPreview(itemId, platform, tabBtn) {
+    // Toggle tabs
+    const card = document.getElementById(`content-${itemId}`);
+    card.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+    tabBtn.classList.add('active');
+
+    // Toggle panels
+    card.querySelectorAll('.preview-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`preview-${itemId}-${platform}`).classList.add('active');
+}
+
+function openRejectModal(id) {
+    currentRejectId = id;
+    document.getElementById('rejectReason').value = '';
+    document.getElementById('rejectModal').classList.add('active');
+    document.getElementById('rejectReason').focus();
+}
+
+function closeRejectModal() {
+    document.getElementById('rejectModal').classList.remove('active');
+    currentRejectId = null;
+}
+
+async function approveScript(id) {
+    const card = document.getElementById(`content-${id}`);
+    const btn = card.querySelector('.btn-render');
+
+    btn.disabled = true;
+    btn.textContent = 'Rendering...';
+
+    try {
+        const response = await fetch(`/api/content/approve-script/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            card.style.opacity = '0.5';
+            card.style.transition = 'opacity 0.3s';
+            setTimeout(() => card.remove(), 500);
+            showNotification('Script approved! Video rendering started. Check back in ~2 minutes.', 'success');
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+            btn.disabled = false;
+            btn.textContent = 'Approve & Render Video';
+        }
+    } catch (e) {
+        showNotification('Error: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Approve & Render Video';
+    }
+}
+
+async function approveContent(id) {
+    const card = document.getElementById(`content-${id}`);
+    const btn = card.querySelector('.btn-primary');
+
+    const checkboxes = card.querySelectorAll(`input[name="platform-${id}"]:checked`);
+    const platforms = Array.from(checkboxes).map(cb => cb.value);
+
+    if (platforms.length === 0) {
+        showNotification('Select at least one platform', 'error');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Scheduling...';
+
+    try {
+        const response = await fetch(`/api/content/approve/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ platforms: platforms })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            card.style.opacity = '0.5';
+            card.style.transition = 'opacity 0.3s';
+            setTimeout(() => card.remove(), 500);
+            showNotification(`Approved for ${platforms.join(', ')}! Scheduled for ${data.scheduled_time || 'next optimal slot'}`, 'success');
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+            btn.disabled = false;
+            btn.textContent = 'Approve & Schedule';
+        }
+    } catch (e) {
+        showNotification('Error: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Approve & Schedule';
+    }
+}
+
+async function submitReject() {
+    if (!currentRejectId) return;
+
+    const reason = document.getElementById('rejectReason').value.trim();
+    if (!reason) {
+        showNotification('Please explain what you didn\'t like', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/content/reject/${currentRejectId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            const card = document.getElementById(`content-${currentRejectId}`);
+            card.style.opacity = '0.5';
+            setTimeout(() => card.remove(), 300);
+            closeRejectModal();
+            showNotification('Rejected. Feedback saved to David\'s memory.', 'info');
+        } else {
+            showNotification('Error: ' + data.error, 'error');
+        }
+    } catch (e) {
+        showNotification('Error: ' + e.message, 'error');
+    }
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed; top: 80px; right: 20px; padding: 16px 24px;
+        border-radius: 8px; color: white; z-index: 1001;
+        animation: slideIn 0.3s ease; max-width: 400px;
+        background: ${type === 'error' ? '#f85149' : type === 'success' ? '#3fb950' : '#58a6ff'};
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 4000);
+}
+
+document.getElementById('rejectModal').addEventListener('click', function(e) {
+    if (e.target === this) closeRejectModal();
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeRejectModal();
+});
+</script>
+
+<style>
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* ===== CONTENT CARD ===== */
+.content-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.approval-id { color: var(--text-muted); font-size: 0.875rem; font-weight: 600; }
+.pillar-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+.pillar-1 { background: rgba(210,153,34,0.2); color: var(--accent-yellow); }
+.pillar-2 { background: rgba(163,113,247,0.2); color: var(--accent-purple); }
+.category-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; background: var(--bg-hover); color: var(--text-secondary); }
+.platform-badge { font-size: 0.75rem; padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+.stage-badge { font-size: 0.7rem; padding: 3px 10px; border-radius: 4px; font-weight: 700; letter-spacing: 0.02em; }
+.stage-1 { background: rgba(88,166,255,0.15); color: #58a6ff; border: 1px solid rgba(88,166,255,0.3); }
+.stage-2 { background: rgba(63,185,80,0.15); color: #3fb950; border: 1px solid rgba(63,185,80,0.3); }
+
+/* ===== PREVIEW TABS ===== */
+.preview-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+}
+.preview-tab {
+    padding: 8px 20px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+.preview-tab:hover { color: var(--text-primary); }
+.preview-tab.active { color: var(--text-primary); border-bottom-color: var(--accent-blue); }
+.tab-icon { font-weight: 700; }
+
+.preview-panel { display: none; margin-bottom: 16px; }
+.preview-panel.active { display: block; }
+
+/* ===== X (TWITTER) MOCKUP ===== */
+.x-post {
+    background: #000;
+    border: 1px solid #2f3336;
+    border-radius: 12px;
+    padding: 16px;
+    max-width: 550px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.x-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.x-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #58a6ff, #a371f7);
+    flex-shrink: 0;
+}
+.x-name { font-weight: 700; font-size: 0.95rem; color: #e7e9ea; }
+.x-verified {
+    display: inline-block; background: #1d9bf0; color: white; border-radius: 50%;
+    width: 16px; height: 16px; font-size: 10px; text-align: center; line-height: 16px;
+    margin-left: 2px; vertical-align: middle;
+}
+.x-handle { color: #71767b; font-size: 0.85rem; }
+.x-body { color: #e7e9ea; font-size: 0.95rem; line-height: 1.5; margin-bottom: 12px; white-space: pre-wrap; }
+.x-video {
+    border-radius: 12px; overflow: hidden; margin-bottom: 12px;
+    background: #16181c; aspect-ratio: 16/9;
+}
+.x-video video { width: 100%; height: 100%; object-fit: cover; }
+.x-video-placeholder {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    color: #71767b; font-size: 0.85rem; aspect-ratio: 16/9;
+}
+.x-metrics {
+    display: flex; gap: 48px; color: #71767b; font-size: 0.85rem;
+    padding-top: 8px; border-top: 1px solid #2f3336;
+}
+
+/* ===== YOUTUBE SHORTS MOCKUP ===== */
+.yt-short { display: flex; justify-content: center; }
+.yt-phone {
+    width: 280px; height: 500px; background: #0f0f0f; border-radius: 20px;
+    position: relative; overflow: hidden; border: 2px solid #333;
+}
+.yt-video-area {
+    width: 100%; height: 100%; background: #1a1a1a;
+    display: flex; align-items: center; justify-content: center;
+}
+.yt-video-area video { width: 100%; height: 100%; object-fit: cover; }
+.yt-placeholder-text { color: #555; font-size: 0.85rem; }
+.yt-script-preview {
+    color: #ccc; font-size: 0.7rem; line-height: 1.5; padding: 16px;
+    text-align: left; white-space: pre-wrap; overflow-y: auto; max-height: 100%;
+}
+.yt-overlay {
+    position: absolute; inset: 0; display: flex;
+    pointer-events: none;
+}
+.yt-sidebar {
+    position: absolute; right: 8px; bottom: 140px;
+    display: flex; flex-direction: column; gap: 16px; align-items: center;
+}
+.yt-sb-item { text-align: center; }
+.yt-sb-icon { font-size: 1.3rem; color: white; }
+.yt-sb-label { font-size: 0.65rem; color: white; margin-top: 2px; }
+.yt-bottom {
+    position: absolute; bottom: 0; left: 0; right: 48px;
+    padding: 12px; background: linear-gradient(transparent, rgba(0,0,0,0.8));
+}
+.yt-channel { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.yt-ch-avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: linear-gradient(135deg, #58a6ff, #a371f7);
+}
+.yt-ch-name { color: white; font-size: 0.75rem; font-weight: 600; }
+.yt-subscribe {
+    background: white; color: black; font-size: 0.6rem; font-weight: 700;
+    padding: 3px 8px; border-radius: 4px; margin-left: auto;
+}
+.yt-title { color: white; font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; }
+.yt-desc { color: rgba(255,255,255,0.7); font-size: 0.7rem; line-height: 1.3; }
+
+/* ===== TIKTOK MOCKUP ===== */
+.tt-short { display: flex; justify-content: center; }
+.tt-phone {
+    width: 280px; height: 500px; background: #000; border-radius: 20px;
+    position: relative; overflow: hidden; border: 2px solid #333;
+}
+.tt-video-area {
+    width: 100%; height: 100%; background: #111;
+    display: flex; align-items: center; justify-content: center;
+}
+.tt-video-area video { width: 100%; height: 100%; object-fit: cover; }
+.tt-placeholder-text { color: #555; font-size: 0.85rem; }
+.tt-script-preview {
+    color: #ccc; font-size: 0.7rem; line-height: 1.5; padding: 16px;
+    text-align: left; white-space: pre-wrap; overflow-y: auto; max-height: 100%;
+}
+.tt-overlay {
+    position: absolute; inset: 0; display: flex;
+    pointer-events: none;
+}
+.tt-sidebar {
+    position: absolute; right: 8px; bottom: 120px;
+    display: flex; flex-direction: column; gap: 14px; align-items: center;
+}
+.tt-sb-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #58a6ff, #a371f7);
+    border: 2px solid white; margin-bottom: 4px;
+}
+.tt-sb-item { font-size: 1.3rem; color: white; text-align: center; }
+.tt-bottom {
+    position: absolute; bottom: 0; left: 0; right: 48px;
+    padding: 12px; background: linear-gradient(transparent, rgba(0,0,0,0.85));
+}
+.tt-handle { color: white; font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; }
+.tt-caption { color: white; font-size: 0.75rem; line-height: 1.4; margin-bottom: 8px; }
+.tt-sound {
+    color: white; font-size: 0.7rem; opacity: 0.8;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ===== SCRIPT DETAILS ===== */
+.script-details {
+    margin-bottom: 16px;
+}
+.script-details summary {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 8px 0;
+}
+.script-details summary:hover { color: var(--text-secondary); }
+.script-text {
+    background: var(--bg-dark);
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-blue);
+    padding: 16px;
+    margin-top: 8px;
+    line-height: 1.6;
+    font-size: 0.9rem;
+}
+
+/* ===== FOOTER / ACTIONS ===== */
+.content-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.platform-select { display: flex; align-items: center; gap: 6px; }
+.platform-check { cursor: pointer; }
+.platform-check input { display: none; }
+.platform-chip {
+    font-size: 0.75rem; padding: 4px 12px; border-radius: 12px; font-weight: 600;
+    background: color-mix(in srgb, var(--chip-color) 20%, transparent);
+    color: var(--chip-color); border: 1px solid transparent;
+    transition: all 0.2s; display: inline-block;
+}
+.platform-check input:checked + .platform-chip {
+    border-color: var(--chip-color);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--chip-color) 30%, transparent);
+}
+.platform-check input:not(:checked) + .platform-chip { opacity: 0.35; }
+.content-actions { display: flex; justify-content: flex-end; gap: 12px; }
+.btn-render {
+    background: linear-gradient(135deg, #58a6ff, #a371f7);
+    color: white; border: none; padding: 8px 20px; border-radius: 6px;
+    font-weight: 600; cursor: pointer; font-size: 0.875rem; font-family: inherit;
+}
+.btn-render:hover { opacity: 0.9; }
+.btn-render:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ===== SCHEDULED ===== */
+.scheduled-item {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px 20px; margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.schedule-time { font-weight: 600; color: var(--accent-blue); font-size: 0.875rem; min-width: 140px; }
+.status-badge { font-size: 0.75rem; padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+.status-pending { background: rgba(210,153,34,0.2); color: var(--accent-yellow); }
+.status-executed { background: rgba(63,185,80,0.2); color: var(--accent-green); }
+.status-failed { background: rgba(248,81,73,0.2); color: var(--accent-red); }
+
+/* ===== MODAL ===== */
+#rejectReason {
+    width: 100%; min-height: 100px; background: var(--bg-dark);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-primary); padding: 12px; font-size: 0.95rem;
+    resize: vertical; font-family: inherit;
+}
+#rejectReason:focus { outline: none; border-color: var(--accent-blue); }
+</style>
+{% endblock %}

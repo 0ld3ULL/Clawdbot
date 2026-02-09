@@ -34,6 +34,7 @@ class YouTubeTool:
 
     def __init__(self):
         self._youtube = None
+        self._channel_verified = False
         self._credentials_path = DATA_DIR / "youtube_credentials.json"
         self._token_path = DATA_DIR / "youtube_token.pickle"
 
@@ -104,14 +105,16 @@ class YouTubeTool:
         """
         self._ensure_client()
 
-        # SAFETY: Verify we're on the correct channel before uploading
-        is_correct, message = self.verify_channel()
-        if not is_correct:
-            logger.error(f"Channel verification failed: {message}")
-            return {
-                "error": f"UPLOAD BLOCKED - {message}. Delete data/youtube_token.pickle and re-authenticate with the correct account."
-            }
-        logger.info(f"Channel verified: {message}")
+        # SAFETY: Verify we're on the correct channel before uploading (cached after first check)
+        if not self._channel_verified:
+            is_correct, message = self.verify_channel()
+            if not is_correct:
+                logger.error(f"Channel verification failed: {message}")
+                return {
+                    "error": f"UPLOAD BLOCKED - {message}. Delete data/youtube_token.pickle and re-authenticate with the correct account."
+                }
+            logger.info(f"Channel verified: {message}")
+            self._channel_verified = True
 
         if not Path(video_path).exists():
             return {"error": f"Video file not found: {video_path}"}

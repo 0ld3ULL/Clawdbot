@@ -400,10 +400,21 @@
         <div class="nav-content">
             <a href="/" class="logo">
                 <div class="avatar"></div>
-                David Flip Dashboard
+                <span>Mission Control</span>
+                <div style="display: flex; gap: 4px; margin-left: 4px;">
+                    {% for p in personalities %}
+                    <span style="font-size: 0.65rem; color: {{ p.color }}; background: {{ p.color }}15; padding: 2px 6px; border-radius: 4px; font-weight: 500;">{{ p.name }}</span>
+                    {% endfor %}
+                </div>
             </a>
             <ul>
                 <li><a href="/" class="{% if request.endpoint == 'index' %}active{% endif %}">Overview</a></li>
+                <li>
+                    <a href="/content" class="{% if request.endpoint == 'content_queue' %}active{% endif %}">
+                        Content
+                        {% if content_count > 0 %}<span class="badge">{{ content_count }}</span>{% endif %}
+                    </a>
+                </li>
                 <li>
                     <a href="/approvals" class="{% if request.endpoint == 'approvals' %}active{% endif %}">
                         Approvals

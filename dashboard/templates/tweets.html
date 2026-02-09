@@ -12,7 +12,7 @@
 <div class="card">
     {% for tweet in tweets %}
     <div class="timeline-item">
-        <div class="timeline-time">{{ tweet.decided_at[:16] if tweet.decided_at else 'N/A' }}</div>
+        <div class="timeline-time">{{ tweet.reviewed_at[:16] if tweet.reviewed_at else 'N/A' }}</div>
         <div class="timeline-content">
             <div style="background: var(--bg-dark); padding: 16px; border-radius: 6px; border-left: 3px solid var(--accent-blue); margin-bottom: 8px;">
                 {{ tweet.action_data.text }}

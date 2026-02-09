@@ -37,7 +37,11 @@ from core.token_budget import TokenBudgetManager
 from interfaces.telegram_bot import TelegramBot
 from personality.david_flip import DavidFlipPersonality
 from tools.twitter_tool import TwitterTool
+from tools.tiktok_tool import TikTokTool
 from tools.tool_registry import build_registry, get_project_allowed_tools
+from tools.video_distributor import VideoDistributor
+from agents.content_agent import ContentAgent
+from agents.interview_agent import InterviewAgent
 from agents.research_agent import ResearchAgent
 from core.memory import MemoryManager
 
@@ -73,7 +77,11 @@ class ClawdbotSystem:
 
         # Tools
         self.twitter = TwitterTool()
-        self.tool_registry = build_registry(twitter_tool=self.twitter)
+        self.tiktok = TikTokTool()
+        self.tool_registry = build_registry(
+            twitter_tool=self.twitter,
+            tiktok_tool=self.tiktok,
+        )
 
         # Agent engine
         self.engine = AgentEngine(
@@ -89,6 +97,26 @@ class ClawdbotSystem:
         # Scheduler for recurring tasks
         self.scheduler = ContentScheduler()
 
+        # Content Agent
+        self.content_agent = ContentAgent(
+            approval_queue=self.approval_queue,
+            scheduler=self.scheduler,
+            personality=self.personality,
+        )
+
+        # Video Distributor
+        self.video_distributor = VideoDistributor(
+            twitter_tool=self.twitter,
+            tiktok_tool=self.tiktok,
+        )
+
+        # Interview Agent
+        self.interview_agent = InterviewAgent(
+            approval_queue=self.approval_queue,
+            personality=self.personality,
+            model_router=self.model_router,
+        )
+
         # Research Agent (initialized after Telegram bot)
         self.research_agent = None
 
@@ -100,7 +128,13 @@ class ClawdbotSystem:
             audit_log=self.audit_log,
             on_command=self.handle_command,
             memory_manager=self.memory,
+            content_agent=self.content_agent,
+            interview_agent=self.interview_agent,
+            scheduler=self.scheduler,
         )
+
+        # Wire video distributor's telegram reference (for TikTok manual mode)
+        self.video_distributor._telegram = self.telegram
 
         # Wire alert callback
         self.audit_log.set_alert_callback(
@@ -236,6 +270,35 @@ class ClawdbotSystem:
                 self.memory.remember_tweet(tweet_text, context=url, posted=True)
 
                 return f"Posted: {url}"
+
+            elif action_type == "video_distribute":
+                # Multi-platform video distribution
+                platforms = action_data.get("platforms", ["twitter", "youtube", "tiktok"])
+                result = await self.video_distributor.distribute(
+                    video_path=action_data.get("video_path", ""),
+                    script=action_data.get("script", ""),
+                    platforms=platforms,
+                    title=action_data.get("theme_title", "David Flip"),
+                    description="flipt.ai",
+                    theme_title=action_data.get("theme_title", ""),
+                )
+
+                distributed = result.get("distributed", [])
+                failed = result.get("failed", [])
+                parts = []
+                if distributed:
+                    parts.append(f"Posted to: {', '.join(distributed)}")
+                    for p, r in result.get("results", {}).items():
+                        url = r.get("url", "")
+                        if url:
+                            parts.append(f"  {p}: {url}")
+                if failed:
+                    parts.append(f"Failed: {', '.join(failed)}")
+                    for p, e in result.get("errors", {}).items():
+                        parts.append(f"  {p}: {e}")
+
+                return "\n".join(parts) if parts else "Distribution complete"
+
             else:
                 return f"No executor for action type: {action_type}"
         except Exception as e:
@@ -287,14 +350,50 @@ class ClawdbotSystem:
         # Create separate in-memory scheduler for cron jobs (can't pickle methods to SQLite)
         from apscheduler.schedulers.asyncio import AsyncIOScheduler
         from apscheduler.triggers.cron import CronTrigger
+        from apscheduler.triggers.interval import IntervalTrigger
         self.cron_scheduler = AsyncIOScheduler()
+
+        # DAILY: Full research cycle at 2am UTC (6am UAE)
         self.cron_scheduler.add_job(
             self._run_daily_research_wrapper,
-            trigger=CronTrigger(hour=2, minute=0),  # 2am UTC = 6am UAE
+            trigger=CronTrigger(hour=2, minute=0),
             id="daily_research",
         )
+
+        # HOT tier: Every 3 hours (Twitter, HN) - breaking news
+        self.cron_scheduler.add_job(
+            lambda: asyncio.create_task(self._run_tier("hot")),
+            trigger=IntervalTrigger(hours=3),
+            id="hot_research",
+        )
+
+        # WARM tier: Every 10 hours (RSS, Reddit, GitHub)
+        self.cron_scheduler.add_job(
+            lambda: asyncio.create_task(self._run_tier("warm")),
+            trigger=IntervalTrigger(hours=10),
+            id="warm_research",
+        )
+
+        # DAILY VIDEO: Disabled until operator is confident in quality
+        # Uncomment to enable automated daily video generation:
+        # self.cron_scheduler.add_job(
+        #     self._run_daily_video_wrapper,
+        #     trigger=CronTrigger(hour=8, minute=0),
+        #     id="daily_video",
+        # )
+
+        # DASHBOARD POLLER: Check for approved content from dashboard + process feedback
+        self.cron_scheduler.add_job(
+            lambda: asyncio.create_task(self._poll_dashboard_actions()),
+            trigger=IntervalTrigger(seconds=30),
+            id="dashboard_poller",
+        )
+
+        # Register video_distribute executor on scheduler
+        self.scheduler.register_executor("video_distribute", self._execute_scheduled_video)
+
         self.cron_scheduler.start()
-        logger.info("Daily research scheduled for 2:00 UTC (6:00 UAE)")
+        logger.info("Research scheduled: Daily 2:00 UTC | Hot every 3h | Warm every 10h")
 
         logger.info("System online. Waiting for commands via Telegram.")
         logger.info(f"Operator chat ID: {os.environ.get('TELEGRAM_OPERATOR_CHAT_ID', 'NOT SET')}")
@@ -332,9 +431,317 @@ class ClawdbotSystem:
             )
             return {"error": str(e)}
 
+    async def _run_tier(self, tier: str):
+        """Run a specific research frequency tier (hot/warm)."""
+        if self.kill_switch.is_active:
+            logger.info(f"Skipping {tier} research - kill switch active")
+            return
+
+        if not self.research_agent:
+            logger.warning(f"Skipping {tier} research - research agent not initialized")
+            return
+
+        try:
+            logger.info(f"Running {tier} tier research...")
+            result = await self.research_agent.run_tier(tier)
+            if result.get("relevant", 0) > 0:
+                self.audit_log.log(
+                    "david-flip", "info", "research",
+                    f"{tier.upper()} research: {result['new']} new, {result['relevant']} relevant"
+                )
+            logger.info(f"{tier.upper()} tier complete: {result}")
+        except Exception as e:
+            logger.error(f"{tier} tier research failed: {e}")
+
     def _run_daily_research_wrapper(self):
         """Wrapper for cron job (sync entry point)."""
         asyncio.create_task(self._run_daily_research())
+
+    async def _run_daily_video(self):
+        """Generate a daily video and submit to approval queue."""
+        if self.kill_switch.is_active:
+            logger.info("Skipping daily video - kill switch active")
+            return
+
+        try:
+            logger.info("Running daily video generation...")
+            result = await self.content_agent.create_video_for_approval()
+            self.audit_log.log(
+                "david-flip", "info", "video",
+                f"Daily video generated: {result.get('theme_title', 'unknown')} "
+                f"(Pillar {result.get('pillar', '?')})"
+            )
+            # Notify operator
+            if self.telegram and self.telegram.app:
+                await self.telegram.app.bot.send_message(
+                    chat_id=self.telegram.operator_id,
+                    text=(
+                        f"Daily video generated!\n\n"
+                        f"Pillar {result.get('pillar', '?')}: {result.get('theme_title', '')}\n"
+                        f"Check /queue to review."
+                    ),
+                )
+        except Exception as e:
+            logger.error(f"Daily video generation failed: {e}")
+
+    def _run_daily_video_wrapper(self):
+        """Wrapper for daily video cron job (sync entry point)."""
+        asyncio.create_task(self._run_daily_video())
+
+    async def _poll_dashboard_actions(self):
+        """
+        Poll for actions from the dashboard:
+        1. Schedule requests (approved content to be distributed)
+        2. Rejection feedback (goes into David's memory)
+
+        This bridges the dashboard UI with the execution pipeline.
+        """
+        feedback_dir = Path("data/content_feedback")
+        if not feedback_dir.exists():
+            return
+
+        for file_path in sorted(feedback_dir.glob("*.json")):
+            try:
+                with open(file_path, "r") as f:
+                    data = json.load(f)
+
+                if file_path.name.startswith("schedule_"):
+                    await self._handle_schedule_request(data)
+                elif file_path.name.startswith("render_"):
+                    await self._handle_render_request(data)
+                elif file_path.name.startswith("feedback_"):
+                    await self._handle_content_feedback(data)
+                elif file_path.name.startswith("execute_"):
+                    await self._handle_execute_request(data)
+
+                # Remove processed file
+                file_path.unlink()
+
+            except Exception as e:
+                logger.error(f"Failed to process dashboard action {file_path.name}: {e}")
+
+    async def _handle_schedule_request(self, data: dict):
+        """Schedule approved content for distribution at optimal time."""
+        from datetime import datetime as dt
+
+        approval_id = data.get("approval_id")
+        action_data = data.get("action_data", {})
+        platforms = data.get("platforms", ["twitter", "youtube", "tiktok"])
+        scheduled_time_str = data.get("scheduled_time", "")
+
+        if not scheduled_time_str:
+            logger.error(f"No scheduled_time in schedule request for #{approval_id}")
+            return
+
+        scheduled_time = dt.fromisoformat(scheduled_time_str)
+        action_data["platforms"] = platforms
+
+        # Schedule via ContentScheduler
+        job_id = self.scheduler.schedule(
+            content_type="video_distribute",
+            content_data=action_data,
+            scheduled_time=scheduled_time,
+        )
+
+        # Mark as executed in approval queue (it's now scheduled)
+        self.approval_queue.mark_executed(approval_id)
+
+        logger.info(
+            f"Dashboard: Scheduled #{approval_id} for {scheduled_time.strftime('%I:%M %p')} "
+            f"to {', '.join(platforms)} (job: {job_id})"
+        )
+
+        # Notify operator via Telegram
+        if self.telegram and self.telegram.app:
+            try:
+                theme = action_data.get("theme_title", "")
+                await self.telegram.app.bot.send_message(
+                    chat_id=self.telegram.operator_id,
+                    text=(
+                        f"Content #{approval_id} approved via dashboard\n"
+                        f"{'Theme: ' + theme + chr(10) if theme else ''}"
+                        f"Scheduled: {scheduled_time.strftime('%b %d, %I:%M %p')}\n"
+                        f"Platforms: {', '.join(platforms)}"
+                    ),
+                )
+            except Exception:
+                pass
+
+    async def _handle_render_request(self, data: dict):
+        """Render video for an approved script (Stage 1 -> Stage 2 transition)."""
+        approval_id = data.get("approval_id")
+        script = data.get("script", "")
+        pillar = data.get("pillar", 1)
+        theme_title = data.get("theme_title", "")
+        category = data.get("category", "")
+
+        if not script:
+            logger.error(f"No script in render request for #{approval_id}")
+            return
+
+        logger.info(f"Rendering video for approved script #{approval_id}...")
+
+        # Notify operator that rendering has started
+        if self.telegram and self.telegram.app:
+            try:
+                await self.telegram.app.bot.send_message(
+                    chat_id=self.telegram.operator_id,
+                    text=(
+                        f"Rendering video for script #{approval_id}...\n"
+                        f"{'Theme: ' + theme_title + chr(10) if theme_title else ''}"
+                        f"This takes ~2 minutes."
+                    ),
+                )
+            except Exception:
+                pass
+
+        try:
+            # Render video and submit as Stage 2 (video_distribute) approval
+            result = await self.content_agent.create_video_for_approval(
+                script=script,
+                pillar=pillar,
+                mood=data.get("mood"),
+                theme_title=data.get("theme_title"),
+                category=data.get("category"),
+            )
+
+            logger.info(
+                f"Video rendered for script #{approval_id}: "
+                f"{result.get('video_path', 'unknown')} "
+                f"(new approval #{result.get('approval_id', '?')})"
+            )
+
+            # Notify operator that video is ready for review
+            if self.telegram and self.telegram.app:
+                try:
+                    await self.telegram.app.bot.send_message(
+                        chat_id=self.telegram.operator_id,
+                        text=(
+                            f"Video rendered! Check dashboard to review.\n\n"
+                            f"{'Theme: ' + theme_title + chr(10) if theme_title else ''}"
+                            f"Approval #{result.get('approval_id', '?')}"
+                        ),
+                    )
+                except Exception:
+                    pass
+
+        except Exception as e:
+            logger.error(f"Video render failed for script #{approval_id}: {e}")
+            self.audit_log.log(
+                "david-flip", "reject", "video_render",
+                f"Render failed for script #{approval_id}: {e}",
+                success=False,
+            )
+            # Notify operator of failure
+            if self.telegram and self.telegram.app:
+                try:
+                    await self.telegram.app.bot.send_message(
+                        chat_id=self.telegram.operator_id,
+                        text=f"Video render FAILED for script #{approval_id}: {e}",
+                    )
+                except Exception:
+                    pass
+
+    async def _handle_content_feedback(self, data: dict):
+        """Save content rejection feedback into David's memory."""
+        reason = data.get("reason", "")
+        context = data.get("content_context", {})
+        approval_id = data.get("approval_id", "")
+
+        if not reason:
+            return
+
+        # Save to David's memory as a significant event
+        summary = (
+            f"Content rejected by operator. "
+            f"Theme: {context.get('theme_title', 'unknown')}. "
+            f"Category: {context.get('category', 'unknown')}. "
+            f"Feedback: {reason}"
+        )
+
+        self.memory.remember_event(
+            title=f"Content feedback: {context.get('theme_title', 'rejected')}",
+            summary=summary,
+            significance=7,  # High significance — operator feedback matters
+            category="content_feedback",
+        )
+
+        logger.info(f"Saved content feedback for #{approval_id}: {reason[:100]}")
+
+        # Also log to audit
+        self.audit_log.log(
+            "david-flip", "info", "content_feedback",
+            f"Rejection feedback #{approval_id}: {reason[:200]}",
+        )
+
+    async def _handle_execute_request(self, data: dict):
+        """Execute an approved action from the dashboard (tweets, threads, replies, etc.)."""
+        approval_id = data.get("approval_id")
+        action_type = data.get("action_type", "")
+        action_data = data.get("action_data", {})
+
+        try:
+            result = await self._execute_action(action_type, action_data)
+
+            # Mark as executed in approval queue
+            self.approval_queue.mark_executed(approval_id)
+
+            logger.info(f"Dashboard: Executed {action_type} #{approval_id}: {result[:200]}")
+
+            # Notify operator via Telegram
+            if self.telegram and self.telegram.app:
+                try:
+                    await self.telegram.app.bot.send_message(
+                        chat_id=self.telegram.operator_id,
+                        text=f"Dashboard approved {action_type} #{approval_id}\n{result}",
+                    )
+                except Exception:
+                    pass
+
+        except Exception as e:
+            logger.error(f"Dashboard execute failed for #{approval_id}: {e}")
+            self.audit_log.log(
+                "david-flip", "reject", "dashboard_execute",
+                f"Failed {action_type} #{approval_id}: {e}",
+                success=False,
+            )
+
+    async def _execute_scheduled_video(self, content_data: dict) -> dict:
+        """Execute a scheduled video distribution (called by ContentScheduler)."""
+        platforms = content_data.get("platforms", ["twitter", "youtube", "tiktok"])
+
+        result = await self.video_distributor.distribute(
+            video_path=content_data.get("video_path", ""),
+            script=content_data.get("script", ""),
+            platforms=platforms,
+            title=content_data.get("theme_title", "David Flip"),
+            description="flipt.ai",
+            theme_title=content_data.get("theme_title", ""),
+        )
+
+        # Notify operator of result
+        if self.telegram and self.telegram.app:
+            distributed = result.get("distributed", [])
+            failed = result.get("failed", [])
+            parts = []
+            if distributed:
+                parts.append(f"Posted to: {', '.join(distributed)}")
+                for p, r in result.get("results", {}).items():
+                    url = r.get("url", "")
+                    if url:
+                        parts.append(f"  {p}: {url}")
+            if failed:
+                parts.append(f"Failed: {', '.join(failed)}")
+
+            try:
+                await self.telegram.app.bot.send_message(
+                    chat_id=self.telegram.operator_id,
+                    text="Scheduled post complete!\n\n" + "\n".join(parts),
+                )
+            except Exception:
+                pass
+
+        return result
 
     async def _send_status_notification(self, online: bool):
         """Send David's status to Telegram with Dubai time and update status file."""

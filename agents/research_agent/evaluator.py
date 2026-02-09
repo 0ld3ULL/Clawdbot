@@ -166,13 +166,35 @@ Write a structured summary (max 500 words):
 **ACTIONABLE FOR US:** What could we apply to our projects (Clawdbot, DEVA, Amphitheatre, David Flip)?
 **RELEVANCE:** Rate 1-10 how relevant this is to AI agents, game dev, or surveillance/privacy topics"""
 
+# --- LLM Quick Classifier (for items with zero keyword matches) ---
+
+CLASSIFIER_PROMPT = """Classify this content into ONE of these categories. Return ONLY the category ID.
+
+Categories:
+- improve_architecture: AI agents, tool use, memory systems, voice assistants, MCP, autonomous systems
+- david_content: Surveillance, CBDCs, digital ID, privacy, government control, debanking
+- security_updates: Security vulnerabilities, exploits, prompt injection, breaches
+- cost_optimization: LLM costs, token efficiency, caching, optimization
+- competitor_watch: AI coding tools, agent frameworks, AI companies, new AI projects
+- claude_updates: Claude, Anthropic, new models or features from Anthropic
+- deva_gamedev: Unity, game development, Unreal, Godot, multiplayer
+- model_releases: New LLM releases, benchmarks, model comparisons
+- flipt_relevant: Crypto, Solana, NFT, marketplaces
+- none: Not relevant to any category
+
+Title: {title}
+Content: {content}
+
+Return ONLY the category ID (e.g. "improve_architecture" or "none"). Nothing else."""
+
 # Goals that should use the David Flip rubric
 DAVID_FLIP_GOALS = {"david_content"}
 
 # Goals that should use the Technical rubric
 TECHNICAL_GOALS = {
     "improve_architecture", "security_updates", "cost_optimization",
-    "competitor_watch", "claude_updates", "deva_gamedev", "flipt_relevant"
+    "competitor_watch", "claude_updates", "deva_gamedev", "flipt_relevant",
+    "model_releases"
 }
 
 
@@ -276,15 +298,63 @@ class GoalEvaluator:
             logger.error(f"{rubric_name} evaluation failed for {item.title}: {e}")
             return {}
 
+    async def _llm_classify(self, item: ResearchItem) -> Set[str]:
+        """
+        LLM fallback classifier for items with zero keyword matches.
+        Uses a cheap, fast LLM call to classify content that might use
+        novel terminology or unexpected framing.
+        Returns set of goal IDs, or empty set if not relevant.
+        """
+        prompt = CLASSIFIER_PROMPT.format(
+            title=item.title,
+            content=item.content[:500]
+        )
+
+        try:
+            model = self.router.models.get(ModelTier.CHEAP)
+            if not model:
+                return set()
+
+            response = await self.router.invoke(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=50
+            )
+
+            category = response.get("content", "").strip().lower().strip('"').strip("'")
+
+            # Map to goal IDs
+            valid_goals = {g["id"] for g in self.goals}
+            if category in valid_goals:
+                logger.debug(f"LLM classified '{item.title[:40]}' as {category}")
+                return {category}
+            elif category == "none":
+                return set()
+            else:
+                # Try partial match
+                for goal_id in valid_goals:
+                    if goal_id in category or category in goal_id:
+                        return {goal_id}
+                return set()
+
+        except Exception as e:
+            logger.debug(f"LLM classification failed for {item.title[:40]}: {e}")
+            return set()
+
     async def evaluate(self, item: ResearchItem) -> ResearchItem:
         """Evaluate a single item against goals using dual rubrics."""
         # Pre-filter: Check if any keywords match and which goals
         matched_goal_ids = self._keyword_match_goals(item)
+
+        # LLM fallback: if no keywords matched, try cheap LLM classification
+        if not matched_goal_ids:
+            matched_goal_ids = await self._llm_classify(item)
+
         if not matched_goal_ids:
             item.relevance_score = 0
             item.priority = "none"
             item.suggested_action = "ignore"
-            item.reasoning = "No keyword matches"
+            item.reasoning = "No keyword or LLM matches"
             return item
 
         # For transcripts with long content, summarize first (two-pass evaluation)
