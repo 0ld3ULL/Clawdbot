@@ -22,6 +22,41 @@ D:\Claude_Code\Projects\Clawdbot
 
 ---
 
+## Agent Teams (Claude Code Feature)
+
+**Enabled:** February 2026. Use autonomously when it will produce better results.
+
+### When to USE Agent Teams:
+- **Parallel research** - Investigating multiple technologies, APIs, or approaches simultaneously
+- **Multi-file refactoring** - Different agents own different parts of the codebase
+- **Debugging with competing hypotheses** - Test multiple theories in parallel, converge faster
+- **Building independent components** - Each agent builds a separate module that gets combined
+- **Comparative analysis** - "Compare approach A vs B vs C" - each agent explores one
+- **Large codebase exploration** - Multiple agents search different areas simultaneously
+
+### When NOT to use Agent Teams:
+- Simple single-file edits
+- Sequential tasks where each step depends on the previous
+- Quick questions or lookups
+- When token budget is a concern (each agent has its own context window)
+- Obvious bugs with clear single cause
+- Tasks that take < 5 minutes with a single agent
+
+### How to trigger:
+Just describe the team in natural language:
+- "Spawn 3 agents to research X, Y, and Z in parallel"
+- "Have one agent work on the frontend while another handles the backend"
+- "Test these 3 debugging theories simultaneously"
+
+### Controls:
+- **Shift+Up/Down** - Switch between teammate views (in terminal)
+- In tmux: each agent gets its own pane automatically
+
+### Token cost warning:
+Agent Teams uses significantly more tokens. Each teammate has its own context window. Only use when the parallel benefit outweighs the cost.
+
+---
+
 ## How to Give Jono Instructions
 
 **Jono (0ld3ULL) is NOT a programmer.** Give instructions in plain, step-by-step format:
