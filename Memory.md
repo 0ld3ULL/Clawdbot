@@ -484,19 +484,29 @@ A test video was accidentally posted to the wrong channel and had to be deleted.
 ### Sources Monitored:
 | Source | What |
 |--------|------|
-| GitHub | anthropic-sdk-python, langchain, autogen, crewAI, AutoGPT |
-| YouTube | GodaGo, AIJason, MatthewBerman, DavidShapiroAI |
-| Reddit | r/ClaudeAI, r/LocalLLaMA, r/AutoGPT, r/artificial, r/MachineLearning |
+| GitHub | anthropic-sdk-python, claude-code, langchain, langgraph, autogen, crewAI, AutoGPT, aider |
+| YouTube | GodaGo, AIJason, matthew_berman, DaveShapiro, IndyDevDan, AllAboutAI, PeterYangYT, Fireship, TheCodingTrain |
+| YouTube Transcripts | Same channels — full transcript extraction + LLM summarization |
+| TikTok | @tristynnmcgowan, @chase_ai_, @gregisenberg, @olleai, @vibewithkevin, @mattganzak (needs Supadata API) |
+| Reddit | r/ClaudeAI, r/LocalLLaMA, r/AutoGPT, r/artificial, r/MachineLearning, r/gamedev, r/Unity3D |
 | RSS | TechCrunch AI, The Verge AI, Ars Technica, EFF, CoinDesk, Decrypt |
 
-### Goals Defined:
-1. **improve_architecture** - AI agent patterns (high, task)
-2. **david_content** - Surveillance/CBDC news (high, content)
+### Goals Defined (8 goals, ~150 keywords):
+1. **improve_architecture** - AI agent patterns, MCP, agentic, voice AI, Clawdbot, DEVA (high, task)
+2. **david_content** - Surveillance/CBDC/debanking news (high, content)
 3. **security_updates** - CVEs, vulnerabilities (critical, alert)
 4. **cost_optimization** - LLM cost reduction (medium, task)
-5. **competitor_watch** - Other AI agents (medium, knowledge)
-6. **flipt_relevant** - Crypto/marketplace news (medium, knowledge)
-7. **claude_updates** - Anthropic news (high, alert)
+5. **competitor_watch** - OpenClaw, Moltbook, Devin, Cursor, Windsurf, Cline, Aider, vibe coding (high, knowledge)
+6. **flipt_relevant** - Crypto/marketplace/PLAYA3ULL news (medium, knowledge)
+7. **claude_updates** - Anthropic news, Claude Code, MCP (high, alert)
+8. **deva_gamedev** - Unity, game dev, AI coding, Amphitheatre (high, knowledge)
+
+### Dual Scoring Rubrics:
+Items are scored by TWO rubrics — the higher score wins:
+1. **David Flip rubric** — "Can someone be switched off?" (surveillance/control focus)
+2. **Technical rubric** — "How does this help Clawdbot, DEVA, Amphitheatre?" (AI/gamedev focus)
+
+This prevents AI agent tutorials from being buried by a surveillance-only scoring system.
 
 ### Deployment:
 ```bash
@@ -1235,5 +1245,74 @@ Conversation mode (default):
 
 ### Key Design Decision:
 Moved from keyword-based tool detection to explicit trigger words. Old system had broad words like "please", "can you", "add" triggering tool mode during casual conversation. New system: chat freely, say "execute program" when ready for action. DEVA reviews the conversation to understand what to do.
+
+---
+
+## Session Log - February 9, 2026 (Video Intelligence System)
+
+### What Was Built:
+
+1. **Video Intelligence System - YouTube Transcript Scraper (COMPLETE):**
+   - New scraper: `agents/research_agent/scrapers/transcript_scraper.py`
+   - Resolves YouTube `@handle` to channel ID (caches in `data/youtube_channel_cache.json`)
+   - Monitors channels via free RSS feeds (no API key needed)
+   - Fetches full video transcripts via `youtube-transcript-api` (free)
+   - Throttles requests (5s delay) to avoid YouTube blocking
+   - Truncates long transcripts at 15,000 chars
+   - TikTok support scaffolded via Supadata API (needs API key)
+   - All 5 tests passing: transcript API, channel resolution, RSS feed, full pipeline, config
+
+2. **Two-Pass Transcript Evaluation:**
+   - Long transcripts (>2000 chars) get summarized by Haiku first
+   - Summary extracts key insights, tools mentioned, actionable items
+   - Then standard goal scoring runs on the summary (saves tokens)
+   - Added `TRANSCRIPT_SUMMARY_PROMPT` and `summarize_transcript()` method to evaluator
+
+3. **Dual Scoring Rubrics (MAJOR IMPROVEMENT):**
+   - OLD: Everything scored through David Flip "surveillance kill switch" lens. AI tutorials scored 5 at best.
+   - NEW: Two rubrics run in parallel — David Flip rubric + Technical rubric. Highest score wins.
+   - Technical rubric asks: "How does this help Clawdbot, DEVA, Amphitheatre, or David Flip?"
+   - Scoring: 9-10 directly applicable, 7-8 highly relevant, 5-6 useful knowledge, 1-4 ignore
+   - `_keyword_match_goals()` returns which goals matched to determine which rubrics to run
+
+4. **Massive Keyword Expansion (~70 to ~150 keywords):**
+   - improve_architecture: added MCP, agentic, computer use, voice AI, STT/TTS, RAG, Clawdbot, DEVA
+   - competitor_watch: added OpenClaw, Moltbook, Devin, Cursor, Windsurf, Cline, Aider, Bolt, vibe coding
+   - claude_updates: added Claude Code, Anthropic SDK, extended thinking, MCP server
+   - deva_gamedev: added Unity 6, HDRP, DOTS, Netcode, Unreal, Godot, Amphitheatre
+   - david_content: added debanking, programmable money, kill switch, KYC, mass surveillance
+
+5. **Source Expansion:**
+   - YouTube channels: added @IndyDevDan, @AllAboutAI, @PeterYangYT, @firaboraalern (Fireship), @TheCodingTrain
+   - TikTok accounts (6): @tristynnmcgowan, @chase_ai_, @gregisenberg, @olleai, @vibewithkevin, @mattganzak
+   - GitHub repos: added anthropics/claude-code, langchain-ai/langgraph, paul-gauthier/aider
+   - Reddit: added r/gamedev, r/Unity3D
+   - Fixed incorrect YouTube handles: @matthew_berman (not @MatthewBerman), @DaveShapiro (not @DavidShapiroAI)
+
+6. **PeterYangYT Discovery:**
+   - User shared YouTube link: "Master OpenClaw in 30 Minutes (5 Real Use Cases + Setup + Memory)"
+   - Added @PeterYangYT to both YouTube channel lists and transcript channels
+
+### Files Created:
+- `agents/research_agent/scrapers/transcript_scraper.py` — Full TranscriptScraper class
+- `test_transcript.py` — 5-test suite for the scraper
+
+### Files Modified:
+- `agents/research_agent/evaluator.py` — Dual rubrics, transcript summarization, _keyword_match_goals()
+- `agents/research_agent/scrapers/__init__.py` — Added TranscriptScraper import
+- `agents/research_agent/agent.py` — Added TranscriptScraper to scrapers list
+- `config/research_goals.yaml` — 8 goals, ~150 keywords, transcript sources, TikTok accounts
+- `requirements.txt` — Added youtube-transcript-api>=1.0.0
+
+### Git Commits:
+```
+1b64c72 feat: Dual scoring rubrics + massive keyword/source expansion
+eb9b24c feat: Add Video Intelligence System - YouTube transcript scraper
+```
+
+### TODO for Next Session:
+- [ ] **Supadata API** — Sign up at supadata.ai (~$9/month) for TikTok transcript extraction. Add SUPADATA_API_KEY to .env. The scraper already has TikTok support coded, just needs the key.
+- [ ] Deploy transcript scraper + updated evaluator to VPS
+- [ ] Test full research cycle with transcripts included
 
 ---
