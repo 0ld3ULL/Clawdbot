@@ -55,6 +55,16 @@ Just describe the team in natural language:
 ### Token cost warning:
 Agent Teams uses significantly more tokens. Each teammate has its own context window. Only use when the parallel benefit outweighs the cost.
 
+### Announcement:
+When activating Agent Teams, always announce it clearly:
+
+```
+🟢 ACTIVATING AGENT TEAMS 🟢
+[Brief description of what each agent will do]
+```
+
+This lets Jono know parallel work is happening and why.
+
 ---
 
 ## How to Give Jono Instructions
