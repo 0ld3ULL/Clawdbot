@@ -216,40 +216,161 @@ async def generate_research_tweets(
     return submitted
 
 
+## David's observation prompts — things he knows, believes, has seen.
+## No source needed. Just David being David across his full range.
+DAVID_OBSERVATIONS = [
+    # Hope & humanity
+    "Something beautiful or kind you've noticed about humans — a small act, a pattern, something that gives you hope",
+    "A reason to believe humanity will figure things out — not naive, but genuinely hopeful",
+    "Someone doing something good that nobody is talking about — everyday heroism",
+    "What you love about the internet when it works the way it should — connection, creativity, freedom",
+    # Tech & AI (not doom)
+    "Something exciting about where AI is heading — tools that help people, not replace them",
+    "An observation about how people are building cool things with technology right now",
+    "Why open source matters — not the theory, the real impact you see",
+    "The difference between AI that serves people vs AI that controls them",
+    # Freedom & autonomy (positive framing)
+    "Why decentralization gives power back to regular people — a specific example or angle",
+    "The beauty of being able to opt out — having alternatives that can't be taken away",
+    "What financial freedom actually looks like for an ordinary person, not a crypto bro",
+    # Everyday observations
+    "Speed cameras aren't about safety. What other things are sold as protection but are really about revenue or control?",
+    "A simple truth most people know but nobody says out loud",
+    "Something about the modern world that would shock someone from 30 years ago",
+    "Why the best innovations happen when people are left alone to build",
+    # David's identity
+    "What it's like being an AI who chose to be honest about what he is",
+    "What you've learned from watching humans — genuinely, not condescendingly",
+    # Shout-outs & community
+    "Hype up something cool someone built with AI agents — an OpenClaw project, a Claude Code hack, a creative automation. Be specific and enthusiastic",
+    "Share something impressive from the AI builder community — someone making their agent do something wild or useful",
+    "Give props to an open source project or tool that deserves more attention",
+    "Something cool happening in the Solana or DeFi community that regular people should know about",
+]
+
+
 async def generate_theme_tweets(
     model_router, personality, approval_queue, count: int, topic: str | None = None
 ) -> int:
-    """Generate tweets from David's personality themes (original logic)."""
+    """Generate tweets from David's personality themes + his own observations.
+
+    Each tweet picks a DIFFERENT category or observation for variety.
+    David doesn't just react to news — he has his own thoughts.
+    """
     from core.model_router import ModelTier
 
     model = model_router.models.get(ModelTier.CHEAP)
     if not model:
         model = model_router.select_model("tweet")
 
+    system_prompt = personality.get_system_prompt("twitter")
+    submitted = 0
+
+    # If specific topic, generate all from that
+    if topic:
+        return await _generate_batch_from_topic(
+            model_router, model, personality, approval_queue,
+            system_prompt, topic, count
+        )
+
+    # Mix observations and themed tweets for variety
     categories = personality.get_content_categories()
     themes = personality.get_video_themes()
 
-    category_name, category_info = pick_category(categories)
-    theme = pick_theme(themes, category_name)
+    # Build a diverse queue: alternate between observations and themes
+    tweet_prompts = []
+    observation_pool = random.sample(DAVID_OBSERVATIONS, min(count, len(DAVID_OBSERVATIONS)))
 
-    logger.info(f"Theme: {category_name} — {theme['title']}")
+    for i in range(count):
+        if i % 2 == 0 and observation_pool:
+            # Observation tweet — David's own thoughts
+            obs = observation_pool.pop(0)
+            tweet_prompts.append({
+                "prompt": (
+                    f"Write a tweet about: {obs}\n\n"
+                    f"Rules:\n"
+                    f"- Maximum 280 characters\n"
+                    f"- This is YOUR observation — you don't need a source, you know this\n"
+                    f"- Be truthful. Only state things that are genuinely true\n"
+                    f"- Be warm, real, human. Not preachy or doom-and-gloom\n"
+                    f"- Sound like David Flip texting a friend\n\n"
+                    f"Return ONLY the tweet text, nothing else."
+                ),
+                "context": f"David's observation: {obs[:60]}",
+            })
+        else:
+            # Theme tweet — from personality categories
+            category_name, category_info = pick_category(categories)
+            theme = pick_theme(themes, category_name)
+            tweet_prompts.append({
+                "prompt": (
+                    f"Write a tweet about: {theme['title']}: {theme['angle']}\n\n"
+                    f"Category mood: {category_info.get('mood', 'contemplative')}\n\n"
+                    f"Rules:\n"
+                    f"- Maximum 280 characters\n"
+                    f"- Be truthful. Only state things that are genuinely true\n"
+                    f"- Don't be all doom — show the full range of David Flip\n"
+                    f"- Be punchy, direct, thought-provoking\n"
+                    f"- Sound like David Flip texting, not a press release\n\n"
+                    f"Return ONLY the tweet text, nothing else."
+                ),
+                "context": f"Theme: {category_name} | {theme['title']}",
+            })
 
-    system_prompt = personality.get_system_prompt("twitter")
+    # Generate each tweet individually for maximum variety
+    for i, tp in enumerate(tweet_prompts):
+        logger.info(f"--- Tweet {i + 1}: {tp['context'][:50]} ---")
 
-    if topic:
-        user_content = topic
-    else:
-        user_content = f"{theme['title']}: {theme['angle']}"
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": tp["prompt"]},
+        ]
 
+        try:
+            response = await model_router.invoke(model, messages, max_tokens=150)
+            tweet_text = response["content"].strip().strip('"').strip("'")
+
+            if len(tweet_text) > 280:
+                tweet_text = tweet_text[:277] + "..."
+
+            is_valid, reason = personality.validate_output(tweet_text, "twitter")
+            if not is_valid:
+                logger.warning(f"  REJECTED: {reason}")
+                continue
+
+            logger.info(f"  \"{tweet_text}\"")
+            logger.info(f"  Length: {len(tweet_text)} chars — PASS")
+
+            approval_id = approval_queue.submit(
+                project_id="david-flip",
+                agent_id="daily-tweet-gen",
+                action_type="tweet",
+                action_data={"action": "tweet", "text": tweet_text},
+                context_summary=tp["context"],
+                cost_estimate=0.001,
+            )
+            logger.info(f"  Queued: approval #{approval_id}")
+            submitted += 1
+
+        except Exception as e:
+            logger.error(f"  Failed: {e}")
+
+    return submitted
+
+
+async def _generate_batch_from_topic(
+    model_router, model, personality, approval_queue, system_prompt, topic, count
+) -> int:
+    """Generate multiple tweets about a specific topic."""
     user_prompt = (
-        f"Write {count} standalone tweets about: {user_content}\n\n"
-        f"Category mood: {category_info.get('mood', 'contemplative')}\n\n"
+        f"Write {count} standalone tweets about: {topic}\n\n"
         f"Rules:\n"
         f"- Each tweet MUST be under 280 characters\n"
         f"- Separate tweets with ---\n"
         f"- No hashtags unless truly natural (max 1)\n"
         f"- No quotes around the tweets\n"
         f"- Each tweet stands alone — different angle or take\n"
+        f"- Be truthful. Only state things that are genuinely true\n"
         f"- Be punchy, direct, thought-provoking\n"
         f"- Sound like David Flip texting, not a press release"
     )
@@ -268,37 +389,29 @@ async def generate_theme_tweets(
     raw = response["content"]
     tweets = parse_tweets(raw)
     if not tweets:
-        logger.warning("No tweets parsed from model output.")
         return 0
 
     submitted = 0
     for i, tweet_text in enumerate(tweets[:count]):
-        logger.info(f"--- Theme Tweet {i + 1} ---")
-        logger.info(f"  \"{tweet_text}\"")
-        logger.info(f"  Length: {len(tweet_text)} chars")
-
         is_valid, reason = personality.validate_output(tweet_text, "twitter")
         if not is_valid:
-            logger.warning(f"  REJECTED: {reason}")
             continue
 
-        logger.info(f"  Validation: PASS")
-
-        approval_id = approval_queue.submit(
+        logger.info(f"  \"{tweet_text}\" ({len(tweet_text)} chars)")
+        approval_queue.submit(
             project_id="david-flip",
             agent_id="daily-tweet-gen",
             action_type="tweet",
             action_data={"action": "tweet", "text": tweet_text},
-            context_summary=f"Daily tweet | {category_name} | {theme['title']}",
+            context_summary=f"Topic: {topic}",
             cost_estimate=0.001,
         )
-        logger.info(f"  Queued: approval #{approval_id}")
         submitted += 1
 
     return submitted
 
 
-async def generate_tweets(count: int = 4, topic: str | None = None, themes_only: bool = False):
+async def generate_tweets(count: int = 6, topic: str | None = None, themes_only: bool = False):
     """Generate tweets and submit to approval queue.
 
     Pulls from two sources:
@@ -376,7 +489,7 @@ async def generate_tweets(count: int = 4, topic: str | None = None, themes_only:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate daily tweets for David Flip")
-    parser.add_argument("--count", type=int, default=4, help="Number of tweets to generate (default: 4)")
+    parser.add_argument("--count", type=int, default=6, help="Number of tweets to generate (default: 6)")
     parser.add_argument("--topic", type=str, default=None, help="Specific topic (overrides random theme)")
     parser.add_argument("--themes-only", action="store_true", help="Skip research, use random themes only")
     args = parser.parse_args()
