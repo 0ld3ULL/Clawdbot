@@ -403,6 +403,13 @@ class DavidSystem:
             id="warm_research",
         )
 
+        # DAILY TWEETS: Generate tweets at 6am UTC (10am UAE) for Jono's morning review
+        self.cron_scheduler.add_job(
+            lambda: asyncio.create_task(self._run_daily_tweets()),
+            trigger=CronTrigger(hour=6, minute=0),
+            id="daily_tweets",
+        )
+
         # DAILY VIDEO: Disabled until operator is confident in quality
         # Uncomment to enable automated daily video generation:
         # self.cron_scheduler.add_job(
@@ -427,7 +434,7 @@ class DavidSystem:
         self.scheduler.register_executor("reply", self._execute_scheduled_tweet)
 
         self.cron_scheduler.start()
-        logger.info("Research scheduled: Daily 2:00 UTC | Hot every 3h | Warm every 10h")
+        logger.info("Cron: Research 2:00 UTC | Tweets 6:00 UTC | Hot every 3h | Warm every 10h")
 
         logger.info("System online. Waiting for commands via Telegram.")
         logger.info(f"Operator chat ID: {os.environ.get('TELEGRAM_OPERATOR_CHAT_ID', 'NOT SET')}")
@@ -464,6 +471,49 @@ class DavidSystem:
                 success=False
             )
             return {"error": str(e)}
+
+    async def _run_daily_tweets(self):
+        """Generate daily tweets from Echo's research + David's themes.
+
+        Runs at 6am UTC (10am UAE). Jono reviews in Mission Control,
+        clicks 'Approve & Schedule', Oprah posts at optimal times.
+        """
+        if self.kill_switch.is_active:
+            logger.info("Skipping daily tweets - kill switch active")
+            return
+
+        try:
+            from run_daily_tweets import generate_tweets
+            logger.info("Running daily tweet generation...")
+            await generate_tweets(count=4)
+
+            self.audit_log.log(
+                "david-flip", "info", "tweets",
+                "Daily tweets generated — waiting for review in Mission Control"
+            )
+
+            # Notify Jono via Telegram
+            if self.telegram and self.telegram.app:
+                try:
+                    await self.telegram.app.bot.send_message(
+                        chat_id=self.telegram.operator_id,
+                        text=(
+                            "Your daily tweets are ready for review!\n\n"
+                            "Open Mission Control:\n"
+                            "http://127.0.0.1:5000/approvals\n\n"
+                            "Approve the good ones, reject the bad ones with feedback."
+                        ),
+                    )
+                except Exception:
+                    pass
+
+        except Exception as e:
+            logger.error(f"Daily tweet generation failed: {e}")
+            self.audit_log.log(
+                "david-flip", "reject", "tweets",
+                f"Daily tweet generation failed: {e}",
+                success=False,
+            )
 
     async def _run_tier(self, tier: str):
         """Run a specific research frequency tier (hot/warm)."""
