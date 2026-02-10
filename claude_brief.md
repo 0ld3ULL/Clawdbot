@@ -1,6 +1,6 @@
 # Claude Session Brief
-*Generated: 2026-02-10 04:57*
-*Memories: 42 total — 42 clear, 0 fuzzy, 0 fading*
+*Generated: 2026-02-10 06:48*
+*Memories: 46 total — 46 clear, 0 fuzzy, 0 fading*
 *Last decay: 2026-02-10T04:36:52.029534*
 *Last reconciliation: never*
 
@@ -155,6 +155,9 @@ Content Safety (UAE): no specific government targeting, focus Western systems, t
 
 ## Current State (manually updated)
 
+### Git identity not configured on Davids machine *****
+Git user.name and user.email are not set on the David computer (DESKTOP-9S55RR6). Cannot commit or push from here. 13 files are STAGED for the Echo Intelligence Upgrade commit. Commit message saved in commit_msg_echo.txt. Jono needs to either: set git identity here, or commit/push from his PC via Claude J.
+
 ### Project Phase *****
 Phase 1 BUILD IN PROGRESS. Foundation code written, needs API keys and testing.
 Local development on ASUS ROG laptop at C:\Projects\TheDavidProject
@@ -171,6 +174,9 @@ Also register Oprah's _execute_scheduled_video with ContentScheduler.
 Research agent built in agents/research_agent/ with 4 scrapers (RSS, GitHub, Reddit, YouTube) + transcript scraper + evaluator.
 NOT YET deployed to VPS. Needs: pip install, copy files, restart.
 *Tags: research, deploy, vps, todo*
+
+### Claude Memory Lite built for Jet *****
+Built a portable memory system for Jet (Claude Y / Young3ULL). Lives in Stuff/claude_memory_lite/. Same concept as our memory system but simplified - no Gemini reconciliation, no complex decay. SQLite + FTS5, brief generator, first-run seed script, CLAUDE_TEMPLATE.md with proactive memory instructions, Launch Claude Y.bat desktop launcher. Jono is copying via USB to Jets computer. NOT pushed to GitHub yet.
 
 ### Dashboard — Running Locally *****
 Flask dashboard at C:\Projects\TheDavidProject\dashboard\app.py
@@ -201,6 +207,9 @@ Oprah takes over the entire post-approval pipeline.
 Deva's role is now 'Game Developer (standby)' across all systems.
 Made: February 9, 2026
 *Tags: deva, oprah, operations, roles*
+
+### When to use Gemini Wall Mode *****
+USE Wall Mode: 1) Architectural changes (rewiring how systems connect), 2) After big merges touching overlapping files, 3) Before VPS deploy as pre-production sanity check, 4) Debugging cross-file issues that are hard to trace. SKIP Wall Mode: 1) Adding new files following existing patterns (scrapers, stores), 2) Config changes (yaml, env), 3) Isolated bug fixes, 4) Mechanical implementation from detailed plans with runtime verification. Rule of thumb: If changes could break something in a file I didnt read, use the wall. If everything is self-contained and verified running, skip it. Money is not the concern - signal-to-noise is.
 
 ### Wall Mode Uses Gemini, Not Llama 4 *****
 Decision: Use Gemini 2.5 Flash for Wall Mode, not Llama 4 Scout.
@@ -244,6 +253,9 @@ youtube-transcript-api v2+ uses instance method: YouTubeTranscriptApi().fetch(vi
 ### Feb 10 — Project Rename + Memory Launcher *****
 Renamed entire project from Clawdbot to The David Project (TDP). 21 files updated: main.py (DavidSystem), telegram_bot, oprah, scheduler, youtube, video_creator, gemini_client, evaluator, research_goals, master.yaml, DEVA-SETUP, Memory.md, etc. GitHub repo renamed to 0ld3ULL/the-david-project. Gemini alignment audit: 141 files, 383K tokens — confirmed clean rename. Created CLAUDE.md (auto-read by Claude Code at session start). Created Launch-Claude.bat desktop shortcut — generates fresh memory brief then opens Claude Code. Only fix from Gemini: added DAVID_DATA_DIR to .env.example.
 *Tags: rename, tdp, claude-md, launcher, gemini-audit*
+
+### Echo Intelligence Upgrade - 6 features implemented *****
+Implemented all 6 features from transcript analysis: 1) Anti-repetition checkin log for Oprah notifications, 2) Smart notification tiers (skip/notify/urgent), 3) Perplexity Sonar Pro scraper via OpenRouter, 4) Firecrawl website crawler, 5) Research saved as markdown files in research/ folder, 6) Goal detection in conversations via Haiku LLM. All files compile and pass runtime tests. Staged but NOT committed - git identity not set on Davids machine.
 
 ### Feb 9 — Oprah Operations Agent Created *****
 Created personality/oprah.py and agents/operations_agent.py.

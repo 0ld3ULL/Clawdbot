@@ -1,0 +1,15 @@
+# ============================================
+# Claude Y — Memory System
+# Add these lines to your .gitignore
+# ============================================
+
+# Claude memory database (personal to each developer)
+data/claude_memory.db
+data/claude_memory.db-wal
+data/claude_memory.db-shm
+
+# Session brief (auto-generated, not source code)
+claude_brief.md
+
+# Python cache
+claude_memory/__pycache__/
