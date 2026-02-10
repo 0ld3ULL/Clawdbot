@@ -346,6 +346,65 @@ Core listing system, categories, multi-image galleries, search/filters, product 
 
 **Key Point:** GitHub PAT can live on the laptop, but push is gated by TOTP code from YOUR phone. Even if laptop is fully compromised, attacker cannot push without the code.
 
+### Claude D — How to Use GitGuard
+
+**IMPORTANT: Never use raw `git push` on the laptop. Always use GitGuard.**
+
+**Step 1: Pull latest code**
+```bash
+cd C:\Projects\TheDavidProject
+git pull
+```
+
+**Step 2: When you want to push, use this pattern:**
+
+```python
+import asyncio
+from security.git_guard import GitGuard
+
+# Create GitGuard (telegram_bot is optional - for notifications)
+git_guard = GitGuard(telegram_bot=None)
+
+# Request push approval
+async def push_my_changes():
+    repo_path = "C:/Projects/TheDavidProject"  # or whatever repo
+
+    # This sends notification to Jono's Telegram
+    success, message = await git_guard.request_push(repo_path, branch="main")
+    print(message)
+
+    # Now wait for Jono to approve via /authpush <code>
+    # Then call:
+    # success, message = await git_guard.execute_approved_push()
+
+asyncio.run(push_my_changes())
+```
+
+**Step 3: Tell Jono to check Telegram**
+
+Say something like:
+> "I've requested a push. Check Telegram and use `/authpush <code>` to approve."
+
+**Step 4: After Jono approves, execute the push:**
+
+```python
+success, message = await git_guard.execute_approved_push()
+print(message)  # Will show success or error
+```
+
+**Or — Simpler: Just tell Jono what to push**
+
+If the above is too complex, just:
+1. Commit your changes locally: `git add -A && git commit -m "message"`
+2. Tell Jono: "I've committed changes. Run `/authpush <code>` when ready, then I'll push."
+3. After approval, run: `git push origin main`
+
+The GitGuard will intercept and check for approval before allowing the push.
+
+**Files involved:**
+- `security/git_guard.py` — The guard
+- `data/pending_push.json` — Stores pending request (survives restarts)
+
 ---
 
 ## Agent Architecture
