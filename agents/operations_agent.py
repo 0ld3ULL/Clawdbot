@@ -137,9 +137,9 @@ class OperationsAgent:
         try:
             if self.scheduler:
                 job_id = self.scheduler.schedule(
-                    action_type="video_distribute",
+                    content_type=content_type,
+                    content_data=job_data,
                     scheduled_time=scheduled_time,
-                    data=job_data,
                 )
             else:
                 job_id = f"pending_{approval_id}"

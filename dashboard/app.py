@@ -11,6 +11,7 @@ Mission Control for AI personalities. Provides:
 
 import json
 import os
+import random
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -373,7 +374,7 @@ def api_content_reject(approval_id):
 @app.route("/api/approve/<int:approval_id>", methods=["POST"])
 @login_required
 def api_approve(approval_id):
-    """Approve a pending item and trigger execution via Oprah."""
+    """Approve a pending item and schedule it via Oprah."""
     try:
         conn = get_db(APPROVAL_DB)
         cursor = conn.cursor()
@@ -395,20 +396,28 @@ def api_approve(approval_id):
         conn.commit()
         conn.close()
 
-        # Write execution request for main.py poller
-        execute_request = {
+        # Pick the next available tweet slot
+        scheduled_time = _get_next_available_tweet_slot()
+
+        # Write schedule request for main.py poller
+        schedule_request = {
             "approval_id": approval_id,
             "action_type": action_type,
             "action_data": action_data,
+            "content_type": action_type,
+            "scheduled_time": scheduled_time.isoformat(),
             "approved_at": datetime.now().isoformat(),
         }
-        request_path = FEEDBACK_DIR / f"execute_{approval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        request_path = FEEDBACK_DIR / f"schedule_{approval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         with open(request_path, "w") as f:
-            json.dump(execute_request, f, indent=2)
+            json.dump(schedule_request, f, indent=2)
 
-        log_activity("approval", f"Approved {action_type} #{approval_id}")
+        log_activity("approval", f"Approved & scheduled {action_type} #{approval_id} for {scheduled_time.strftime('%I:%M %p UTC')}")
 
-        return jsonify({"success": True})
+        return jsonify({
+            "success": True,
+            "scheduled_time": scheduled_time.strftime("%I:%M %p UTC"),
+        })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
@@ -465,7 +474,7 @@ def api_reject(approval_id):
 @app.route("/api/edit/<int:approval_id>", methods=["POST"])
 @login_required
 def api_edit(approval_id):
-    """Edit and approve a pending item, then trigger execution."""
+    """Edit and approve a pending item, then schedule it."""
     new_text = request.json.get("text", "")
     if not new_text:
         return jsonify({"success": False, "error": "No text provided"})
@@ -491,20 +500,28 @@ def api_edit(approval_id):
         conn.commit()
         conn.close()
 
-        # Write execution request with edited data
-        execute_request = {
+        # Pick the next available tweet slot
+        scheduled_time = _get_next_available_tweet_slot()
+
+        # Write schedule request with edited data
+        schedule_request = {
             "approval_id": approval_id,
             "action_type": action_type,
             "action_data": action_data,
+            "content_type": action_type,
+            "scheduled_time": scheduled_time.isoformat(),
             "approved_at": datetime.now().isoformat(),
         }
-        request_path = FEEDBACK_DIR / f"execute_{approval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        request_path = FEEDBACK_DIR / f"schedule_{approval_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         with open(request_path, "w") as f:
-            json.dump(execute_request, f, indent=2)
+            json.dump(schedule_request, f, indent=2)
 
-        log_activity("approval", f"Edited and approved {action_type} #{approval_id}")
+        log_activity("approval", f"Edited & scheduled {action_type} #{approval_id} for {scheduled_time.strftime('%I:%M %p UTC')}")
 
-        return jsonify({"success": True})
+        return jsonify({
+            "success": True,
+            "scheduled_time": scheduled_time.strftime("%I:%M %p UTC"),
+        })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
@@ -870,6 +887,52 @@ def _get_next_optimal_slot(platforms: list[str]) -> datetime:
 
     if candidates:
         return min(candidates)
+
+    # Fallback: 2 hours from now
+    return now + timedelta(hours=2)
+
+
+def _get_next_available_tweet_slot() -> datetime:
+    """
+    Find the next available tweet slot at optimal hours (9, 12, 15, 18 UTC).
+
+    Reads scheduler.db to avoid conflicts with already-scheduled posts.
+    Adds 0-15 min jitter so tweets don't land exactly on the hour.
+    """
+    now = datetime.utcnow()
+    min_post_time = now + timedelta(minutes=30)
+    optimal_hours = PLATFORM_OPTIMAL_HOURS.get("twitter", [9, 12, 15, 18])
+
+    # Read already-scheduled times from scheduler.db
+    taken_times = []
+    try:
+        if SCHEDULER_DB.exists():
+            conn = sqlite3.connect(str(SCHEDULER_DB))
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT scheduled_time FROM scheduled_content WHERE status = 'pending'"
+            ).fetchall()
+            conn.close()
+            taken_times = [datetime.fromisoformat(r["scheduled_time"]) for r in rows]
+    except Exception:
+        pass  # DB might not exist yet — no conflicts
+
+    # Find next available slot (check today + next 2 days)
+    for day_offset in range(3):
+        for hour in optimal_hours:
+            slot = (now + timedelta(days=day_offset)).replace(
+                hour=hour, minute=0, second=0, microsecond=0
+            )
+            if slot <= min_post_time:
+                continue
+            # Check conflict: no other post within 1 hour of this slot
+            conflict = any(
+                abs((t - slot).total_seconds()) < 3600 for t in taken_times
+            )
+            if not conflict:
+                # Add jitter: 0-15 minutes so posts look natural
+                jitter = random.randint(0, 15)
+                return slot + timedelta(minutes=jitter)
 
     # Fallback: 2 hours from now
     return now + timedelta(hours=2)

@@ -36,7 +36,7 @@
         <div class="actions">
             <button class="btn" onclick="openEditModal({{ approval.id }}, `{{ approval.action_data.text|replace('`', '') }}`)">Edit</button>
             <button class="btn btn-danger" onclick="rejectApproval({{ approval.id }})">Reject</button>
-            <button class="btn btn-primary" onclick="approveApproval({{ approval.id }})">Approve & Post</button>
+            <button class="btn btn-primary" onclick="approveApproval({{ approval.id }})">Approve & Schedule</button>
         </div>
     </div>
 
@@ -52,7 +52,7 @@
     </div>
     <div class="actions" style="display: flex; justify-content: flex-end; gap: 12px;">
         <button class="btn btn-danger" onclick="rejectApproval({{ approval.id }})">Reject</button>
-        <button class="btn btn-primary" onclick="approveApproval({{ approval.id }})">Approve & Post Thread</button>
+        <button class="btn btn-primary" onclick="approveApproval({{ approval.id }})">Approve & Schedule</button>
     </div>
 
     {% elif approval.action_type in ('video_distribute', 'video_create', 'video_tweet') %}
@@ -104,7 +104,7 @@
             </div>
             <div class="modal-actions">
                 <button class="btn" onclick="closeEditModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveEdit()">Save & Approve</button>
+                <button class="btn btn-primary" onclick="saveEdit()">Save & Schedule</button>
             </div>
         </div>
     </div>
@@ -166,7 +166,7 @@ function closeRejectModal() {
 async function approveApproval(id) {
     const btn = event.target;
     btn.disabled = true;
-    btn.textContent = 'Posting...';
+    btn.textContent = 'Scheduling...';
 
     try {
         const response = await fetch(`/api/approve/${id}`, {
@@ -181,16 +181,17 @@ async function approveApproval(id) {
             card.style.opacity = '0.5';
             card.style.transition = 'opacity 0.3s';
             setTimeout(() => card.remove(), 500);
-            showNotification('Approved! Oprah will handle it.', 'success');
+            const timeMsg = data.scheduled_time ? ` Posting at ${data.scheduled_time}.` : '';
+            showNotification('Scheduled! Oprah will post at the optimal time.' + timeMsg, 'success');
         } else {
             showNotification('Error: ' + data.error, 'error');
             btn.disabled = false;
-            btn.textContent = 'Approve & Post';
+            btn.textContent = 'Approve & Schedule';
         }
     } catch (e) {
         showNotification('Error: ' + e.message, 'error');
         btn.disabled = false;
-        btn.textContent = 'Approve & Post';
+        btn.textContent = 'Approve & Schedule';
     }
 }
 
@@ -255,7 +256,8 @@ async function saveEdit() {
             card.style.opacity = '0.5';
             setTimeout(() => card.remove(), 300);
             closeEditModal();
-            showNotification('Edited and approved! Oprah will handle it.', 'success');
+            const timeMsg = data.scheduled_time ? ` Posting at ${data.scheduled_time}.` : '';
+            showNotification('Edited and scheduled! Oprah will post at the optimal time.' + timeMsg, 'success');
         } else {
             showNotification('Error: ' + data.error, 'error');
         }

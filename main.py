@@ -42,8 +42,10 @@ from tools.tool_registry import build_registry, get_project_allowed_tools
 from tools.video_distributor import VideoDistributor
 from agents.content_agent import ContentAgent
 from agents.interview_agent import InterviewAgent
+from agents.operations_agent import OperationsAgent
 from agents.research_agent import ResearchAgent
 from core.memory import MemoryManager
+from personality.oprah import OprahPersonality
 
 # Configure logging
 logging.basicConfig(
@@ -135,6 +137,21 @@ class DavidSystem:
 
         # Wire video distributor's telegram reference (for TikTok manual mode)
         self.video_distributor._telegram = self.telegram
+
+        # Operations Agent (Oprah) — handles post-approval pipeline
+        self.oprah_personality = OprahPersonality()
+        self.oprah = OperationsAgent(
+            approval_queue=self.approval_queue,
+            audit_log=self.audit_log,
+            kill_switch=self.kill_switch,
+            personality=self.oprah_personality,
+            telegram_bot=self.telegram,
+            scheduler=self.scheduler,
+            video_distributor=self.video_distributor,
+            content_agent=self.content_agent,
+            memory=self.memory,
+            twitter_tool=self.twitter,
+        )
 
         # Wire alert callback
         self.audit_log.set_alert_callback(
@@ -404,6 +421,11 @@ class DavidSystem:
         # Register video_distribute executor on scheduler
         self.scheduler.register_executor("video_distribute", self._execute_scheduled_video)
 
+        # Register tweet/thread/reply executors for scheduled posting
+        self.scheduler.register_executor("tweet", self._execute_scheduled_tweet)
+        self.scheduler.register_executor("thread", self._execute_scheduled_tweet)
+        self.scheduler.register_executor("reply", self._execute_scheduled_tweet)
+
         self.cron_scheduler.start()
         logger.info("Research scheduled: Daily 2:00 UTC | Hot every 3h | Warm every 10h")
 
@@ -548,9 +570,17 @@ class DavidSystem:
         scheduled_time = dt.fromisoformat(scheduled_time_str)
         action_data["platforms"] = platforms
 
+        # Determine content_type from the data (tweets, threads, replies, or video)
+        content_type = data.get("content_type", data.get("action_type", "video_distribute"))
+
+        # Ensure tweet executor knows the action type
+        if content_type in ("tweet", "thread", "reply"):
+            action_data["action"] = content_type
+            action_data["approval_id"] = approval_id
+
         # Schedule via ContentScheduler
         job_id = self.scheduler.schedule(
-            content_type="video_distribute",
+            content_type=content_type,
             content_data=action_data,
             scheduled_time=scheduled_time,
         )
@@ -559,21 +589,20 @@ class DavidSystem:
         self.approval_queue.mark_executed(approval_id)
 
         logger.info(
-            f"Dashboard: Scheduled #{approval_id} for {scheduled_time.strftime('%I:%M %p')} "
-            f"to {', '.join(platforms)} (job: {job_id})"
+            f"Dashboard: Scheduled {content_type} #{approval_id} for {scheduled_time.strftime('%I:%M %p')} "
+            f"(job: {job_id})"
         )
 
         # Notify operator via Telegram
         if self.telegram and self.telegram.app:
             try:
-                theme = action_data.get("theme_title", "")
+                text_preview = action_data.get("text", action_data.get("theme_title", ""))[:100]
                 await self.telegram.app.bot.send_message(
                     chat_id=self.telegram.operator_id,
                     text=(
-                        f"Content #{approval_id} approved via dashboard\n"
-                        f"{'Theme: ' + theme + chr(10) if theme else ''}"
-                        f"Scheduled: {scheduled_time.strftime('%b %d, %I:%M %p')}\n"
-                        f"Platforms: {', '.join(platforms)}"
+                        f"{content_type.title()} #{approval_id} scheduled via dashboard\n"
+                        f"{text_preview}\n"
+                        f"Posting at: {scheduled_time.strftime('%b %d, %I:%M %p UTC')}"
                     ),
                 )
             except Exception:
@@ -753,6 +782,49 @@ class DavidSystem:
             except Exception:
                 pass
 
+        return result
+
+    async def _execute_scheduled_tweet(self, content_data: dict) -> dict:
+        """Execute a scheduled tweet (called by ContentScheduler at the scheduled time)."""
+        action_type = content_data.get("action", "tweet")
+        content_data["action"] = action_type
+
+        result = await self.twitter.execute(content_data)
+
+        if "error" in result:
+            logger.error(f"Scheduled tweet failed: {result['error']}")
+            # Notify operator
+            if self.telegram and self.telegram.app:
+                try:
+                    await self.telegram.app.bot.send_message(
+                        chat_id=self.telegram.operator_id,
+                        text=f"Scheduled tweet FAILED: {result['error']}\nText: {content_data.get('text', '')[:100]}",
+                    )
+                except Exception:
+                    pass
+            return result
+
+        url = result.get("url", "")
+
+        # Remember the tweet in David's memory
+        self.memory.remember_tweet(content_data.get("text", ""), context=url, posted=True)
+
+        # Mark as executed in approval queue
+        approval_id = content_data.get("approval_id")
+        if approval_id:
+            self.approval_queue.mark_executed(approval_id)
+
+        # Notify operator
+        if self.telegram and self.telegram.app:
+            try:
+                await self.telegram.app.bot.send_message(
+                    chat_id=self.telegram.operator_id,
+                    text=f"Scheduled tweet posted!\n{content_data.get('text', '')[:200]}\n{url}",
+                )
+            except Exception:
+                pass
+
+        logger.info(f"Scheduled tweet posted: {url}")
         return result
 
     async def _send_status_notification(self, online: bool):
