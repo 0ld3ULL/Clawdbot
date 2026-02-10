@@ -325,7 +325,7 @@ class ActionRouter:
         except Exception as e:
             logger.error(f"Failed to save research file: {e}")
 
-    async def route_batch(self, items: list[ResearchItem], max_drafts: int = 5) -> dict:
+    async def route_batch(self, items: list[ResearchItem], max_drafts: int = 10) -> dict:
         """Route multiple items and return summary stats.
 
         Only drafts tweets for items with david_score >= 8, limited to top max_drafts.

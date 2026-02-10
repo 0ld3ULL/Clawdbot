@@ -41,6 +41,19 @@ class ContentScheduler:
         # Initialize metadata database
         self._init_db()
 
+    def __getstate__(self):
+        """Exclude unpicklable APScheduler instance for job serialization."""
+        state = self.__dict__.copy()
+        state.pop('scheduler', None)
+        state.pop('_executors', None)
+        return state
+
+    def __setstate__(self, state):
+        """Restore from pickle — scheduler and executors are re-wired on startup."""
+        self.__dict__.update(state)
+        self.scheduler = None
+        self._executors = {}
+
     def _init_db(self):
         """Initialize the metadata database."""
         conn = sqlite3.connect(self.db_path)

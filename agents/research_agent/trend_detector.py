@@ -140,13 +140,16 @@ class TrendDetector:
             avg_score = sum(i.relevance_score for i in group_items) / len(group_items)
             trend_score = min(10, avg_score + (len(sources) - 1) * 1.5)
 
+            def _naive(dt):
+                """Strip timezone info for safe comparison."""
+                if dt and hasattr(dt, 'tzinfo') and dt.tzinfo:
+                    return dt.replace(tzinfo=None)
+                return dt
+
             first_seen = min(
-                (i.published_at or i.scraped_at or datetime.utcnow())
+                _naive(i.published_at or i.scraped_at or datetime.utcnow())
                 for i in group_items
             )
-            # Normalize to naive datetime
-            if hasattr(first_seen, 'tzinfo') and first_seen.tzinfo:
-                first_seen = first_seen.replace(tzinfo=None)
 
             trends.append({
                 "topic": entity,

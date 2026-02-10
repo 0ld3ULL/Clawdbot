@@ -1205,10 +1205,45 @@ COLLECTOR (built) → GEMINI 2.5 FLASH (1M) → CLAUDE (200K reasoning)
 1. ~~**Voice Input** - Whisper API for speech-to-text~~ ✅ DONE (RealtimeSTT)
 2. ~~**Voice Output** - ElevenLabs for text-to-speech~~ ✅ DONE (eleven_flash_v2_5)
 3. ~~**Memory System** - Multi-layer persistent memory~~ ✅ DONE (DevaMemory + GroupMemory + GameMemory)
-4. **Wall Mode (File Collector)** - Walk Unity project, gather .cs files, parse .unity scenes
-5. **Llama 4 Scout Integration** - Connect to Together.ai / Fireworks / self-hosted
+4. ~~**Wall Mode (File Collector)**~~ ✅ DONE - Unity version (`voice/wall_mode.py`) + Python version (`voice/wall_python.py`)
+5. ~~**Gemini Integration**~~ ✅ DONE - Gemini 2.5 Flash via `voice/gemini_client.py`
 6. **Computer Use** - Screenshot capture, mouse/keyboard control
 7. **Unity Integration** - Console log monitoring, hot-reload triggers
+
+### The Wall — Python Codebase Edition (for Claude D and Claude J)
+
+**"Take it to The Wall"** = load the full TDP Python codebase into Gemini's 1M context window for cross-file analysis.
+
+**Two versions exist:**
+| Version | File | Purpose |
+|---------|------|---------|
+| Unity Wall | `voice/wall_mode.py` | Collects `.cs` files for game projects (DEVA uses this) |
+| Python Wall | `voice/wall_python.py` | Collects `.py` files for TDP codebase (Claude D/J use this) |
+
+Both use `voice/gemini_client.py` to send context to Gemini 2.5 Flash.
+
+**How to use (run via Bash tool in Claude Code):**
+```bash
+# Full codebase (129 files, ~344K tokens — fits easily in 800K limit)
+python voice/wall_python.py "Your question here"
+
+# Targeted files only (faster, cheaper)
+python voice/wall_python.py -f main.py,agents/operations_agent.py "Check the wiring"
+
+# Filter by subsystem
+python voice/wall_python.py -s agents "How does Oprah handle scheduling?"
+python voice/wall_python.py -s core "Show me data flow through the engine"
+```
+
+**Available subsystems:** agents, core, dashboard, personality, tools, voice, video, telegram, security, claude_memory
+
+**When to use The Wall:**
+- After any refactor — "take it to The Wall to confirm"
+- Cross-file bug hunting (data format mismatches, broken references)
+- Understanding how systems interact end-to-end
+- "Is anything broken?" sanity checks
+
+**Requires:** `GOOGLE_API_KEY` in `.env` (Google AI Studio). Already configured on David's laptop.
 
 ### Why This Matters
 

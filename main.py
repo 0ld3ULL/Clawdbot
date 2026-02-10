@@ -153,14 +153,19 @@ class DavidSystem:
             twitter_tool=self.twitter,
         )
 
-        # Wire alert callback
-        self.audit_log.set_alert_callback(
-            lambda msg: asyncio.create_task(self.telegram.send_alert(msg))
-        )
+        # Wire alert callback (uses _loop ref set in start() for thread safety)
+        self.audit_log.set_alert_callback(self._send_audit_alert)
 
         # Set default budgets
         self.token_budget.set_budget("master", daily=2.00, monthly=60.00)
         self.token_budget.set_budget("david-flip", daily=10.00, monthly=200.00)
+
+    def _send_audit_alert(self, msg: str):
+        """Thread-safe audit alert sender."""
+        if hasattr(self, '_loop') and self._loop.is_running():
+            asyncio.run_coroutine_threadsafe(self.telegram.send_alert(msg), self._loop)
+        else:
+            logger.warning(f"Audit alert (no event loop): {msg[:100]}")
 
     async def handle_command(self, command: str, args: str) -> str:
         """
@@ -284,58 +289,8 @@ class DavidSystem:
             logger.debug(f"Goal detection error: {e}")
 
     async def _execute_action(self, action_type: str, action_data: dict) -> str:
-        """Execute an approved action through the appropriate tool."""
-        try:
-            if action_type in ("tweet", "thread", "reply"):
-                # Ensure action type is in the data for the Twitter tool
-                action_data["action"] = action_type
-                result = await self.twitter.execute(action_data)
-                if "error" in result:
-                    return f"Twitter error: {result['error']}"
-                url = result.get("url", "")
-
-                # Remember the tweet
-                tweet_text = action_data.get("text", "")
-                self.memory.remember_tweet(tweet_text, context=url, posted=True)
-
-                return f"Posted: {url}"
-
-            elif action_type == "video_distribute":
-                # Multi-platform video distribution
-                platforms = action_data.get("platforms", ["twitter", "youtube", "tiktok"])
-                result = await self.video_distributor.distribute(
-                    video_path=action_data.get("video_path", ""),
-                    script=action_data.get("script", ""),
-                    platforms=platforms,
-                    title=action_data.get("theme_title", "David Flip"),
-                    description="flipt.ai",
-                    theme_title=action_data.get("theme_title", ""),
-                )
-
-                distributed = result.get("distributed", [])
-                failed = result.get("failed", [])
-                parts = []
-                if distributed:
-                    parts.append(f"Posted to: {', '.join(distributed)}")
-                    for p, r in result.get("results", {}).items():
-                        url = r.get("url", "")
-                        if url:
-                            parts.append(f"  {p}: {url}")
-                if failed:
-                    parts.append(f"Failed: {', '.join(failed)}")
-                    for p, e in result.get("errors", {}).items():
-                        parts.append(f"  {p}: {e}")
-
-                return "\n".join(parts) if parts else "Distribution complete"
-
-            else:
-                return f"No executor for action type: {action_type}"
-        except Exception as e:
-            self.audit_log.log(
-                "david-flip", "reject", "execution",
-                f"Failed: {action_type}", details=str(e), success=False
-            )
-            return f"Execution failed: {e}"
+        """Execute an approved action — delegates to Oprah."""
+        return await self.oprah.execute_action(action_type, action_data)
 
     async def start(self):
         """Start the system."""
@@ -377,35 +332,38 @@ class DavidSystem:
         self.scheduler.register_executor("daily_research", self._run_daily_research)
 
         # Create separate in-memory scheduler for cron jobs (can't pickle methods to SQLite)
+        # APScheduler runs jobs in a thread pool, so we need the loop reference
+        # to schedule coroutines safely from threads.
         from apscheduler.schedulers.asyncio import AsyncIOScheduler
         from apscheduler.triggers.cron import CronTrigger
         from apscheduler.triggers.interval import IntervalTrigger
+        self._loop = asyncio.get_running_loop()
         self.cron_scheduler = AsyncIOScheduler()
 
         # DAILY: Full research cycle at 2am UTC (6am UAE)
         self.cron_scheduler.add_job(
-            self._run_daily_research_wrapper,
+            lambda: asyncio.run_coroutine_threadsafe(self._run_daily_research(), self._loop),
             trigger=CronTrigger(hour=2, minute=0),
             id="daily_research",
         )
 
         # HOT tier: Every 3 hours (Twitter, HN) - breaking news
         self.cron_scheduler.add_job(
-            lambda: asyncio.create_task(self._run_tier("hot")),
+            lambda: asyncio.run_coroutine_threadsafe(self._run_tier("hot"), self._loop),
             trigger=IntervalTrigger(hours=3),
             id="hot_research",
         )
 
         # WARM tier: Every 10 hours (RSS, Reddit, GitHub)
         self.cron_scheduler.add_job(
-            lambda: asyncio.create_task(self._run_tier("warm")),
+            lambda: asyncio.run_coroutine_threadsafe(self._run_tier("warm"), self._loop),
             trigger=IntervalTrigger(hours=10),
             id="warm_research",
         )
 
         # DAILY TWEETS: Generate tweets at 6am UTC (10am UAE) for Jono's morning review
         self.cron_scheduler.add_job(
-            lambda: asyncio.create_task(self._run_daily_tweets()),
+            lambda: asyncio.run_coroutine_threadsafe(self._run_daily_tweets(), self._loop),
             trigger=CronTrigger(hour=6, minute=0),
             id="daily_tweets",
         )
@@ -413,25 +371,25 @@ class DavidSystem:
         # DAILY VIDEO: Disabled until operator is confident in quality
         # Uncomment to enable automated daily video generation:
         # self.cron_scheduler.add_job(
-        #     self._run_daily_video_wrapper,
+        #     lambda: asyncio.run_coroutine_threadsafe(self._run_daily_video(), self._loop),
         #     trigger=CronTrigger(hour=8, minute=0),
         #     id="daily_video",
         # )
 
         # DASHBOARD POLLER: Check for approved content from dashboard + process feedback
         self.cron_scheduler.add_job(
-            lambda: asyncio.create_task(self._poll_dashboard_actions()),
+            lambda: asyncio.run_coroutine_threadsafe(self.oprah.poll_dashboard_actions(), self._loop),
             trigger=IntervalTrigger(seconds=30),
             id="dashboard_poller",
         )
 
-        # Register video_distribute executor on scheduler
-        self.scheduler.register_executor("video_distribute", self._execute_scheduled_video)
+        # Register video_distribute executor on scheduler (Oprah handles all post-approval execution)
+        self.scheduler.register_executor("video_distribute", self.oprah._execute_scheduled_video)
 
         # Register tweet/thread/reply executors for scheduled posting
-        self.scheduler.register_executor("tweet", self._execute_scheduled_tweet)
-        self.scheduler.register_executor("thread", self._execute_scheduled_tweet)
-        self.scheduler.register_executor("reply", self._execute_scheduled_tweet)
+        self.scheduler.register_executor("tweet", self.oprah._execute_scheduled_tweet)
+        self.scheduler.register_executor("thread", self.oprah._execute_scheduled_tweet)
+        self.scheduler.register_executor("reply", self.oprah._execute_scheduled_tweet)
 
         self.cron_scheduler.start()
         logger.info("Cron: Research 2:00 UTC | Tweets 6:00 UTC | Hot every 3h | Warm every 10h")
@@ -539,7 +497,7 @@ class DavidSystem:
 
     def _run_daily_research_wrapper(self):
         """Wrapper for cron job (sync entry point)."""
-        asyncio.create_task(self._run_daily_research())
+        asyncio.run_coroutine_threadsafe(self._run_daily_research(), self._loop)
 
     async def _run_daily_video(self):
         """Generate a daily video and submit to approval queue."""
@@ -570,312 +528,7 @@ class DavidSystem:
 
     def _run_daily_video_wrapper(self):
         """Wrapper for daily video cron job (sync entry point)."""
-        asyncio.create_task(self._run_daily_video())
-
-    async def _poll_dashboard_actions(self):
-        """
-        Poll for actions from the dashboard:
-        1. Schedule requests (approved content to be distributed)
-        2. Rejection feedback (goes into David's memory)
-
-        This bridges the dashboard UI with the execution pipeline.
-        """
-        feedback_dir = Path("data/content_feedback")
-        if not feedback_dir.exists():
-            return
-
-        for file_path in sorted(feedback_dir.glob("*.json")):
-            try:
-                with open(file_path, "r") as f:
-                    data = json.load(f)
-
-                if file_path.name.startswith("schedule_"):
-                    await self._handle_schedule_request(data)
-                elif file_path.name.startswith("render_"):
-                    await self._handle_render_request(data)
-                elif file_path.name.startswith("feedback_"):
-                    await self._handle_content_feedback(data)
-                elif file_path.name.startswith("execute_"):
-                    await self._handle_execute_request(data)
-
-                # Remove processed file
-                file_path.unlink()
-
-            except Exception as e:
-                logger.error(f"Failed to process dashboard action {file_path.name}: {e}")
-
-    async def _handle_schedule_request(self, data: dict):
-        """Schedule approved content for distribution at optimal time."""
-        from datetime import datetime as dt
-
-        approval_id = data.get("approval_id")
-        action_data = data.get("action_data", {})
-        platforms = data.get("platforms", ["twitter", "youtube", "tiktok"])
-        scheduled_time_str = data.get("scheduled_time", "")
-
-        if not scheduled_time_str:
-            logger.error(f"No scheduled_time in schedule request for #{approval_id}")
-            return
-
-        scheduled_time = dt.fromisoformat(scheduled_time_str)
-        action_data["platforms"] = platforms
-
-        # Determine content_type from the data (tweets, threads, replies, or video)
-        content_type = data.get("content_type", data.get("action_type", "video_distribute"))
-
-        # Ensure tweet executor knows the action type
-        if content_type in ("tweet", "thread", "reply"):
-            action_data["action"] = content_type
-            action_data["approval_id"] = approval_id
-
-        # Schedule via ContentScheduler
-        job_id = self.scheduler.schedule(
-            content_type=content_type,
-            content_data=action_data,
-            scheduled_time=scheduled_time,
-        )
-
-        # Mark as executed in approval queue (it's now scheduled)
-        self.approval_queue.mark_executed(approval_id)
-
-        logger.info(
-            f"Dashboard: Scheduled {content_type} #{approval_id} for {scheduled_time.strftime('%I:%M %p')} "
-            f"(job: {job_id})"
-        )
-
-        # Notify operator via Telegram
-        if self.telegram and self.telegram.app:
-            try:
-                text_preview = action_data.get("text", action_data.get("theme_title", ""))[:100]
-                await self.telegram.app.bot.send_message(
-                    chat_id=self.telegram.operator_id,
-                    text=(
-                        f"{content_type.title()} #{approval_id} scheduled via dashboard\n"
-                        f"{text_preview}\n"
-                        f"Posting at: {scheduled_time.strftime('%b %d, %I:%M %p UTC')}"
-                    ),
-                )
-            except Exception:
-                pass
-
-    async def _handle_render_request(self, data: dict):
-        """Render video for an approved script (Stage 1 -> Stage 2 transition)."""
-        approval_id = data.get("approval_id")
-        script = data.get("script", "")
-        pillar = data.get("pillar", 1)
-        theme_title = data.get("theme_title", "")
-        category = data.get("category", "")
-
-        if not script:
-            logger.error(f"No script in render request for #{approval_id}")
-            return
-
-        logger.info(f"Rendering video for approved script #{approval_id}...")
-
-        # Notify operator that rendering has started
-        if self.telegram and self.telegram.app:
-            try:
-                await self.telegram.app.bot.send_message(
-                    chat_id=self.telegram.operator_id,
-                    text=(
-                        f"Rendering video for script #{approval_id}...\n"
-                        f"{'Theme: ' + theme_title + chr(10) if theme_title else ''}"
-                        f"This takes ~2 minutes."
-                    ),
-                )
-            except Exception:
-                pass
-
-        try:
-            # Render video and submit as Stage 2 (video_distribute) approval
-            result = await self.content_agent.create_video_for_approval(
-                script=script,
-                pillar=pillar,
-                mood=data.get("mood"),
-                theme_title=data.get("theme_title"),
-                category=data.get("category"),
-            )
-
-            logger.info(
-                f"Video rendered for script #{approval_id}: "
-                f"{result.get('video_path', 'unknown')} "
-                f"(new approval #{result.get('approval_id', '?')})"
-            )
-
-            # Notify operator that video is ready for review
-            if self.telegram and self.telegram.app:
-                try:
-                    await self.telegram.app.bot.send_message(
-                        chat_id=self.telegram.operator_id,
-                        text=(
-                            f"Video rendered! Check dashboard to review.\n\n"
-                            f"{'Theme: ' + theme_title + chr(10) if theme_title else ''}"
-                            f"Approval #{result.get('approval_id', '?')}"
-                        ),
-                    )
-                except Exception:
-                    pass
-
-        except Exception as e:
-            logger.error(f"Video render failed for script #{approval_id}: {e}")
-            self.audit_log.log(
-                "david-flip", "reject", "video_render",
-                f"Render failed for script #{approval_id}: {e}",
-                success=False,
-            )
-            # Notify operator of failure
-            if self.telegram and self.telegram.app:
-                try:
-                    await self.telegram.app.bot.send_message(
-                        chat_id=self.telegram.operator_id,
-                        text=f"Video render FAILED for script #{approval_id}: {e}",
-                    )
-                except Exception:
-                    pass
-
-    async def _handle_content_feedback(self, data: dict):
-        """Save content rejection feedback into David's memory."""
-        reason = data.get("reason", "")
-        context = data.get("content_context", {})
-        approval_id = data.get("approval_id", "")
-
-        if not reason:
-            return
-
-        # Save to David's memory as a significant event
-        summary = (
-            f"Content rejected by operator. "
-            f"Theme: {context.get('theme_title', 'unknown')}. "
-            f"Category: {context.get('category', 'unknown')}. "
-            f"Feedback: {reason}"
-        )
-
-        self.memory.remember_event(
-            title=f"Content feedback: {context.get('theme_title', 'rejected')}",
-            summary=summary,
-            significance=7,  # High significance — operator feedback matters
-            category="content_feedback",
-        )
-
-        logger.info(f"Saved content feedback for #{approval_id}: {reason[:100]}")
-
-        # Also log to audit
-        self.audit_log.log(
-            "david-flip", "info", "content_feedback",
-            f"Rejection feedback #{approval_id}: {reason[:200]}",
-        )
-
-    async def _handle_execute_request(self, data: dict):
-        """Execute an approved action from the dashboard (tweets, threads, replies, etc.)."""
-        approval_id = data.get("approval_id")
-        action_type = data.get("action_type", "")
-        action_data = data.get("action_data", {})
-
-        try:
-            result = await self._execute_action(action_type, action_data)
-
-            # Mark as executed in approval queue
-            self.approval_queue.mark_executed(approval_id)
-
-            logger.info(f"Dashboard: Executed {action_type} #{approval_id}: {result[:200]}")
-
-            # Notify operator via Telegram
-            if self.telegram and self.telegram.app:
-                try:
-                    await self.telegram.app.bot.send_message(
-                        chat_id=self.telegram.operator_id,
-                        text=f"Dashboard approved {action_type} #{approval_id}\n{result}",
-                    )
-                except Exception:
-                    pass
-
-        except Exception as e:
-            logger.error(f"Dashboard execute failed for #{approval_id}: {e}")
-            self.audit_log.log(
-                "david-flip", "reject", "dashboard_execute",
-                f"Failed {action_type} #{approval_id}: {e}",
-                success=False,
-            )
-
-    async def _execute_scheduled_video(self, content_data: dict) -> dict:
-        """Execute a scheduled video distribution (called by ContentScheduler)."""
-        platforms = content_data.get("platforms", ["twitter", "youtube", "tiktok"])
-
-        result = await self.video_distributor.distribute(
-            video_path=content_data.get("video_path", ""),
-            script=content_data.get("script", ""),
-            platforms=platforms,
-            title=content_data.get("theme_title", "David Flip"),
-            description="flipt.ai",
-            theme_title=content_data.get("theme_title", ""),
-        )
-
-        # Notify operator of result
-        if self.telegram and self.telegram.app:
-            distributed = result.get("distributed", [])
-            failed = result.get("failed", [])
-            parts = []
-            if distributed:
-                parts.append(f"Posted to: {', '.join(distributed)}")
-                for p, r in result.get("results", {}).items():
-                    url = r.get("url", "")
-                    if url:
-                        parts.append(f"  {p}: {url}")
-            if failed:
-                parts.append(f"Failed: {', '.join(failed)}")
-
-            try:
-                await self.telegram.app.bot.send_message(
-                    chat_id=self.telegram.operator_id,
-                    text="Scheduled post complete!\n\n" + "\n".join(parts),
-                )
-            except Exception:
-                pass
-
-        return result
-
-    async def _execute_scheduled_tweet(self, content_data: dict) -> dict:
-        """Execute a scheduled tweet (called by ContentScheduler at the scheduled time)."""
-        action_type = content_data.get("action", "tweet")
-        content_data["action"] = action_type
-
-        result = await self.twitter.execute(content_data)
-
-        if "error" in result:
-            logger.error(f"Scheduled tweet failed: {result['error']}")
-            # Notify operator
-            if self.telegram and self.telegram.app:
-                try:
-                    await self.telegram.app.bot.send_message(
-                        chat_id=self.telegram.operator_id,
-                        text=f"Scheduled tweet FAILED: {result['error']}\nText: {content_data.get('text', '')[:100]}",
-                    )
-                except Exception:
-                    pass
-            return result
-
-        url = result.get("url", "")
-
-        # Remember the tweet in David's memory
-        self.memory.remember_tweet(content_data.get("text", ""), context=url, posted=True)
-
-        # Mark as executed in approval queue
-        approval_id = content_data.get("approval_id")
-        if approval_id:
-            self.approval_queue.mark_executed(approval_id)
-
-        # Notify operator
-        if self.telegram and self.telegram.app:
-            try:
-                await self.telegram.app.bot.send_message(
-                    chat_id=self.telegram.operator_id,
-                    text=f"Scheduled tweet posted!\n{content_data.get('text', '')[:200]}\n{url}",
-                )
-            except Exception:
-                pass
-
-        logger.info(f"Scheduled tweet posted: {url}")
-        return result
+        asyncio.run_coroutine_threadsafe(self._run_daily_video(), self._loop)
 
     async def _send_status_notification(self, online: bool):
         """Send David's status to Telegram with Dubai time and update status file."""

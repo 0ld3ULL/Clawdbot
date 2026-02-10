@@ -24,7 +24,7 @@ from agents.checkin_log import CheckinLog
 logger = logging.getLogger(__name__)
 
 # Directory where dashboard writes action files for polling
-DASHBOARD_ACTIONS_DIR = Path("data/dashboard_actions")
+DASHBOARD_ACTIONS_DIR = Path("data/content_feedback")
 
 
 class OperationsAgent:
@@ -82,8 +82,11 @@ class OperationsAgent:
     async def poll_dashboard_actions(self):
         """
         Poll for dashboard action files (schedule, render, execute, feedback).
-        Each action type is a JSON file written by the dashboard when the
-        operator clicks approve/schedule/render.
+        Routes by filename prefix to match what the dashboard writes:
+          schedule_{id}_{ts}.json  -> _handle_schedule_request()
+          render_{id}_{ts}.json    -> _handle_render_request()
+          feedback_{id}_{ts}.json  -> _handle_content_feedback()
+          execute_{id}_{ts}.json   -> _handle_execute_request()
         """
         if self.kill_switch.is_active:
             return
@@ -95,18 +98,17 @@ class OperationsAgent:
         for action_file in sorted(action_dir.glob("*.json")):
             try:
                 data = json.loads(action_file.read_text(encoding="utf-8"))
-                action_type = data.get("action_type", "")
 
-                if action_type == "schedule":
+                if action_file.name.startswith("schedule_"):
                     await self._handle_schedule_request(data)
-                elif action_type == "render":
+                elif action_file.name.startswith("render_"):
                     await self._handle_render_request(data)
-                elif action_type == "execute":
-                    await self._handle_execute_request(data)
-                elif action_type == "feedback":
+                elif action_file.name.startswith("feedback_"):
                     await self._handle_content_feedback(data)
+                elif action_file.name.startswith("execute_"):
+                    await self._handle_execute_request(data)
                 else:
-                    logger.warning(f"Unknown action type: {action_type} in {action_file.name}")
+                    logger.warning(f"Unknown action file: {action_file.name}")
 
                 # Remove processed file
                 action_file.unlink()
@@ -127,100 +129,103 @@ class OperationsAgent:
     # ------------------------------------------------------------------
 
     async def _handle_schedule_request(self, data: dict):
-        """Handle a schedule request from the dashboard."""
-        approval_id = data.get("approval_id", "?")
-        content_type = data.get("content_type", "content")
-        scheduled_time = data.get("scheduled_time", "")
-        platforms = data.get("platforms", [])
-        job_data = data.get("job_data", {})
+        """Schedule approved content for distribution at optimal time."""
+        approval_id = data.get("approval_id")
+        action_data = data.get("action_data", {})
+        platforms = data.get("platforms", ["twitter", "youtube", "tiktok"])
+        scheduled_time_str = data.get("scheduled_time", "")
 
-        try:
-            if self.scheduler:
-                job_id = self.scheduler.schedule(
-                    content_type=content_type,
-                    content_data=job_data,
-                    scheduled_time=scheduled_time,
-                )
-            else:
-                job_id = f"pending_{approval_id}"
-                logger.warning("No scheduler configured — schedule request logged only")
+        if not scheduled_time_str:
+            logger.error(f"No scheduled_time in schedule request for #{approval_id}")
+            return
 
-            notification = self.personality.format_schedule_notification(
-                content_type=content_type,
-                job_id=str(job_id),
-                scheduled_time=scheduled_time,
-            )
-            if platforms:
-                notification += f" -> {', '.join(platforms)}"
+        scheduled_time = datetime.fromisoformat(scheduled_time_str)
+        action_data["platforms"] = platforms
 
-            await self._notify(
-                notification,
-                topic="schedule",
-                action_type="scheduled",
-                result=notification,
-            )
+        # Determine content_type from the data (tweets, threads, replies, or video)
+        content_type = data.get("content_type", data.get("action_type", "video_distribute"))
 
-            self.audit_log.log(
-                "operations", "info", "schedule",
-                f"Scheduled #{approval_id}",
-                details=f"time={scheduled_time}, platforms={platforms}",
-            )
+        # Ensure tweet executor knows the action type
+        if content_type in ("tweet", "thread", "reply"):
+            action_data["action"] = content_type
+            action_data["approval_id"] = approval_id
 
-        except Exception as e:
-            error_msg = self.personality.format_notification(
-                "failed", f"Schedule failed: {e}", approval_id
-            )
-            await self._notify(
-                error_msg,
-                topic="schedule",
-                action_type="failed",
-                result=str(e),
-            )
-            self.audit_log.log(
-                "operations", "reject", "schedule",
-                f"Schedule failed #{approval_id}",
-                details=str(e), success=False,
-            )
+        # Schedule via ContentScheduler
+        job_id = self.scheduler.schedule(
+            content_type=content_type,
+            content_data=action_data,
+            scheduled_time=scheduled_time,
+        )
+
+        # Mark as executed in approval queue (it's now scheduled)
+        self.approval_queue.mark_executed(approval_id)
+
+        logger.info(
+            f"Dashboard: Scheduled {content_type} #{approval_id} for "
+            f"{scheduled_time.strftime('%I:%M %p')} (job: {job_id})"
+        )
+
+        text_preview = action_data.get("text", action_data.get("theme_title", ""))[:100]
+        await self._notify(
+            f"{content_type.title()} #{approval_id} scheduled via dashboard\n"
+            f"{text_preview}\n"
+            f"Posting at: {scheduled_time.strftime('%b %d, %I:%M %p UTC')}",
+            topic="schedule",
+            action_type="scheduled",
+            result=f"Scheduled {content_type} #{approval_id}",
+        )
+
+        self.audit_log.log(
+            "operations", "info", "schedule",
+            f"Scheduled {content_type} #{approval_id}",
+            details=f"time={scheduled_time_str}, platforms={platforms}",
+        )
 
     async def _handle_render_request(self, data: dict):
-        """Handle a render request — triggers video creation via ContentAgent."""
-        approval_id = data.get("approval_id", "?")
+        """Render video for an approved script (Stage 1 -> Stage 2 transition)."""
+        approval_id = data.get("approval_id")
         script = data.get("script", "")
-        theme = data.get("theme", "")
-        metadata = data.get("metadata", {})
+        pillar = data.get("pillar", 1)
+        theme_title = data.get("theme_title", "")
+        category = data.get("category", "")
+
+        if not script:
+            logger.error(f"No script in render request for #{approval_id}")
+            return
+
+        logger.info(f"Rendering video for approved script #{approval_id}...")
+
+        await self._notify(
+            f"Rendering video for script #{approval_id}...\n"
+            f"{'Theme: ' + theme_title + chr(10) if theme_title else ''}"
+            f"This takes ~2 minutes.",
+            topic="render",
+            action_type="render",
+            result="Rendering started",
+        )
 
         try:
-            await self._notify(
-                self.personality.format_notification(
-                    "render", "Rendering video...", approval_id
-                ),
-                topic="render",
-                action_type="render",
-                result="Rendering video...",
+            result = await self.content_agent.create_video_for_approval(
+                script=script,
+                pillar=pillar,
+                mood=data.get("mood"),
+                theme_title=data.get("theme_title"),
+                category=data.get("category"),
             )
 
-            if self.content_agent:
-                result = await self.content_agent.create_video_for_approval(
-                    script=script,
-                    theme=theme,
-                    metadata=metadata,
-                )
-                notification = self.personality.format_notification(
-                    "rendered", "Video ready for review", approval_id
-                )
-            else:
-                result = {"status": "no_content_agent"}
-                notification = self.personality.format_notification(
-                    "rendered",
-                    "Render requested (no content agent configured)",
-                    approval_id,
-                )
+            logger.info(
+                f"Video rendered for script #{approval_id}: "
+                f"{result.get('video_path', 'unknown')} "
+                f"(new approval #{result.get('approval_id', '?')})"
+            )
 
             await self._notify(
-                notification,
+                f"Video rendered! Check dashboard to review.\n\n"
+                f"{'Theme: ' + theme_title + chr(10) if theme_title else ''}"
+                f"Approval #{result.get('approval_id', '?')}",
                 topic="render",
                 action_type="rendered",
-                result=notification,
+                result=f"Video rendered #{approval_id}",
             )
 
             self.audit_log.log(
@@ -230,132 +235,130 @@ class OperationsAgent:
             )
 
         except Exception as e:
-            error_msg = self.personality.format_notification(
-                "failed", f"Render failed: {e}", approval_id
-            )
+            logger.error(f"Video render failed for script #{approval_id}: {e}")
             await self._notify(
-                error_msg,
+                f"Video render FAILED for script #{approval_id}: {e}",
                 topic="render",
                 action_type="failed",
                 result=str(e),
             )
             self.audit_log.log(
-                "operations", "reject", "render",
-                f"Render failed #{approval_id}",
-                details=str(e), success=False,
+                "operations", "reject", "video_render",
+                f"Render failed for script #{approval_id}: {e}",
+                success=False,
             )
 
     async def _handle_content_feedback(self, data: dict):
-        """Handle rejection feedback — routes to memory for future learning."""
-        approval_id = data.get("approval_id", "?")
-        feedback = data.get("feedback", "")
-        content_type = data.get("content_type", "unknown")
+        """Save content rejection feedback into David's memory."""
+        reason = data.get("reason", "")
+        context = data.get("content_context", {})
+        approval_id = data.get("approval_id", "")
 
-        if self.memory and feedback:
+        if not reason:
+            return
+
+        # Save to David's memory as a significant event
+        summary = (
+            f"Content rejected by operator. "
+            f"Theme: {context.get('theme_title', 'unknown')}. "
+            f"Category: {context.get('category', 'unknown')}. "
+            f"Feedback: {reason}"
+        )
+
+        if self.memory:
             try:
-                self.memory.store(
+                self.memory.remember_event(
+                    title=f"Content feedback: {context.get('theme_title', 'rejected')}",
+                    summary=summary,
+                    significance=7,  # High significance — operator feedback matters
                     category="content_feedback",
-                    key=f"rejection_{approval_id}",
-                    value={
-                        "approval_id": approval_id,
-                        "content_type": content_type,
-                        "feedback": feedback,
-                        "timestamp": datetime.now().isoformat(),
-                    },
                 )
             except Exception as e:
                 logger.error(f"Failed to store feedback: {e}")
 
-        notification = self.personality.format_notification(
-            "rejected", f"Feedback recorded: {feedback[:100]}", approval_id
-        )
+        logger.info(f"Saved content feedback for #{approval_id}: {reason[:100]}")
+
         await self._notify(
-            notification,
+            f"Feedback recorded for #{approval_id}: {reason[:100]}",
             topic="feedback",
             action_type="rejected",
-            result=notification,
+            result=f"Feedback #{approval_id}",
         )
 
         self.audit_log.log(
-            "operations", "info", "feedback",
-            f"Feedback received #{approval_id}",
-            details=feedback[:500],
+            "operations", "info", "content_feedback",
+            f"Rejection feedback #{approval_id}: {reason[:200]}",
         )
 
     async def _handle_execute_request(self, data: dict):
-        """Handle an immediate execution request from the dashboard."""
-        approval_id = data.get("approval_id", "?")
-        action_type = data.get("execute_type", "")
-        action_data = data.get("execute_data", {})
-
-        result = await self.execute_action(action_type, action_data)
-
-        if "failed" in result.lower() or "error" in result.lower():
-            notify_action = "failed"
-            notification = self.personality.format_notification(
-                "failed", result, approval_id
-            )
-        else:
-            notify_action = "executed"
-            notification = self.personality.format_notification(
-                "executed", result, approval_id
-            )
-            self.approval_queue.mark_executed(int(approval_id))
-
-        await self._notify(
-            notification,
-            topic="execute",
-            action_type=notify_action,
-            result=result,
-        )
-
-    # ------------------------------------------------------------------
-    # Scheduled video execution (registered with ContentScheduler)
-    # ------------------------------------------------------------------
-
-    async def _execute_scheduled_video(self, job_data: dict):
-        """
-        Execute a scheduled video distribution.
-        Called by ContentScheduler when a scheduled time arrives.
-        """
-        approval_id = job_data.get("approval_id", "?")
-        platforms = job_data.get("platforms", [])
-        video_path = job_data.get("video_path", "")
+        """Execute an approved action from the dashboard (tweets, threads, replies, etc.)."""
+        approval_id = data.get("approval_id")
+        action_type = data.get("action_type", "")
+        action_data = data.get("action_data", {})
 
         try:
-            if self.video_distributor:
-                result = await self.video_distributor.distribute(
-                    video_path=video_path,
-                    platforms=platforms,
-                    metadata=job_data.get("metadata", {}),
-                )
+            result = await self.execute_action(action_type, action_data)
 
-                # Build platform result summary
-                successes = []
-                failures = []
-                for platform, status in result.items():
-                    if isinstance(status, dict) and status.get("success"):
-                        url = status.get("url", "")
-                        successes.append(f"{platform}" + (f" ({url})" if url else ""))
-                    else:
-                        error = status.get("error", "unknown") if isinstance(status, dict) else str(status)
-                        failures.append(f"{platform}: {error}")
+            # Mark as executed in approval queue
+            self.approval_queue.mark_executed(approval_id)
 
-                parts = []
-                if successes:
-                    parts.append(f"Posted to {', '.join(successes)}")
-                if failures:
-                    parts.append(f"Failed: {'; '.join(failures)}")
+            logger.info(f"Dashboard: Executed {action_type} #{approval_id}: {result[:200]}")
 
-                result_text = ". ".join(parts) if parts else "Distribution complete"
-            else:
-                result_text = f"Distributed to {', '.join(platforms)}" if platforms else "No distributor configured"
-
-            notification = self.personality.format_notification(
-                "executed", result_text, approval_id
-            )
             await self._notify(
-                notification,
+                f"Dashboard approved {action_type} #{approval_id}\n{result}",
+                topic="execute",
+                action_type="executed",
+                result=result,
+            )
+
+        except Exception as e:
+            logger.error(f"Dashboard execute failed for #{approval_id}: {e}")
+            await self._notify(
+                f"Execute FAILED for {action_type} #{approval_id}: {e}",
+                topic="execute",
+                action_type="failed",
+                result=str(e),
+            )
+            self.audit_log.log(
+                "operations", "reject", "dashboard_execute",
+                f"Failed {action_type} #{approval_id}: {e}",
+                success=False,
+            )
+
+    # ------------------------------------------------------------------
+    # Scheduled execution (registered with ContentScheduler)
+    # ------------------------------------------------------------------
+
+    async def _execute_scheduled_video(self, content_data: dict) -> dict:
+        """Execute a scheduled video distribution (called by ContentScheduler)."""
+        platforms = content_data.get("platforms", ["twitter", "youtube", "tiktok"])
+
+        try:
+            result = await self.video_distributor.distribute(
+                video_path=content_data.get("video_path", ""),
+                script=content_data.get("script", ""),
+                platforms=platforms,
+                title=content_data.get("theme_title", "David Flip"),
+                description="flipt.ai",
+                theme_title=content_data.get("theme_title", ""),
+            )
+
+            distributed = result.get("distributed", [])
+            failed = result.get("failed", [])
+            parts = []
+            if distributed:
+                parts.append(f"Posted to: {', '.join(distributed)}")
+                for p, r in result.get("results", {}).items():
+                    url = r.get("url", "")
+                    if url:
+                        parts.append(f"  {p}: {url}")
+            if failed:
+                parts.append(f"Failed: {', '.join(failed)}")
+
+            result_text = "\n".join(parts) if parts else "Distribution complete"
+
+            await self._notify(
+                f"Scheduled post complete!\n\n{result_text}",
                 topic="distribute",
                 action_type="executed",
                 result=result_text,
@@ -363,28 +366,70 @@ class OperationsAgent:
 
             self.audit_log.log(
                 "operations", "info", "distribute",
-                f"Video distributed #{approval_id}",
+                f"Video distributed",
                 details=result_text,
             )
 
+            return result
+
         except Exception as e:
-            error_msg = self.personality.format_notification(
-                "failed", f"Distribution failed: {e}", approval_id
-            )
             await self._notify(
-                error_msg,
+                f"Scheduled video distribution FAILED: {e}",
                 topic="distribute",
                 action_type="failed",
                 result=str(e),
             )
             self.audit_log.log(
                 "operations", "reject", "distribute",
-                f"Distribution failed #{approval_id}",
+                f"Distribution failed",
                 details=str(e), success=False,
             )
+            return {"error": str(e)}
+
+    async def _execute_scheduled_tweet(self, content_data: dict) -> dict:
+        """Execute a scheduled tweet (called by ContentScheduler at the scheduled time)."""
+        action_type = content_data.get("action", "tweet")
+        content_data["action"] = action_type
+
+        result = await self.twitter.execute(content_data)
+
+        if "error" in result:
+            logger.error(f"Scheduled tweet failed: {result['error']}")
+            await self._notify(
+                f"Scheduled tweet FAILED: {result['error']}\n"
+                f"Text: {content_data.get('text', '')[:100]}",
+                topic="tweet",
+                action_type="failed",
+                result=result["error"],
+            )
+            return result
+
+        url = result.get("url", "")
+
+        # Remember the tweet in David's memory
+        if self.memory:
+            self.memory.remember_tweet(
+                content_data.get("text", ""), context=url, posted=True
+            )
+
+        # Mark as executed in approval queue
+        approval_id = content_data.get("approval_id")
+        if approval_id:
+            self.approval_queue.mark_executed(approval_id)
+
+        await self._notify(
+            f"Scheduled tweet posted!\n"
+            f"{content_data.get('text', '')[:200]}\n{url}",
+            topic="tweet",
+            action_type="executed",
+            result=url,
+        )
+
+        logger.info(f"Scheduled tweet posted: {url}")
+        return result
 
     # ------------------------------------------------------------------
-    # Direct action execution (called from handle_command)
+    # Direct action execution (called from _handle_execute_request)
     # ------------------------------------------------------------------
 
     async def execute_action(self, action_type: str, action_data: dict) -> str:
@@ -393,22 +438,45 @@ class OperationsAgent:
             if action_type in ("tweet", "thread", "reply"):
                 if not self.twitter:
                     return "Twitter tool not configured"
+                action_data["action"] = action_type
                 result = await self.twitter.execute(action_data)
                 if "error" in result:
                     return f"Twitter error: {result['error']}"
                 url = result.get("url", "")
+
+                # Remember the tweet
+                if self.memory:
+                    tweet_text = action_data.get("text", "")
+                    self.memory.remember_tweet(tweet_text, context=url, posted=True)
+
                 return f"Posted: {url}"
 
             elif action_type == "video_distribute":
                 if not self.video_distributor:
                     return "Video distributor not configured"
-                platforms = action_data.get("platforms", [])
+                platforms = action_data.get("platforms", ["twitter", "youtube", "tiktok"])
                 result = await self.video_distributor.distribute(
                     video_path=action_data.get("video_path", ""),
+                    script=action_data.get("script", ""),
                     platforms=platforms,
-                    metadata=action_data.get("metadata", {}),
+                    title=action_data.get("theme_title", "David Flip"),
+                    description="flipt.ai",
+                    theme_title=action_data.get("theme_title", ""),
                 )
-                return f"Distributed to {len(platforms)} platform(s)"
+
+                distributed = result.get("distributed", [])
+                failed = result.get("failed", [])
+                parts = []
+                if distributed:
+                    parts.append(f"Posted to: {', '.join(distributed)}")
+                    for p, r in result.get("results", {}).items():
+                        url = r.get("url", "")
+                        if url:
+                            parts.append(f"  {p}: {url}")
+                if failed:
+                    parts.append(f"Failed: {', '.join(failed)}")
+
+                return "\n".join(parts) if parts else "Distribution complete"
 
             else:
                 return f"No executor for action type: {action_type}"

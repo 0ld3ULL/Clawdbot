@@ -30,13 +30,13 @@ AI Personalities (David Flip, Deva, Oprah, Echo) are **Partners**, not assistant
 |--------|-------|-------|
 | Core engine | `main.py` | DavidSystem class — tool loop, model routing |
 | David Flip | `personality/david_flip.py` | Content creator character |
-| Oprah | `personality/oprah.py`, `agents/operations_agent.py` | Operations agent (NOT yet wired into main.py) |
+| Oprah | `personality/oprah.py`, `agents/operations_agent.py` | Operations agent — owns all post-approval execution |
 | Echo | `personality/echo.py`, `agents/research_agent/` | Intelligence analyst |
 | Deva | `voice/deva_voice.py` | Game dev voice assistant (standby) |
 | Dashboard | `dashboard/app.py` | Flask at 127.0.0.1:5000 |
 | Memory (Claude) | `claude_memory/` | Your persistent memory with decay |
 | Memory (David) | `core/memory/` | David Flip's event/people/knowledge stores |
-| Wall Mode | `voice/wall_mode.py`, `voice/gemini_client.py` | Gemini 1M context for codebase analysis |
+| Wall Mode | `voice/wall_python.py`, `voice/gemini_client.py` | Gemini 1M context for codebase analysis |
 | Scheduler | `core/scheduler.py` | APScheduler + SQLite for timed posts |
 | Video pipeline | `video_pipeline/` | ElevenLabs TTS + Hedra lip-sync + FFmpeg |
 
@@ -57,6 +57,31 @@ python -m claude_memory search "query" # Search memories
 python -m claude_memory decay          # Apply weekly decay
 python -m claude_memory reconcile      # Gemini vs git comparison (weekly)
 ```
+
+## The Wall — Codebase Analysis via Gemini
+
+When Jono says **"take it to The Wall"**, load the codebase into Gemini's 1M context for cross-file verification. Use the Bash tool to run:
+
+```bash
+# Full codebase (129 files, ~344K tokens — fits easily)
+python voice/wall_python.py "Your question here"
+
+# Targeted files (faster, cheaper)
+python voice/wall_python.py -f main.py,agents/operations_agent.py "Check the wiring"
+
+# Filter by subsystem
+python voice/wall_python.py -s agents "How does Oprah work?"
+```
+
+**Subsystems:** agents, core, dashboard, personality, tools, voice, video, telegram, security, claude_memory
+
+**When to use The Wall:**
+- Cross-file verification after refactors
+- "Is anything broken?" checks
+- Understanding how systems interact end-to-end
+- Bug hunting that spans multiple files
+
+**Requires:** `GOOGLE_API_KEY` in `.env` (Google AI Studio)
 
 ## Session End Checklist
 
