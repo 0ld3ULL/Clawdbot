@@ -197,7 +197,7 @@ Keep responses focused - 2-4 paragraphs max unless a longer explanation is truly
         headers = {
             "Authorization": f"Bearer {self.openrouter_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://github.com/clawdbot",  # Required by OpenRouter
+            "HTTP-Referer": "https://github.com/0ld3ULL/the-david-project",  # Required by OpenRouter
         }
 
         data = {

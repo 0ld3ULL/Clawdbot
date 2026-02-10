@@ -237,7 +237,7 @@ class TelegramBot:
         if not self._is_operator(update):
             return
         await update.message.reply_text(
-            "Clawdbot Agent System online.\n"
+            "The David Project online.\n"
             f"Operator verified: {update.effective_user.id}\n\n"
             "Use /help for commands."
         )
@@ -246,7 +246,7 @@ class TelegramBot:
         if not self._is_operator(update):
             return
         await update.message.reply_text(
-            "**Clawdbot Commands**\n\n"
+            "**David Project Commands**\n\n"
             "**System:**\n"
             "/status - System status\n"
             "/kill - EMERGENCY SHUTDOWN\n"

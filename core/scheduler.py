@@ -19,7 +19,7 @@ from apscheduler.triggers.date import DateTrigger
 logger = logging.getLogger(__name__)
 
 # Default data directory
-DATA_DIR = Path(os.environ.get("CLAWDBOT_DATA_DIR", "data"))
+DATA_DIR = Path(os.environ.get("DAVID_DATA_DIR", "data"))
 
 
 class ContentScheduler:

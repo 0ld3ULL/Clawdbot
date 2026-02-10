@@ -1,8 +1,8 @@
-# Clawdbot - Project Memory
+# The David Project (TDP) - Project Memory
 
 ## Project Location
 ```
-D:\Claude_Code\Projects\Clawdbot
+C:\Projects\TheDavidProject
 ```
 
 ## Key Files
@@ -66,7 +66,7 @@ The word is deliberate. David Flip, Deva, Oprah, Echo — these are AI **Partner
 
 ### The Naming History — OpenClaw vs Our Project
 - **OpenClaw** (formerly Clawdbot, briefly Moltbot) is an open-source AI agent project. The original name was "Clawdbot" (lobster claw + bot — lobster is their logo). Anthropic threatened to sue because it sounded too close to "Claude" (claude-bot). They briefly renamed to "Moltbot" (lobster molting to grow). The community settled on **OpenClaw** as the final name.
-- **Our project** is called "Clawdbot" as a placeholder name (suggested by Claude). We do NOT use OpenClaw directly. Claude advised taking the useful architectural parts and separating away from the parts that made it dangerous for prompt-injection and other attacks. Our project is safety-first, built from scratch with human-in-the-loop at every step.
+- **Our project** is now called **The David Project** (TDP). Previously "Clawdbot" as a placeholder. We do NOT use OpenClaw directly. Claude advised taking the useful architectural parts and separating away from the parts that made it dangerous for prompt-injection and other attacks. Our project is safety-first, built from scratch with human-in-the-loop at every step.
 
 ### Supadata API Key
 `sd_d826ccdab9a7a682d5716084f28d4d73` — For TikTok/YouTube transcript extraction. Endpoint: `https://api.supadata.ai/v1/transcript` (unified, works for YouTube and TikTok).
@@ -323,7 +323,7 @@ Core listing system, categories, multi-image galleries, search/filters, product 
 
 ## Agent Architecture
 
-**Decision:** Build our own (not OpenClaw). Safety-first, simpler, Python, no supply chain risk.
+**Decision:** Build our own — The David Project (TDP). Safety-first, simpler, Python, no supply chain risk.
 
 **Core loop:**
 1. Receive command via Telegram
@@ -588,7 +588,7 @@ A test video was accidentally posted to the wrong channel and had to be deleted.
 | RSS | TechCrunch AI, The Verge AI, Ars Technica, EFF, CoinDesk, Decrypt |
 
 ### Goals Defined (8 goals, ~150 keywords):
-1. **improve_architecture** - AI agent patterns, MCP, agentic, voice AI, Clawdbot, DEVA (high, task)
+1. **improve_architecture** - AI agent patterns, MCP, agentic, voice AI, TDP, DEVA (high, task)
 2. **david_content** - Surveillance/CBDC/debanking news (high, content)
 3. **security_updates** - CVEs, vulnerabilities (critical, alert)
 4. **cost_optimization** - LLM cost reduction (medium, task)
@@ -600,7 +600,7 @@ A test video was accidentally posted to the wrong channel and had to be deleted.
 ### Dual Scoring Rubrics:
 Items are scored by TWO rubrics — the higher score wins:
 1. **David Flip rubric** — "Can someone be switched off?" (surveillance/control focus)
-2. **Technical rubric** — "How does this help Clawdbot, DEVA, Amphitheatre?" (AI/gamedev focus)
+2. **Technical rubric** — "How does this help TDP, DEVA, Amphitheatre?" (AI/gamedev focus)
 
 This prevents AI agent tutorials from being buried by a surveillance-only scoring system.
 
@@ -610,14 +610,14 @@ This prevents AI agent tutorials from being buried by a surveillance-only scorin
 ssh root@89.167.24.222 "/opt/david-flip/venv/bin/pip install pyotp qrcode sqlalchemy"
 
 # Copy research agent files
-scp -r "D:/Claude_Code/Projects/Clawdbot/agents/research_agent" root@89.167.24.222:/opt/david-flip/agents/
-scp "D:/Claude_Code/Projects/Clawdbot/config/research_goals.yaml" root@89.167.24.222:/opt/david-flip/config/
+scp -r "C:/Projects/TheDavidProject/agents/research_agent" root@89.167.24.222:/opt/david-flip/agents/
+scp "C:/Projects/TheDavidProject/config/research_goals.yaml" root@89.167.24.222:/opt/david-flip/config/
 
 # Update main.py
-scp "D:/Claude_Code/Projects/Clawdbot/main.py" root@89.167.24.222:/opt/david-flip/
+scp "C:/Projects/TheDavidProject/main.py" root@89.167.24.222:/opt/david-flip/
 
 # Update telegram_bot.py (already has /research /goals commands)
-scp "D:/Claude_Code/Projects/Clawdbot/interfaces/telegram_bot.py" root@89.167.24.222:/opt/david-flip/interfaces/
+scp "C:/Projects/TheDavidProject/interfaces/telegram_bot.py" root@89.167.24.222:/opt/david-flip/interfaces/
 
 # Restart David
 ssh root@89.167.24.222 "systemctl restart david-flip"
@@ -786,8 +786,8 @@ ssh root@89.167.24.222 "/opt/david-flip/venv/bin/pip install matplotlib pillow"
 ssh root@89.167.24.222 "mkdir -p /opt/david-flip/data/charts"
 
 # Deploy updated files
-scp "D:/Claude_Code/Projects/Clawdbot/interfaces/telegram_bot.py" root@89.167.24.222:/opt/david-flip/interfaces/
-scp "D:/Claude_Code/Projects/Clawdbot/tools/chart_generator.py" root@89.167.24.222:/opt/david-flip/tools/
+scp "C:/Projects/TheDavidProject/interfaces/telegram_bot.py" root@89.167.24.222:/opt/david-flip/interfaces/
+scp "C:/Projects/TheDavidProject/tools/chart_generator.py" root@89.167.24.222:/opt/david-flip/tools/
 
 # Restart David
 ssh root@89.167.24.222 "systemctl restart david-flip"
@@ -922,9 +922,9 @@ ActionRouter
 ## Quick Reference - Common Tasks
 
 ### Update David's Code:
-1. Edit files locally in `D:\Claude_Code\Projects\Clawdbot\`
+1. Edit files locally in `C:\Projects\TheDavidProject\`
 2. Open **PC POWERSHELL** shortcut
-3. Run: `scp "D:\Claude_Code\Projects\Clawdbot\<file>" root@89.167.24.222:/opt/david-flip/<path>/`
+3. Run: `scp "C:\Projects\TheDavidProject\<file>" root@89.167.24.222:/opt/david-flip/<path>/`
 4. Open **DAVIDS HOME** shortcut
 5. Run: `systemctl restart david-flip`
 
@@ -1316,13 +1316,13 @@ Working on the ASUS ROG laptop (David's laptop, not main PC). Setting up DEVA to
 ### Laptop Setup Summary:
 | Item | Location | Status |
 |------|----------|--------|
-| Clawdbot code | `C:\Projects\Clawdbot` | Working |
+| TDP code | `C:\Projects\TheDavidProject` | Working |
 | Amphitheatre project | `C:\Games\Amphitheatre` | Extracted (60K files) |
 | Unity 2022.3.62f3 | `C:\Unity\2022.3.62f3` | Extracted |
 | Unity 6000.3.7f1 | `C:\Program Files\Unity\Hub\Editor\6000.3.7f1` | Pre-existing |
 | Unity Hub | `C:\Program Files\Unity Hub` | Installed |
 | 7-Zip | `C:\Program Files\7-Zip` | Installed |
-| DEVA databases | `C:\Projects\Clawdbot\data\` | Seeded |
+| DEVA databases | `C:\Projects\TheDavidProject\data\` | Seeded |
 
 ### DEVA Current Architecture:
 ```
@@ -1367,12 +1367,12 @@ Moved from keyword-based tool detection to explicit trigger words. Old system ha
 3. **Dual Scoring Rubrics (MAJOR IMPROVEMENT):**
    - OLD: Everything scored through David Flip "surveillance kill switch" lens. AI tutorials scored 5 at best.
    - NEW: Two rubrics run in parallel — David Flip rubric + Technical rubric. Highest score wins.
-   - Technical rubric asks: "How does this help Clawdbot, DEVA, Amphitheatre, or David Flip?"
+   - Technical rubric asks: "How does this help TDP, DEVA, Amphitheatre, or David Flip?"
    - Scoring: 9-10 directly applicable, 7-8 highly relevant, 5-6 useful knowledge, 1-4 ignore
    - `_keyword_match_goals()` returns which goals matched to determine which rubrics to run
 
 4. **Massive Keyword Expansion (~70 to ~150 keywords):**
-   - improve_architecture: added MCP, agentic, computer use, voice AI, STT/TTS, RAG, Clawdbot, DEVA
+   - improve_architecture: added MCP, agentic, computer use, voice AI, STT/TTS, RAG, TDP, DEVA
    - competitor_watch: added OpenClaw, Moltbook, Devin, Cursor, Windsurf, Cline, Aider, Bolt, vibe coding
    - claude_updates: added Claude Code, Anthropic SDK, extended thinking, MCP server
    - deva_gamedev: added Unity 6, HDRP, DOTS, Netcode, Unreal, Godot, Amphitheatre
@@ -1467,12 +1467,12 @@ David Flip creates content → Approval Queue → Dashboard review
 ```
 
 ### What's NOT Done Yet (Next Session):
-- [ ] **Wire Oprah into main.py** — Import OperationsAgent, create instance after Telegram init, delegate execute_action() and poll_dashboard_actions() to Oprah instead of ClawdbotSystem methods. The old methods in main.py still work; Oprah is ready to replace them.
+- [ ] **Wire Oprah into main.py** — Import OperationsAgent, create instance after Telegram init, delegate execute_action() and poll_dashboard_actions() to Oprah instead of DavidSystem methods. The old methods in main.py still work; Oprah is ready to replace them.
 - [ ] **Register Oprah's _execute_scheduled_video with ContentScheduler** — Replace `self._execute_scheduled_video` with `self.operations_agent._execute_scheduled_video`
 - [ ] **Replace dashboard poller** — Change `self._poll_dashboard_actions()` to `self.operations_agent.poll_dashboard_actions()`
 
 ### Notes for Claude J:
-- The real running dashboard is at `C:\Projects\Clawdbot\dashboard\` (NOT in any worktree)
+- The real running dashboard is at `C:\Projects\TheDavidProject\dashboard\` (NOT in any worktree)
 - Flask dev server runs at 127.0.0.1:5000 with auto-reload
 - `personality/oprah.py` follows same pattern as `personality/david_flip.py` but lighter (no character arc, just operational identity)
 - `agents/operations_agent.py` is a standalone class — currently reads from `data/dashboard_actions/` but the real dashboard writes to `data/content_feedback/`. When wiring Oprah into main.py, either update the directory or keep main.py's poll method as the bridge.
@@ -1540,7 +1540,7 @@ python -m claude_memory seed         # Re-seed foundational knowledge
 
 ### Key Context Captured This Session:
 
-1. **OpenClaw Naming History** — Clawdbot (lobster claw + bot) → Moltbot (lobster molting) → OpenClaw (community settled). Anthropic threatened to sue over "Clawdbot" sounding like "Claude-bot". Our project uses "Clawdbot" as a PLACEHOLDER name only.
+1. **OpenClaw Naming History** — Clawdbot (lobster claw + bot) → Moltbot (lobster molting) → OpenClaw (community settled). Anthropic threatened to sue over "Clawdbot" sounding like "Claude-bot". Our project is now called **The David Project** (TDP).
 
 2. **THE FOUNDATION** added to Memory.md:
    - Mission 1: AI Influencer (podcasts, AI Personalities, real following)

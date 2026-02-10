@@ -26,7 +26,7 @@ EXPECTED_CHANNEL_NAME = "David Flip"
 EXPECTED_CHANNEL_ID = "UCBNP7tMEMf21Ks2RmnblQDw"
 
 # Data directory for token storage
-DATA_DIR = Path(os.environ.get("CLAWDBOT_DATA_DIR", "data"))
+DATA_DIR = Path(os.environ.get("DAVID_DATA_DIR", "data"))
 
 
 class YouTubeTool:

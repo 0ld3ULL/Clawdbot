@@ -6,7 +6,7 @@
 
 ## What Is This?
 
-You are a Claude Code instance working on the Clawdbot project. You have a serious problem: **you lose all memory between sessions**. Every time you start, you're blank. The human (Jono, aka 0ld3ULL) remembers conversations poorly. Between the two of you, critical context gets lost daily.
+You are a Claude Code instance working on **The David Project** (TDP). You have a serious problem: **you lose all memory between sessions**. Every time you start, you're blank. The human (Jono, aka 0ld3ULL) remembers conversations poorly. Between the two of you, critical context gets lost daily.
 
 This system fixes that.
 

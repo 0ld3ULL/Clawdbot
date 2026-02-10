@@ -46,12 +46,12 @@ cd C:\Projects
 
 ---
 
-## Step 5: Clone the Clawdbot Repository
+## Step 5: Clone The David Project Repository
 
 1. In PowerShell, paste this and press Enter:
 ```powershell
-git clone https://github.com/0ld3ULL/Clawdbot.git
-cd Clawdbot
+git clone https://github.com/0ld3ULL/the-david-project.git
+cd the-david-project
 ```
 
 2. Wait for download to complete
@@ -74,7 +74,7 @@ winget install Python.Python.3.12
 
 1. In PowerShell, paste these commands one at a time:
 ```powershell
-cd C:\Projects\Clawdbot
+cd C:\Projects\the-david-project
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 ```
@@ -143,7 +143,7 @@ ELEVENLABS_API_KEY=your_elevenlabs_key_here
 
 1. In PowerShell with `(venv)` active:
 ```powershell
-cd C:\Projects\Clawdbot
+cd C:\Projects\the-david-project
 python voice/deva_voice.py
 ```
 
@@ -167,7 +167,7 @@ Ready!
 2. It will ask you to log in - use your Anthropic account
 3. Once logged in, type:
 ```
-cd C:\Projects\Clawdbot
+cd C:\Projects\the-david-project
 ```
 
 4. Then type:
@@ -183,21 +183,21 @@ Read Memory.md
 
 **Start DEVA (voice assistant):**
 ```powershell
-cd C:\Projects\Clawdbot
+cd C:\Projects\the-david-project
 .\venv\Scripts\Activate.ps1
 python voice/deva_voice.py
 ```
 
 **Start Claude Code with project context:**
 ```powershell
-cd C:\Projects\Clawdbot
+cd C:\Projects\the-david-project
 claude
 ```
 Then: `Read Memory.md`
 
 **Update from GitHub:**
 ```powershell
-cd C:\Projects\Clawdbot
+cd C:\Projects\the-david-project
 git pull
 ```
 
@@ -229,7 +229,7 @@ Copy this message to send via Discord:
 
 ```
 DEVA Setup Link:
-https://github.com/0ld3ULL/Clawdbot
+https://github.com/0ld3ULL/the-david-project
 
 Open DEVA-SETUP.md and follow the steps.
 ```

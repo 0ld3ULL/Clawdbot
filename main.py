@@ -1,5 +1,5 @@
 """
-Clawdbot Agent System - Entry Point
+The David Project - Agent System Entry Point
 
 Starts all services:
 1. Telegram bot (command interface + approval UI)
@@ -54,10 +54,10 @@ logging.basicConfig(
         logging.FileHandler("data/agent.log", encoding="utf-8"),
     ],
 )
-logger = logging.getLogger("clawdbot")
+logger = logging.getLogger("david")
 
 
-class ClawdbotSystem:
+class DavidSystem:
     """Main system orchestrator. Wires all components together."""
 
     def __init__(self):
@@ -311,7 +311,7 @@ class ClawdbotSystem:
     async def start(self):
         """Start the system."""
         logger.info("=" * 60)
-        logger.info("CLAWDBOT AGENT SYSTEM STARTING")
+        logger.info("THE DAVID PROJECT — STARTING")
         logger.info("=" * 60)
 
         # Check kill switch
@@ -806,7 +806,7 @@ class ClawdbotSystem:
 
 
 async def main():
-    system = ClawdbotSystem()
+    system = DavidSystem()
 
     # Handle shutdown signals
     loop = asyncio.get_event_loop()

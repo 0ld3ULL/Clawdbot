@@ -2,7 +2,7 @@
 # Ganzak Rule 2: Create a master project
 
 project_id: master
-name: "Clawdbot Master"
+name: "The David Project"
 description: "Core agent system - the operating system that all projects run on"
 
 objective: >

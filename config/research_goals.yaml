@@ -16,7 +16,7 @@
 
 goals:
   - id: improve_architecture
-    name: "Improve Clawdbot/David architecture"
+    name: "Improve David Project architecture"
     description: "New patterns, tools, or techniques for building better AI agents, voice assistants, or autonomous systems"
     keywords:
       # Core agent concepts
@@ -72,7 +72,8 @@ goals:
       - conversational AI
       - voice agent
       # Our projects
-      - Clawdbot
+      - David Project
+      - TDP
       - DEVA
     priority: high
     action: task

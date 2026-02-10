@@ -166,7 +166,7 @@ class VideoCreator:
 
             # Save audio to temp file
             audio_file = tempfile.NamedTemporaryFile(
-                suffix=".mp3", delete=False, prefix="clawdbot_audio_"
+                suffix=".mp3", delete=False, prefix="david_audio_"
             )
             audio_file.write(audio_data)
             audio_file.close()
@@ -202,7 +202,7 @@ class VideoCreator:
 
             # Save raw video
             raw_video_file = tempfile.NamedTemporaryFile(
-                suffix=".mp4", delete=False, prefix="clawdbot_raw_"
+                suffix=".mp4", delete=False, prefix="david_raw_"
             )
             raw_video_path = raw_video_file.name
             raw_video_file.close()
@@ -223,7 +223,7 @@ class VideoCreator:
                         final_path = output_path
                     else:
                         final_file = tempfile.NamedTemporaryFile(
-                            suffix=".mp4", delete=False, prefix="clawdbot_video_"
+                            suffix=".mp4", delete=False, prefix="david_video_"
                         )
                         final_path = final_file.name
                         final_file.close()

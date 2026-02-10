@@ -82,7 +82,7 @@ Actions: content (8+), knowledge (5-7), ignore (1-4)"""
 # --- RUBRIC 2: Technical (AI agents, game dev, tools) ---
 
 TECHNICAL_PROMPT = """You are scoring content for a team building:
-1. **Clawdbot** - An autonomous AI agent system (built on Claude API)
+1. **The David Project** - An autonomous AI agent system (built on Claude API)
 2. **DEVA** - A voice-controlled AI game development assistant
 3. **Amphitheatre** - A Unity multiplayer game (PLAYA3ULL GAMES)
 4. **David Flip** - An AI character with social media presence
@@ -133,7 +133,7 @@ Return ONLY valid JSON:
     "matched_goals": ["improve_architecture", "claude_updates"],
     "priority": "high",
     "suggested_action": "knowledge",
-    "reasoning": "How this could help Clawdbot, DEVA, Amphitheatre, or David Flip"
+    "reasoning": "How this could help The David Project, DEVA, Amphitheatre, or David Flip"
 }}
 
 Actions: alert (9+), task (7-8), knowledge (5-6), ignore (1-4)"""
@@ -163,7 +163,7 @@ Write a structured summary (max 500 words):
 **KEY INSIGHTS:**
 - Bullet points of the most important takeaways
 **TOOLS/TECH MENTIONED:** List any specific tools, libraries, APIs
-**ACTIONABLE FOR US:** What could we apply to our projects (Clawdbot, DEVA, Amphitheatre, David Flip)?
+**ACTIONABLE FOR US:** What could we apply to our projects (The David Project, DEVA, Amphitheatre, David Flip)?
 **RELEVANCE:** Rate 1-10 how relevant this is to AI agents, game dev, or surveillance/privacy topics"""
 
 # --- LLM Quick Classifier (for items with zero keyword matches) ---

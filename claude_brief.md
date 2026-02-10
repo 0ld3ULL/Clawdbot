@@ -1,7 +1,7 @@
 # Claude Session Brief
-*Generated: 2026-02-10 04:23*
+*Generated: 2026-02-10 04:36*
 *Memories: 41 total — 41 clear, 0 fuzzy, 0 fading*
-*Last decay: 2026-02-10T04:23:54.483308*
+*Last decay: 2026-02-10T04:36:52.029534*
 *Last reconciliation: never*
 
 ## Permanent Knowledge (never fades)
@@ -24,7 +24,7 @@ David Flip, Deva, Oprah, Echo are AI PARTNERS — not assistants. The word is de
 
 ### OpenClaw vs Our Project *****
 OpenClaw (formerly Clawdbot, briefly Moltbot) is an open-source AI agent project. Original name 'Clawdbot' (lobster claw + bot). Anthropic threatened to sue — too close to 'Claude'. Renamed Moltbot (lobster molting), then community settled on OpenClaw.
-OUR project is called 'Clawdbot' as a PLACEHOLDER (suggested by Claude). We do NOT use OpenClaw. We took useful architectural parts and separated from prompt-injection-vulnerable components. Safety-first, built from scratch.
+OUR project is now called 'The David Project' (TDP). Previously 'Clawdbot' as a placeholder. We do NOT use OpenClaw. We took useful architectural parts and separated from prompt-injection-vulnerable components. Safety-first, built from scratch.
 *Tags: openclaw, moltbot, naming, security*
 
 ### Safety Requirements — NON-NEGOTIABLE *****
@@ -157,7 +157,7 @@ Content Safety (UAE): no specific government targeting, focus Western systems, t
 
 ### Project Phase *****
 Phase 1 BUILD IN PROGRESS. Foundation code written, needs API keys and testing.
-Local development on ASUS ROG laptop at C:\Projects\Clawdbot
+Local development on ASUS ROG laptop at C:\Projects\TheDavidProject
 VPS running at 89.167.24.222 (code at /opt/david-flip/)
 *Tags: phase1, build*
 
@@ -173,18 +173,18 @@ NOT YET deployed to VPS. Needs: pip install, copy files, restart.
 *Tags: research, deploy, vps, todo*
 
 ### Dashboard — Running Locally *****
-Flask dashboard at C:\Projects\Clawdbot\dashboard\app.py
+Flask dashboard at C:\Projects\TheDavidProject\dashboard\app.py
 Runs at 127.0.0.1:5000 with auto-reload.
 Shows: David Flip, Echo, Oprah (orange), Deva (standby purple)
 VPS dashboard must be started manually.
 *Tags: dashboard, flask, local*
 
 ### Project Working Directory *****
-Local: C:\Projects\Clawdbot\ (main branch)
-Worktree (if any): C:\Users\David\.claude-worktrees\Clawdbot\cool-wing\
-REAL dashboard = C:\Projects\Clawdbot\dashboard\ (Flask auto-reloads from here)
+Local: C:\Projects\TheDavidProject\ (main branch)
+Worktree (if any): C:\Users\David\.claude-worktrees\TheDavidProject\cool-wing\
+REAL dashboard = C:\Projects\TheDavidProject\dashboard\ (Flask auto-reloads from here)
 Git remote: origin/main
-Python venv: C:\Projects\Clawdbot\venv\ — use venv/Scripts/python.exe for packages
+Python venv: C:\Projects\TheDavidProject\venv\ — use venv/Scripts/python.exe for packages
 *Tags: paths, venv, git, worktree*
 
 ## Decisions
@@ -211,7 +211,7 @@ Research: research/wall-mode-model-research.md
 ### Dual Scoring Rubrics for Research *****
 Decision: Research evaluator runs TWO rubrics in parallel.
 1. David Flip rubric — 'Can someone be switched off?' (surveillance focus)
-2. Technical rubric — 'How does this help Clawdbot, DEVA, Amphitheatre?'
+2. Technical rubric — 'How does this help TDP, DEVA, Amphitheatre?'
 Highest score wins. Prevents AI tutorials from being buried by surveillance-only scoring.
 *Tags: research, scoring, rubrics, evaluator*
 

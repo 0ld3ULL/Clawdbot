@@ -49,7 +49,7 @@ def seed_memories(db: ClaudeMemoryDB) -> int:
         "OpenClaw (formerly Clawdbot, briefly Moltbot) is an open-source AI agent project. "
         "Original name 'Clawdbot' (lobster claw + bot). Anthropic threatened to sue — too close to 'Claude'. "
         "Renamed Moltbot (lobster molting), then community settled on OpenClaw.\n"
-        "OUR project is called 'Clawdbot' as a PLACEHOLDER (suggested by Claude). "
+        "OUR project is now called 'The David Project' (TDP). Previously 'Clawdbot' as a placeholder. "
         "We do NOT use OpenClaw. We took useful architectural parts and separated from "
         "prompt-injection-vulnerable components. Safety-first, built from scratch.",
         ["openclaw", "moltbot", "naming", "security"])
@@ -193,7 +193,7 @@ def seed_memories(db: ClaudeMemoryDB) -> int:
 
     add("current_state", 8, "Project Phase",
         "Phase 1 BUILD IN PROGRESS. Foundation code written, needs API keys and testing.\n"
-        "Local development on ASUS ROG laptop at C:\\Projects\\Clawdbot\n"
+        "Local development on ASUS ROG laptop at C:\\Projects\\TheDavidProject\n"
         "VPS running at 89.167.24.222 (code at /opt/david-flip/)",
         ["phase1", "build"])
 
@@ -212,18 +212,18 @@ def seed_memories(db: ClaudeMemoryDB) -> int:
         ["research", "deploy", "vps", "todo"])
 
     add("current_state", 7, "Dashboard — Running Locally",
-        "Flask dashboard at C:\\Projects\\Clawdbot\\dashboard\\app.py\n"
+        "Flask dashboard at C:\\Projects\\TheDavidProject\\dashboard\\app.py\n"
         "Runs at 127.0.0.1:5000 with auto-reload.\n"
         "Shows: David Flip, Echo, Oprah (orange), Deva (standby purple)\n"
         "VPS dashboard must be started manually.",
         ["dashboard", "flask", "local"])
 
     add("current_state", 7, "Project Working Directory",
-        "Local: C:\\Projects\\Clawdbot\\ (main branch)\n"
-        "Worktree (if any): C:\\Users\\David\\.claude-worktrees\\Clawdbot\\cool-wing\\\n"
-        "REAL dashboard = C:\\Projects\\Clawdbot\\dashboard\\ (Flask auto-reloads from here)\n"
+        "Local: C:\\Projects\\TheDavidProject\\ (main branch)\n"
+        "Worktree (if any): C:\\Users\\David\\.claude-worktrees\\TheDavidProject\\cool-wing\\\n"
+        "REAL dashboard = C:\\Projects\\TheDavidProject\\dashboard\\ (Flask auto-reloads from here)\n"
         "Git remote: origin/main\n"
-        "Python venv: C:\\Projects\\Clawdbot\\venv\\ — use venv/Scripts/python.exe for packages",
+        "Python venv: C:\\Projects\\TheDavidProject\\venv\\ — use venv/Scripts/python.exe for packages",
         ["paths", "venv", "git", "worktree"])
 
     # ==================================================================
@@ -255,7 +255,7 @@ def seed_memories(db: ClaudeMemoryDB) -> int:
     add("decision", 8, "Dual Scoring Rubrics for Research",
         "Decision: Research evaluator runs TWO rubrics in parallel.\n"
         "1. David Flip rubric — 'Can someone be switched off?' (surveillance focus)\n"
-        "2. Technical rubric — 'How does this help Clawdbot, DEVA, Amphitheatre?'\n"
+        "2. Technical rubric — 'How does this help TDP, DEVA, Amphitheatre?'\n"
         "Highest score wins. Prevents AI tutorials from being buried by surveillance-only scoring.",
         ["research", "scoring", "rubrics", "evaluator"])
 

@@ -110,7 +110,7 @@ class TwoFactorAuth:
 
     @staticmethod
     def get_provisioning_uri(secret: str, account_name: str = "DavidFlip",
-                            issuer: str = "Clawdbot") -> str:
+                            issuer: str = "DavidProject") -> str:
         """
         Get the provisioning URI for QR code.
 
@@ -124,7 +124,7 @@ class TwoFactorAuth:
 
     @staticmethod
     def generate_qr_code(secret: str, account_name: str = "DavidFlip",
-                        issuer: str = "Clawdbot") -> bytes:
+                        issuer: str = "DavidProject") -> bytes:
         """
         Generate a QR code image for the TOTP secret.
 

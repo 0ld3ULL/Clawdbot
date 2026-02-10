@@ -1,4 +1,4 @@
-# Clawdbot - Task List
+# The David Project - Task List
 
 ## Current Tasks
 - [ ] Define project scope and requirements
