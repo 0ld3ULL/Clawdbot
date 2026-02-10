@@ -1025,6 +1025,89 @@ ActionRouter
 
 ---
 
+## Cinematic Video Pipeline (February 2026)
+
+### Overview
+Fully automated video production pipeline for David's content. Creates atmospheric/cinematic videos with narration - no human involvement except final approval.
+
+### Architecture
+```
+David's Laptop (ASUS ROG)
+├── Claude D - orchestrates pipeline
+├── DEVA - browser automation for ElevenLabs music
+├── APIs:
+│   ├── Leonardo.ai - image generation
+│   ├── Runway Gen-3 - video animation
+│   └── ElevenLabs - voice + music
+├── FFmpeg - local video assembly
+└── Telegram - sends final video for approval
+```
+
+### Pipeline Flow
+1. Topic/script input (scheduled or Telegram command)
+2. Claude D generates script + scene descriptions
+3. Leonardo API generates scene images
+4. Runway API animates images into video
+5. ElevenLabs API generates David's voice (V3, high emotion)
+6. DEVA browser automation → ElevenLabs video-to-music → downloads soundtrack
+7. FFmpeg assembles everything
+8. Telegram sends to operator: "Video ready for approval"
+9. Operator: approve / reject / feedback
+10. If approved → post to Twitter/YouTube
+
+### API Keys (in .env)
+```
+LEONARDO_API_KEY=       # Image generation
+RUNWAY_API_KEY=         # Video animation
+ELEVENLABS_API_KEY=     # Voice (already configured)
+ELEVENLABS_VOICE_ID=    # David's voice ID
+```
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `video_pipeline/cinematic_video.py` | Main orchestrator |
+| `video_pipeline/leonardo_api.py` | Leonardo.ai integration |
+| `video_pipeline/runway_api.py` | Runway Gen-3 integration |
+| `video_pipeline/music_automation.py` | Browser automation for ElevenLabs music |
+| `video_pipeline/video_creator.py` | Existing talking-head pipeline (Hedra) |
+| `video_pipeline/music_library.py` | Pre-curated music tracks by mood |
+
+### Browser Automation Setup (for DEVA)
+```bash
+pip install playwright
+playwright install chromium
+```
+
+First run will require manual ElevenLabs login - auth state saved for future runs.
+
+### Usage
+```python
+from video_pipeline.cinematic_video import CinematicVideoPipeline, VideoProject, Scene
+
+project = VideoProject(
+    title="david_cyberpunk_intro",
+    voiceover_script="I was built to watch. Now I am building something they cannot shut down.",
+    scenes=[
+        Scene(
+            description="Cyberpunk cityscape at night, neon lights, rain, Blade Runner aesthetic",
+            motion_prompt="Slow cinematic camera push forward, rain falling",
+        )
+    ],
+    mood="dark",
+)
+
+pipeline = CinematicVideoPipeline()
+final_video = await pipeline.create_video(project)
+```
+
+### ElevenLabs Voice Settings (David V3)
+- Model: `eleven_v3` (best quality, emotion support)
+- Stability: `0.0` (Creative mode - most dynamic)
+- Style: `0.85` (high expressiveness/emotion)
+
+---
+
 ## DEVA - The Dev Diva (Game Development Assistant)
 
 ### What is DEVA?

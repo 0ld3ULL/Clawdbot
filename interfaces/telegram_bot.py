@@ -170,6 +170,9 @@ class TelegramBot:
         self.app.add_handler(CommandHandler("cancelpush", self.cmd_cancelpush))
         self.app.add_handler(CommandHandler("pushstatus", self.cmd_pushstatus))
 
+        # Cinematic video pipeline
+        self.app.add_handler(CommandHandler("makevideo", self.cmd_makevideo))
+
         # Approval callbacks (includes video distribute actions)
         self.app.add_handler(CallbackQueryHandler(
             self.handle_approval_callback, pattern=r"^(approve|reject|edit|postnow|posttwitter|postyoutube|postboth|posttiktok|postall|schedule|scheduleat)_"
@@ -1646,6 +1649,122 @@ class TelegramBot:
 
         except Exception as e:
             await update.message.reply_text(f"Error loading schedule: {e}")
+
+    async def cmd_makevideo(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Create a cinematic video using the automated pipeline."""
+        if not self._is_operator(update):
+            return
+        if not await self._require_2fa(update):
+            return
+
+        if not context.args:
+            await update.message.reply_text(
+                "**Cinematic Video Pipeline**\n\n"
+                "Creates atmospheric videos with narration.\n\n"
+                "Usage:\n"
+                "`/makevideo <topic or script>`\n\n"
+                "Examples:\n"
+                "`/makevideo cyberpunk intro`\n"
+                "`/makevideo surveillance capitalism`\n"
+                "`/makevideo I was built to watch...`\n\n"
+                "Pipeline: Image → Animation → Voice → Music → Final\n"
+                "You approve only the final output.",
+                parse_mode="Markdown"
+            )
+            return
+
+        topic = " ".join(context.args)
+
+        await update.message.reply_text(
+            f"🎬 Starting cinematic video pipeline...\n\n"
+            f"Topic: {topic}\n\n"
+            f"Stages:\n"
+            f"1. Generate scene image (Leonardo)\n"
+            f"2. Animate scene (Runway)\n"
+            f"3. Generate voice (ElevenLabs)\n"
+            f"4. Generate music (ElevenLabs)\n"
+            f"5. Final assembly\n\n"
+            f"I'll send the final video for your approval."
+        )
+
+        try:
+            from video_pipeline.cinematic_video import CinematicVideoPipeline, VideoProject, Scene
+
+            # Determine if topic is a full script or just a topic
+            if len(topic) > 100 or "." in topic:
+                # Treat as script
+                script = topic
+                title = f"david_custom_{int(datetime.now().timestamp())}"
+                scene_desc = "Cyberpunk cityscape at night, neon lights, rain, Blade Runner aesthetic, cinematic"
+            else:
+                # Generate simple script from topic
+                script = f"This is David Flip, speaking about {topic}."
+                title = f"david_{topic.replace(' ', '_').lower()}"
+                scene_desc = f"Cinematic {topic} scene, atmospheric, moody lighting, film grain"
+
+            project = VideoProject(
+                title=title,
+                voiceover_script=script,
+                scenes=[
+                    Scene(
+                        description=scene_desc,
+                        motion_prompt="Slow cinematic camera push forward, subtle movement, atmospheric",
+                        duration=5,
+                    )
+                ],
+                mood="dark",
+            )
+
+            async def progress_callback(stage: str, data: dict):
+                stage_names = {
+                    "generating_images": "🖼️ Generating image...",
+                    "generating_image": f"🖼️ Generating image {data.get('scene', 1)}/{data.get('total', 1)}...",
+                    "animating_scenes": "🎥 Animating scene...",
+                    "animating_scene": f"🎥 Animating scene {data.get('scene', 1)}/{data.get('total', 1)}...",
+                    "generating_voice": "🎙️ Generating voice...",
+                    "assembling_video": "🔧 Assembling video...",
+                    "generating_music": "🎵 Generating music (browser automation)...",
+                    "final_mix": "🎬 Final mix...",
+                    "complete": "✅ Complete!",
+                    "failed": f"❌ Failed: {data.get('error', 'Unknown error')}",
+                }
+                msg = stage_names.get(stage, f"Processing: {stage}")
+                try:
+                    await update.message.reply_text(msg)
+                except Exception:
+                    pass
+
+            pipeline = CinematicVideoPipeline()
+            final_path = await pipeline.create_video(
+                project,
+                on_progress=progress_callback,
+                use_browser_music=True,
+                music_prompt="dark cyberpunk ambient cinematic",
+            )
+
+            # Send final video for approval
+            await update.message.reply_text(
+                f"🎬 **Video Ready for Approval**\n\n"
+                f"Title: {title}\n"
+                f"Script: {script[:100]}...\n\n"
+                f"Reply 'approved' to post, or provide feedback.",
+                parse_mode="Markdown"
+            )
+
+            # Send the video file
+            with open(final_path, "rb") as f:
+                await update.message.reply_video(
+                    video=f,
+                    caption=f"Cinematic video: {title}",
+                )
+
+        except ImportError as e:
+            await update.message.reply_text(
+                f"Pipeline not available: {e}\n\n"
+                f"Make sure Leonardo and Runway API keys are configured."
+            )
+        except Exception as e:
+            await update.message.reply_text(f"Video creation failed: {e}")
 
     async def handle_david_callback(self, update: Update,
                                      context: ContextTypes.DEFAULT_TYPE):
