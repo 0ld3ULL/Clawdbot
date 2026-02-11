@@ -1,6 +1,6 @@
 # Claude Session Brief
-*Generated: 2026-02-11 11:10*
-*Memories: 50 total — 50 clear, 0 fuzzy, 0 fading*
+*Generated: 2026-02-11 12:01*
+*Memories: 51 total — 51 clear, 0 fuzzy, 0 fading*
 *Last decay: 2026-02-10T04:36:52.029534*
 *Last reconciliation: never*
 
@@ -325,6 +325,11 @@ Oracle archetype, philosophical framework, redirect techniques, crisis response,
 Content calendar in content/content_calendar.py.
 Telegram /video command working. Twitter video posting working.
 *Tags: stories, content, calendar*
+
+## Architecture
+
+### Identity Calibration System Implemented
+Implemented the David Identity Calibration System across 6 files. When Jono rejects content with feedback, Oprah now: (1) distills feedback into a permanent identity rule via LLM, (2) stores it in KnowledgeStore category=identity (never fades), (3) rewrites rejected content with all rules applied, (4) requeues for approval, (5) notifies via Telegram. All future content generation (main.py, run_daily_tweets.py) loads identity rules into system prompts. Dashboard now passes tweet text in rejection feedback. Files changed: knowledge_store.py, operations_agent.py, main.py, david_flip.py, run_daily_tweets.py, dashboard/app.py.
 
 ## Technical
 

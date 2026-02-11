@@ -48,6 +48,7 @@ class KnowledgeStore:
         "technical",  # How things work
         "lesson",     # Things David learned on the job
         "decision",   # Decisions made and why
+        "identity",   # Permanent character rules from operator feedback
     ]
 
     def __init__(self, db_path: Path = DB_PATH):
@@ -217,6 +218,21 @@ class KnowledgeStore:
             confidence=0.8,
             tags=["learned", "experience"]
         )
+
+    def get_identity_rules(self) -> str:
+        """Get all identity rules formatted for system prompt injection.
+
+        Returns a formatted string of all permanent identity rules
+        learned from operator feedback. These never fade.
+        """
+        rules = self.get_by_category("identity", limit=100)
+        if not rules:
+            return ""
+
+        lines = ["== IDENTITY RULES (from operator feedback — permanent) =="]
+        for rule in rules:
+            lines.append(f"- {rule.content}")
+        return "\n".join(lines)
 
     def get_stats(self) -> dict:
         conn = self._get_conn()

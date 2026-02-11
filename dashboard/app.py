@@ -349,7 +349,9 @@ def api_content_reject(approval_id):
             "approval_id": approval_id,
             "reason": reason,
             "content_context": {
+                "text": action_data.get("text", "")[:500],
                 "script": action_data.get("script", "")[:500],
+                "action_type": row["action_type"],
                 "theme_title": action_data.get("theme_title", ""),
                 "category": action_data.get("category", ""),
                 "pillar": action_data.get("pillar", ""),

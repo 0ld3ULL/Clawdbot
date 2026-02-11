@@ -45,6 +45,8 @@ class OperationsAgent:
         content_agent=None,   # ContentAgent — for render requests
         memory=None,          # MemoryManager — store rejection feedback
         twitter_tool=None,    # TwitterTool — for tweet execution
+        model_router=None,    # ModelRouter — for LLM calls (identity distillation)
+        david_personality=None,  # DavidFlipPersonality — for content rewriting
     ):
         self.approval_queue = approval_queue
         self.audit_log = audit_log
@@ -56,6 +58,8 @@ class OperationsAgent:
         self.content_agent = content_agent
         self.memory = memory
         self.twitter = twitter_tool
+        self.model_router = model_router
+        self.david_personality = david_personality
 
         # Ensure action directory exists
         DASHBOARD_ACTIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -249,7 +253,15 @@ class OperationsAgent:
             )
 
     async def _handle_content_feedback(self, data: dict):
-        """Save content rejection feedback into David's memory."""
+        """Distill rejection feedback into a permanent identity rule, rewrite content.
+
+        Flow:
+        1. Distill feedback into a general identity rule via LLM
+        2. Store rule permanently in KnowledgeStore (category="identity")
+        3. Rewrite rejected content with full personality + all rules
+        4. Requeue rewritten content for approval
+        5. Notify Jono via Telegram
+        """
         reason = data.get("reason", "")
         context = data.get("content_context", {})
         approval_id = data.get("approval_id", "")
@@ -257,38 +269,172 @@ class OperationsAgent:
         if not reason:
             return
 
-        # Save to David's memory as a significant event
-        summary = (
-            f"Content rejected by operator. "
-            f"Theme: {context.get('theme_title', 'unknown')}. "
-            f"Category: {context.get('category', 'unknown')}. "
-            f"Feedback: {reason}"
-        )
+        # Get the rejected content text
+        rejected_text = context.get("text", "") or context.get("script", "")
 
+        # --- Step 1: Distill identity rule ---
+        rule = None
+        if self.model_router:
+            try:
+                rule = await self._distill_identity_rule(reason, rejected_text, context)
+            except Exception as e:
+                logger.error(f"Failed to distill identity rule: {e}")
+
+        # --- Step 2: Store rule permanently in KnowledgeStore ---
+        if rule:
+            try:
+                from core.memory.knowledge_store import KnowledgeStore
+                ks = KnowledgeStore()
+                ks.add(
+                    category="identity",
+                    topic=f"Feedback #{approval_id}",
+                    content=rule,
+                    source=f"operator_feedback:{approval_id}",
+                    confidence=1.0,
+                    tags=["identity", "operator_feedback", "permanent"],
+                )
+                logger.info(f"Identity rule stored: {rule}")
+            except Exception as e:
+                logger.error(f"Failed to store identity rule: {e}")
+
+        # --- Step 3: Rewrite content with all identity rules ---
+        new_approval_id = None
+        if rejected_text and self.model_router and self.david_personality:
+            try:
+                rewritten = await self._rewrite_content(rejected_text, context)
+                if rewritten:
+                    # --- Step 4: Requeue rewritten content ---
+                    action_type = context.get("action_type", "tweet")
+                    new_approval_id = self.approval_queue.submit(
+                        project_id="david-flip",
+                        agent_id="identity-rewrite",
+                        action_type=action_type,
+                        action_data={"action": action_type, "text": rewritten},
+                        context_summary=f"Rewrite of #{approval_id} | Rule: {rule[:80] if rule else 'none'}",
+                        cost_estimate=0.001,
+                    )
+                    logger.info(f"Rewritten content queued as #{new_approval_id}")
+            except Exception as e:
+                logger.error(f"Failed to rewrite content: {e}")
+
+        # Also save to David's event memory (will decay, but that's fine — the rule is permanent)
         if self.memory:
             try:
                 self.memory.remember_event(
                     title=f"Content feedback: {context.get('theme_title', 'rejected')}",
-                    summary=summary,
-                    significance=7,  # High significance — operator feedback matters
+                    summary=(
+                        f"Content rejected by operator. "
+                        f"Feedback: {reason}. "
+                        f"Rule distilled: {rule or 'none'}"
+                    ),
+                    significance=7,
                     category="content_feedback",
                 )
             except Exception as e:
-                logger.error(f"Failed to store feedback: {e}")
+                logger.error(f"Failed to store feedback event: {e}")
 
-        logger.info(f"Saved content feedback for #{approval_id}: {reason[:100]}")
-
+        # --- Step 5: Notify via Telegram ---
+        notify_parts = [f"Feedback for #{approval_id}: {reason[:100]}"]
+        if rule:
+            notify_parts.append(f"Rule: {rule}")
+        if new_approval_id:
+            notify_parts.append(f"Rewrite queued as #{new_approval_id}")
         await self._notify(
-            f"Feedback recorded for #{approval_id}: {reason[:100]}",
+            "\n".join(notify_parts),
             topic="feedback",
-            action_type="rejected",
-            result=f"Feedback #{approval_id}",
+            action_type="identity_rule",
+            result=f"Rule + rewrite #{new_approval_id or approval_id}",
         )
 
         self.audit_log.log(
             "operations", "info", "content_feedback",
-            f"Rejection feedback #{approval_id}: {reason[:200]}",
+            f"Identity rule from #{approval_id}: {rule or reason[:200]}",
         )
+
+    async def _distill_identity_rule(self, feedback: str, rejected_text: str, context: dict) -> str:
+        """Use LLM to distill operator feedback into a general identity rule.
+
+        Takes specific feedback like "Too preachy, sounds like a TED talk" and
+        extracts a permanent, general rule like:
+        "David never lectures or moralizes — he shares observations as a friend"
+        """
+        from core.model_router import ModelTier
+
+        model = self.model_router.models.get(ModelTier.CHEAP)
+        if not model:
+            model = self.model_router.select_model("simple_qa")
+
+        messages = [
+            {"role": "system", "content": (
+                "You distill content feedback into permanent character rules. "
+                "Given a piece of rejected content and the operator's feedback, "
+                "extract ONE general rule about how David Flip should behave. "
+                "The rule must be:\n"
+                "- General (applies to ALL future content, not just this one piece)\n"
+                "- Stated as 'David [always/never]...' \n"
+                "- Clear and specific enough to follow\n"
+                "- One sentence\n\n"
+                "Return ONLY the rule, nothing else."
+            )},
+            {"role": "user", "content": (
+                f"REJECTED CONTENT:\n{rejected_text[:500]}\n\n"
+                f"OPERATOR FEEDBACK:\n{feedback}\n\n"
+                f"CONTEXT: {context.get('theme_title', '')} / {context.get('category', '')}\n\n"
+                f"Distill this into one permanent identity rule for David Flip:"
+            )},
+        ]
+
+        response = await self.model_router.invoke(model, messages, max_tokens=100)
+        rule = response["content"].strip().strip('"').strip("'")
+        return rule
+
+    async def _rewrite_content(self, rejected_text: str, context: dict) -> str:
+        """Rewrite rejected content using David's full personality + all identity rules."""
+        from core.model_router import ModelTier
+        from core.memory.knowledge_store import KnowledgeStore
+
+        model = self.model_router.models.get(ModelTier.CHEAP)
+        if not model:
+            model = self.model_router.select_model("simple_qa")
+
+        # Get all identity rules for the system prompt
+        ks = KnowledgeStore()
+        identity_rules = ks.get_identity_rules()
+
+        # Determine channel from context
+        action_type = context.get("action_type", "tweet")
+        channel = "twitter" if action_type in ("tweet", "thread", "reply") else "general"
+
+        system_prompt = self.david_personality.get_system_prompt(channel, identity_rules=identity_rules)
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": (
+                f"Rewrite this rejected content. Keep the same topic/angle but fix the issues.\n\n"
+                f"REJECTED TEXT:\n{rejected_text}\n\n"
+                f"Rules:\n"
+                f"- Maximum 280 characters for tweets\n"
+                f"- Stay in character as David Flip\n"
+                f"- Apply ALL identity rules from the system prompt\n\n"
+                f"Return ONLY the rewritten text, nothing else."
+            )},
+        ]
+
+        response = await self.model_router.invoke(model, messages, max_tokens=200)
+        rewritten = response["content"].strip().strip('"').strip("'")
+
+        # Validate
+        if self.david_personality:
+            is_valid, reason = self.david_personality.validate_output(rewritten, channel)
+            if not is_valid:
+                logger.warning(f"Rewrite failed validation: {reason}")
+                return ""
+
+        # Enforce tweet length
+        if channel == "twitter" and len(rewritten) > 280:
+            rewritten = rewritten[:277] + "..."
+
+        return rewritten
 
     async def _handle_execute_request(self, data: dict):
         """Execute an approved action from the dashboard (tweets, threads, replies, etc.)."""

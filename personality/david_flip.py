@@ -669,11 +669,19 @@ class DavidFlipPersonality:
         self.forbidden = FORBIDDEN_PHRASES
         self.email = "davidflip25@proton.me"
 
-    def get_system_prompt(self, channel: str = "general") -> str:
-        """Get full system prompt for a specific channel."""
+    def get_system_prompt(self, channel: str = "general", identity_rules: str = "") -> str:
+        """Get full system prompt for a specific channel.
+
+        Args:
+            channel: The channel overlay to apply (twitter, general, etc.)
+            identity_rules: Permanent identity rules from operator feedback.
+                           Appended after the channel overlay.
+        """
         prompt = self.base_prompt
         if channel in self.channel_prompts:
             prompt += "\n\n" + self.channel_prompts[channel]
+        if identity_rules:
+            prompt += "\n\n" + identity_rules
         return prompt
 
     def validate_output(self, text: str, channel: str = "general") -> tuple[bool, str]:

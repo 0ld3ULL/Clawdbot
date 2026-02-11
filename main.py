@@ -32,7 +32,7 @@ from core.audit_log import AuditLog
 from core.engine import AgentContext, AgentEngine
 from core.kill_switch import KillSwitch
 from core.model_router import ModelRouter
-from core.scheduler import ContentScheduler
+from core.scheduler import ContentScheduler, set_active_scheduler
 from core.token_budget import TokenBudgetManager
 from interfaces.telegram_bot import TelegramBot
 from personality.david_flip import DavidFlipPersonality
@@ -98,6 +98,7 @@ class DavidSystem:
 
         # Scheduler for recurring tasks
         self.scheduler = ContentScheduler()
+        set_active_scheduler(self.scheduler)
 
         # Content Agent
         self.content_agent = ContentAgent(
@@ -151,6 +152,8 @@ class DavidSystem:
             content_agent=self.content_agent,
             memory=self.memory,
             twitter_tool=self.twitter,
+            model_router=self.model_router,
+            david_personality=self.personality,
         )
 
         # Wire alert callback (uses _loop ref set in start() for thread safety)
@@ -197,7 +200,11 @@ class DavidSystem:
             task_type="content_generation",
         )
 
-        system_prompt = self.personality.get_system_prompt("twitter")
+        # Load permanent identity rules
+        from core.memory.knowledge_store import KnowledgeStore
+        identity_rules = KnowledgeStore().get_identity_rules()
+
+        system_prompt = self.personality.get_system_prompt("twitter", identity_rules=identity_rules)
 
         # Check if this is already a formatted prompt (from news/debasement)
         if "Write a tweet" in topic or "HEADLINE:" in topic or "DATA:" in topic:
@@ -242,7 +249,11 @@ class DavidSystem:
             task_type="simple_qa",
         )
 
-        system_prompt = self.personality.get_system_prompt("general")
+        # Load permanent identity rules
+        from core.memory.knowledge_store import KnowledgeStore
+        identity_rules = KnowledgeStore().get_identity_rules()
+
+        system_prompt = self.personality.get_system_prompt("general", identity_rules=identity_rules)
 
         # Get memory context for the topic
         memory_context = self.memory.get_context(topic=user_message)

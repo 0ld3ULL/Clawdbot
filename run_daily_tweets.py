@@ -145,7 +145,8 @@ def get_research_findings(max_items: int = 5) -> list[dict]:
 
 
 async def generate_research_tweets(
-    model_router, personality, approval_queue, findings: list[dict]
+    model_router, personality, approval_queue, findings: list[dict],
+    identity_rules: str = "",
 ) -> int:
     """Generate tweets from Echo's research findings."""
     from core.model_router import ModelTier
@@ -154,7 +155,7 @@ async def generate_research_tweets(
     if not model:
         model = model_router.select_model("tweet")
 
-    system_prompt = personality.get_system_prompt("twitter")
+    system_prompt = personality.get_system_prompt("twitter", identity_rules=identity_rules)
     submitted = 0
 
     for finding in findings:
@@ -250,7 +251,8 @@ DAVID_OBSERVATIONS = [
 
 
 async def generate_theme_tweets(
-    model_router, personality, approval_queue, count: int, topic: str | None = None
+    model_router, personality, approval_queue, count: int, topic: str | None = None,
+    identity_rules: str = "",
 ) -> int:
     """Generate tweets from David's personality themes + his own observations.
 
@@ -263,7 +265,7 @@ async def generate_theme_tweets(
     if not model:
         model = model_router.select_model("tweet")
 
-    system_prompt = personality.get_system_prompt("twitter")
+    system_prompt = personality.get_system_prompt("twitter", identity_rules=identity_rules)
     submitted = 0
 
     # If specific topic, generate all from that
@@ -441,6 +443,13 @@ async def generate_tweets(count: int = 6, topic: str | None = None, themes_only:
     if not model:
         model = model_router.select_model("tweet")
     logger.info(f"Model: {model.name} (${model.cost_in}/M input)")
+
+    # Load permanent identity rules
+    from core.memory.knowledge_store import KnowledgeStore
+    identity_rules = KnowledgeStore().get_identity_rules()
+    rule_count = len(identity_rules.split("\n")) - 1 if identity_rules else 0
+    if rule_count > 0:
+        logger.info(f"Loaded {rule_count} identity rules")
     logger.info("")
 
     total_submitted = 0
@@ -452,7 +461,8 @@ async def generate_tweets(count: int = 6, topic: str | None = None, themes_only:
         if findings:
             logger.info(f"\n--- RESEARCH TWEETS ({len(findings)} findings) ---\n")
             research_count = await generate_research_tweets(
-                model_router, personality, approval_queue, findings
+                model_router, personality, approval_queue, findings,
+                identity_rules=identity_rules,
             )
             total_submitted += research_count
             logger.info(f"\nResearch tweets: {research_count} queued")
@@ -464,7 +474,8 @@ async def generate_tweets(count: int = 6, topic: str | None = None, themes_only:
 
     logger.info(f"\n--- THEME TWEETS ({theme_slots} slots) ---\n")
     theme_count = await generate_theme_tweets(
-        model_router, personality, approval_queue, theme_slots, topic
+        model_router, personality, approval_queue, theme_slots, topic,
+        identity_rules=identity_rules,
     )
     total_submitted += theme_count
 
