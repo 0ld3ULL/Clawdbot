@@ -246,9 +246,9 @@ class CinematicVideoPipeline:
         with open(concat_path, "w") as f:
             for scene in project.scenes:
                 if scene.video_path:
-                    # Escape path for FFmpeg
-                    escaped = scene.video_path.replace("\\", "/").replace("'", "'\\''")
-                    f.write(f"file '{escaped}'\n")
+                    # Use filename only — concat.txt is in the same directory as the videos
+                    filename = Path(scene.video_path).name
+                    f.write(f"file '{filename}'\n")
 
         assembled_path = project_dir / "assembled.mp4"
 
