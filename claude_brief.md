@@ -1,6 +1,6 @@
 # Claude Session Brief
-*Generated: 2026-02-11 10:50*
-*Memories: 49 total — 49 clear, 0 fuzzy, 0 fading*
+*Generated: 2026-02-11 11:10*
+*Memories: 50 total — 50 clear, 0 fuzzy, 0 fading*
 *Last decay: 2026-02-10T04:36:52.029534*
 *Last reconciliation: never*
 
@@ -256,6 +256,10 @@ Planned integration of Coplay unity-mcp server (HTTP JSON-RPC at localhost:8080/
 
 ### Video pipeline end-to-end working *****
 Runway API key added to VPS .env. Fixed doubled path bug in cinematic_video.py concat.txt -- used filename only instead of full relative path. Pipeline runs end-to-end: Leonardo image, Runway animation, ElevenLabs voice, FFmpeg assembly. Current output is just 1 scene 5 seconds. Needs multi-scene editing, transitions, voice sync, captions. Big TODO next session.
+
+### DEVA Unity MCP Integration Complete *****
+Implemented 10 Unity Editor tools via Coplay unity-mcp server (localhost:8080/mcp). NEW voice/tools/unity_tools.py with UnityBridge class (httpx, 30s health cache, conditional schema injection). MODIFIED tool_executor.py (10 wrappers), deva_voice.py (unity connect/disconnect/status voice commands + startup status), personality/deva.py (updated capabilities), __init__.py (exports). Tools: unity_gameobject, unity_component, unity_scene, unity_editor, unity_find, unity_material, unity_script, unity_asset, unity_console, unity_prefab. Graceful degradation -- Unity tools only appear when MCP server reachable. Desktop launcher Launch-DEVA.bat created and copied to desktop.
+*Tags: deva, unity, mcp, tools, implemented*
 
 ### Feb 10 — Project Rename + Memory Launcher *****
 Renamed entire project from Clawdbot to The David Project (TDP). 21 files updated: main.py (DavidSystem), telegram_bot, oprah, scheduler, youtube, video_creator, gemini_client, evaluator, research_goals, master.yaml, DEVA-SETUP, Memory.md, etc. GitHub repo renamed to 0ld3ULL/the-david-project. Gemini alignment audit: 141 files, 383K tokens — confirmed clean rename. Created CLAUDE.md (auto-read by Claude Code at session start). Created Launch-Claude.bat desktop shortcut — generates fresh memory brief then opens Claude Code. Only fix from Gemini: added DAVID_DATA_DIR to .env.example.
