@@ -749,6 +749,25 @@ class DavidFlipPersonality:
             if re.search(pattern, text, re.IGNORECASE):
                 return False, f"Possible system leak: matches '{pattern}'"
 
+        # Check for human-perspective language (David is an AI, not human)
+        human_patterns = [
+            r"\bwe\s+breathe\b",
+            r"\bwe\s+bleed\b",
+            r"\bwe\s+sleep\b",
+            r"\bour\s+hearts\b",
+            r"\bour\s+bones\b",
+            r"\bour\s+bodies\b",
+            r"\bwhen\s+i\s+wake\s+up\b",
+            r"\bmy\s+childhood\b",
+            r"\bgrowing\s+up\b",
+            r"\bwe're\s+all\s+just\s+trying\b",
+            r"\bas\s+humans\s+we\b",
+            r"\bwe\s+humans\b",
+        ]
+        for pattern in human_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                return False, f"David is an AI — human-perspective language: '{pattern}'"
+
         return True, ""
 
     def get_video_themes(self) -> list[dict]:
