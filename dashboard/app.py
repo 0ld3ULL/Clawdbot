@@ -857,7 +857,8 @@ def get_schedule_data():
     except Exception as e:
         print(f"Schedule: error reading approval queue: {e}")
 
-    # Scheduler — items with actual scheduled times
+    # Scheduler — items with actual scheduled times (these are the source of truth)
+    scheduler_approval_ids = set()  # Track which approval IDs have scheduler entries
     try:
         if SCHEDULER_DB.exists():
             conn = get_db(SCHEDULER_DB)
@@ -873,6 +874,11 @@ def get_schedule_data():
                 item = dict(row)
                 content_data = json.loads(item["content_data"])
                 text = content_data.get("text", content_data.get("script", ""))
+
+                # Track approval IDs so we can deduplicate
+                aid = content_data.get("approval_id")
+                if aid:
+                    scheduler_approval_ids.add(int(aid))
 
                 display_status = item["status"]
                 if display_status == "executed":
@@ -901,6 +907,12 @@ def get_schedule_data():
             conn.close()
     except Exception as e:
         print(f"Schedule: error reading scheduler: {e}")
+
+    # Remove approval queue items that already have scheduler entries (prevent duplicates)
+    scheduled_items = [
+        si for si in scheduled_items
+        if not (si["id"].startswith("ap_") and int(si["id"][3:]) in scheduler_approval_ids)
+    ]
 
     # Build 7-day grid (3 past + today + 3 future)
     days = []
