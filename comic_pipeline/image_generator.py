@@ -151,8 +151,12 @@ class FluxImageGenerator:
         result_data = response.json()
 
         # Queue-based: check if we got a request_id for polling
-        if "request_id" in result_data:
-            result_data = await self._poll_result(result_data["request_id"])
+        if "request_id" in result_data and "images" not in result_data:
+            result_data = await self._poll_result(
+                request_id=result_data["request_id"],
+                status_url=result_data.get("status_url", ""),
+                response_url=result_data.get("response_url", ""),
+            )
         # Direct result (sometimes fal returns immediately for fast models)
 
         # Extract image URL from result
@@ -170,11 +174,23 @@ class FluxImageGenerator:
 
         return image_url
 
-    async def _poll_result(self, request_id: str, max_wait: int = 300) -> dict:
+    async def _poll_result(
+        self,
+        request_id: str,
+        status_url: str = "",
+        response_url: str = "",
+        max_wait: int = 300,
+    ) -> dict:
         """Poll fal.ai queue for result."""
         client = await self._get_client()
-        status_url = f"{FAL_RESULT_BASE}/{FLUX_KONTEXT_MODEL}/requests/{request_id}/status"
-        result_url = f"{FAL_RESULT_BASE}/{FLUX_KONTEXT_MODEL}/requests/{request_id}"
+
+        # Use URLs from submit response, or construct fallbacks
+        if not status_url:
+            status_url = f"{FAL_API_BASE}/{FLUX_KONTEXT_MODEL}/requests/{request_id}/status"
+        if not response_url:
+            response_url = f"{FAL_API_BASE}/{FLUX_KONTEXT_MODEL}/requests/{request_id}"
+
+        logger.info(f"Polling fal.ai: {status_url}")
 
         elapsed = 0
         interval = 2  # Start polling every 2 seconds
@@ -185,7 +201,14 @@ class FluxImageGenerator:
 
             response = await client.get(status_url)
             if response.status_code != 200:
-                logger.warning(f"Poll status check failed: {response.status_code}")
+                logger.warning(f"Poll status check failed: {response.status_code} - {response.text[:200]}")
+                # Try the response_url directly (some fal endpoints skip status)
+                if elapsed > 10:
+                    result_response = await client.get(response_url)
+                    if result_response.status_code == 200:
+                        data = result_response.json()
+                        if "images" in data:
+                            return data
                 continue
 
             status = response.json()
@@ -193,7 +216,7 @@ class FluxImageGenerator:
 
             if state == "COMPLETED":
                 # Fetch full result
-                result_response = await client.get(result_url)
+                result_response = await client.get(response_url)
                 if result_response.status_code == 200:
                     return result_response.json()
                 raise RuntimeError(f"Failed to fetch result: {result_response.status_code}")
@@ -203,7 +226,7 @@ class FluxImageGenerator:
                 raise RuntimeError(f"fal.ai generation failed: {error}")
 
             # Still in queue or processing — keep polling
-            logger.debug(f"fal.ai status: {state} ({elapsed}s elapsed)")
+            logger.info(f"fal.ai status: {state} ({elapsed}s elapsed)")
 
             # Back off polling interval gradually
             if elapsed > 30:
