@@ -65,6 +65,7 @@ class ComicProject:
         "Handcrafted feel, expressive characters, "
         "soft lighting with dramatic shadows for tension."
     )
+    parable_text: str = ""  # Full prose parable (250-400 words)
     panels: list[Panel] = field(default_factory=list)
     pages: list[ComicPage] = field(default_factory=list)
 
