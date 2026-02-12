@@ -801,7 +801,7 @@ def get_schedule_data():
                     })
                 elif item["status"] == "approved":
                     stats["approved"] += 1
-                    # Show approved items on calendar using review time
+                    # Show approved items on calendar (approved != posted)
                     ts = item["reviewed_at"] or item["created_at"]
                     if ts:
                         platform = "twitter" if item["action_type"] in ("tweet", "thread", "reply") else "multi"
@@ -809,13 +809,12 @@ def get_schedule_data():
                             "id": f"ap_{item['id']}",
                             "type": item["action_type"],
                             "text": (text or "")[:80],
-                            "status": "posted",
+                            "status": "approved",
                             "scheduled_time": ts,
-                            "executed_at": ts,
+                            "executed_at": None,
                             "agent": item["agent_id"] or "david",
                             "platform": platform,
                         })
-                        stats["posted"] += 1
             conn.close()
     except Exception as e:
         print(f"Schedule: error reading approval queue: {e}")
