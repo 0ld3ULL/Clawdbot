@@ -21,6 +21,31 @@ logger = logging.getLogger(__name__)
 # Default data directory
 DATA_DIR = Path(os.environ.get("DAVID_DATA_DIR", "data"))
 
+# Global reference to the active ContentScheduler instance.
+# APScheduler pickles job callbacks to SQLite. After a restart, unpickling
+# creates a *new* ContentScheduler with empty _executors. This global lets
+# us route unpickled jobs back to the real running instance that has executors.
+_active_scheduler: Optional['ContentScheduler'] = None
+
+
+def set_active_scheduler(instance: 'ContentScheduler'):
+    """Register the running ContentScheduler so scheduled jobs can find it."""
+    global _active_scheduler
+    _active_scheduler = instance
+
+
+async def _dispatch_scheduled_job(job_id: str):
+    """Module-level callback for APScheduler — survives pickle/unpickle.
+
+    APScheduler can pickle this plain function without dragging along a
+    ContentScheduler instance.  At fire-time it calls back into the real
+    running scheduler via the global reference.
+    """
+    if _active_scheduler is None:
+        logger.error(f"Scheduled job {job_id}: no active ContentScheduler — cannot execute")
+        return
+    await _active_scheduler._execute_scheduled(job_id)
+
 
 class ContentScheduler:
     """Manages scheduled content posts."""
@@ -127,9 +152,10 @@ class ContentScheduler:
         conn.commit()
         conn.close()
 
-        # Schedule the job
+        # Schedule the job — uses module-level function so APScheduler
+        # doesn't pickle 'self' (which loses _executors on unpickle).
         self.scheduler.add_job(
-            self._execute_scheduled,
+            _dispatch_scheduled_job,
             trigger=DateTrigger(run_date=scheduled_time),
             args=[job_id],
             id=job_id,
@@ -243,11 +269,15 @@ class ContentScheduler:
             return False
 
 
-# Platform-specific optimal posting times (UTC) — matches dashboard/app.py
+# Platform-specific optimal posting times (UTC) — targeting US audience peaks.
+# Twitter:  13, 16, 19, 22 UTC = 8am, 11am, 2pm, 5pm ET
+# YouTube:  18, 21, 0 UTC     = 1pm, 4pm, 7pm ET
+# TikTok:   16, 19, 23, 1 UTC = 11am, 2pm, 6pm, 8pm ET
+# Must match dashboard/app.py PLATFORM_OPTIMAL_HOURS
 PLATFORM_OPTIMAL_HOURS = {
-    "twitter": [9, 12, 15, 18],
-    "youtube": [14, 17, 20],
-    "tiktok": [11, 15, 19, 21],
+    "twitter": [13, 16, 19, 22],
+    "youtube": [18, 21, 0],
+    "tiktok": [16, 19, 23, 1],
 }
 
 

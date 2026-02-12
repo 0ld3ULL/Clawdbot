@@ -667,9 +667,9 @@ class OperationsAgent:
     # ------------------------------------------------------------------
 
     # Max hours of silence before Oprah triggers content generation
-    TWEET_GAP_HOURS = 12
+    TWEET_GAP_HOURS = 6
     # How many filler tweets to generate when filling a gap
-    FILLER_COUNT = 5
+    FILLER_COUNT = 2
 
     async def check_content_gaps(self):
         """

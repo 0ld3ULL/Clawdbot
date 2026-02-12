@@ -1,6 +1,6 @@
 # Claude Session Brief
-*Generated: 2026-02-11 12:01*
-*Memories: 51 total — 51 clear, 0 fuzzy, 0 fading*
+*Generated: 2026-02-11 13:21*
+*Memories: 52 total — 52 clear, 0 fuzzy, 0 fading*
 *Last decay: 2026-02-10T04:36:52.029534*
 *Last reconciliation: never*
 
@@ -152,6 +152,9 @@ Positioning Phase: surveillance warnings (2x/week), story series (2x/week), 'Why
 Selling Phase (bull run): FLIPT explainers, node ownership, perpetual royalties
 Content Safety (UAE): no specific government targeting, focus Western systems, tone is 'opt out and build alternatives' NOT 'rise up and fight'
 *Tags: content, strategy, surveillance, uae, bull-run*
+
+### InVideo AI Research - Integration Plan *****
+InVideo AI (invideo.io) researched for long-form info videos (5-15 min). KEY FINDINGS: (1) Voice cloning NOW available - 30sec audio sample, MP3/WAV/M4A, must say 'I give InVideo AI permission to use my voice', paid plans only. (2) NO public API exists - browser-only, cannot automate into DavidSystem pipeline. (3) Pricing: Max plan 0/mo recommended (40 credits, 200 video mins, 5 voice clones, 400GB storage). (4) Can accept full scripts pasted as prompts, AI matches stock footage from 16M+ assets (iStock/Getty/Storyblocks). (5) No native PIP/talking head overlay - would need FFmpeg compositing after export. (6) Partnered with OpenAI Sora 2 + Google VEO 3.1 since Oct 2025. INTEGRATION PLAN: Complementary to existing pipeline - current pipeline handles short-form character content (30-60s Hedra talking head), InVideo handles long-form info videos with stock footage. Workflow: Echo researches topic -> David personality writes long-form script -> Jono reviews -> Jono pastes into InVideo AI browser (manual step ~10-15min) -> exports video -> optional FFmpeg PIP overlay with David talking head -> approval queue -> Oprah schedules distribution. NEEDS BUILDING: (1) Long-form script generator in david_flip.py (current video scripts capped at 80-200 words), (2) InVideo script queue folder + dashboard tab, (3) PIP compositor in postprocessor.py, (4) Import path for uploading InVideo exports back to approval queue.
 
 ## Current State (manually updated)
 

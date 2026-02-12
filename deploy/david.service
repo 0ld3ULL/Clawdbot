@@ -1,0 +1,31 @@
+[Unit]
+Description=The David Project - AI Agent System
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/david-flip
+ExecStart=/opt/david-flip/venv/bin/python main.py
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Environment
+EnvironmentFile=/opt/david-flip/.env
+
+# Logging
+StandardOutput=append:/opt/david-flip/data/david.log
+StandardError=append:/opt/david-flip/data/david.log
+
+# Watchdog: systemd kills + restarts if no heartbeat for 5 min
+WatchdogSec=300
+
+# Resource limits
+LimitNOFILE=65535
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target

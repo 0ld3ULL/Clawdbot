@@ -541,6 +541,44 @@ def api_edit(approval_id):
         return jsonify({"success": False, "error": str(e)})
 
 
+@app.route("/api/health")
+def api_health():
+    """Health check endpoint — no auth required (for monitoring tools).
+
+    Returns 200 if David's status file was updated within the last 5 minutes.
+    Returns 503 if stale or missing.
+    """
+    status_file = DATA_DIR / "david_status.json"
+    try:
+        if not status_file.exists():
+            return jsonify({"healthy": False, "reason": "No status file"}), 503
+
+        import os
+        mtime = os.path.getmtime(status_file)
+        age_seconds = (datetime.now().timestamp() - mtime)
+
+        with open(status_file) as f:
+            status = json.load(f)
+
+        if age_seconds > 300:  # 5 minutes = stale
+            return jsonify({
+                "healthy": False,
+                "reason": "Status file stale",
+                "age_seconds": int(age_seconds),
+                "last_status": status.get("status", "unknown"),
+            }), 503
+
+        return jsonify({
+            "healthy": True,
+            "status": status.get("status", "unknown"),
+            "age_seconds": int(age_seconds),
+            "timestamp_utc": status.get("timestamp_utc", ""),
+        })
+
+    except Exception as e:
+        return jsonify({"healthy": False, "reason": str(e)}), 503
+
+
 @app.route("/api/stats")
 @login_required
 def api_stats():

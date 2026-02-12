@@ -202,6 +202,123 @@ class TwitterTool:
             logger.error(f"Video post failed: {e}")
             return {"error": str(e)}
 
+    # --- Search & metrics methods (for Growth Agent) ---
+
+    def search_conversations(self, query: str, max_results: int = 10) -> list[dict]:
+        """
+        Search for tweets matching a query with full metrics + author info.
+
+        Used by GrowthAgent to find active conversations for David to join.
+        Uses bearer token (read-only). Returns tweets with engagement metrics
+        and author follower counts.
+        """
+        self._ensure_read_client()
+        try:
+            results = self._read_client.search_recent_tweets(
+                query=f"{query} lang:en -is:retweet",
+                max_results=min(max_results, 100),
+                tweet_fields=["created_at", "author_id", "text", "public_metrics", "conversation_id"],
+                expansions=["author_id"],
+                user_fields=["username", "name", "public_metrics"],
+            )
+
+            if not results.data:
+                return []
+
+            # Build author lookup with follower counts
+            authors = {}
+            if results.includes and "users" in results.includes:
+                for user in results.includes["users"]:
+                    authors[str(user.id)] = {
+                        "username": user.username,
+                        "name": user.name,
+                        "followers": user.public_metrics.get("followers_count", 0) if user.public_metrics else 0,
+                    }
+
+            tweets = []
+            for t in results.data:
+                author_id = str(t.author_id)
+                author_info = authors.get(author_id, {})
+                metrics = t.public_metrics or {}
+                tweets.append({
+                    "id": str(t.id),
+                    "text": t.text,
+                    "author_id": author_id,
+                    "author_username": author_info.get("username", ""),
+                    "author_name": author_info.get("name", ""),
+                    "author_followers": author_info.get("followers", 0),
+                    "likes": metrics.get("like_count", 0),
+                    "retweets": metrics.get("retweet_count", 0),
+                    "replies": metrics.get("reply_count", 0),
+                    "quotes": metrics.get("quote_count", 0),
+                    "created_at": t.created_at.isoformat() if t.created_at else "",
+                    "conversation_id": str(t.conversation_id) if t.conversation_id else "",
+                })
+
+            return tweets
+
+        except Exception as e:
+            logger.error(f"Search conversations failed for '{query}': {e}")
+            return []
+
+    def get_my_tweet_metrics(self, count: int = 20) -> list[dict]:
+        """
+        Get David's recent tweets with full metrics including impressions.
+
+        Enhanced version of get_my_recent_tweets with impression data
+        for the GrowthAgent performance tracker.
+        """
+        self._ensure_client()
+        self._ensure_read_client()
+        try:
+            me = self._client.get_me()
+            user_id = me.data.id
+
+            tweets = self._read_client.get_users_tweets(
+                id=user_id,
+                max_results=min(count, 100),
+                tweet_fields=[
+                    "created_at", "public_metrics", "conversation_id",
+                    "non_public_metrics", "organic_metrics",
+                ],
+            )
+
+            if not tweets.data:
+                return []
+
+            results = []
+            for t in tweets.data:
+                metrics = t.public_metrics or {}
+                # non_public_metrics requires user-context auth and may not be available
+                non_public = {}
+                if hasattr(t, "non_public_metrics") and t.non_public_metrics:
+                    non_public = t.non_public_metrics
+                organic = {}
+                if hasattr(t, "organic_metrics") and t.organic_metrics:
+                    organic = t.organic_metrics
+
+                results.append({
+                    "id": str(t.id),
+                    "text": t.text,
+                    "created_at": t.created_at.isoformat() if t.created_at else "",
+                    "likes": metrics.get("like_count", 0),
+                    "retweets": metrics.get("retweet_count", 0),
+                    "replies": metrics.get("reply_count", 0),
+                    "quotes": metrics.get("quote_count", 0),
+                    "bookmarks": metrics.get("bookmark_count", 0),
+                    "impressions": (
+                        non_public.get("impression_count", 0)
+                        or organic.get("impression_count", 0)
+                    ),
+                    "conversation_id": str(t.conversation_id) if t.conversation_id else str(t.id),
+                })
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Failed to get tweet metrics: {e}")
+            return []
+
     # --- Read methods (no approval needed) ---
 
     def get_mentions(self, count: int = 20) -> list[dict]:

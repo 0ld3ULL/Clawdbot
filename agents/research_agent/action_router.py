@@ -85,12 +85,11 @@ class ActionRouter:
 
         # Remember high-scoring research in memory
         if self.memory and item.relevance_score >= 6:
-            self.memory.remember_research(
-                title=item.title,
-                summary=item.summary or item.content[:200],
-                score=item.relevance_score,
-                source=item.source,
-                url=item.url
+            self.memory.remember_event(
+                title=f"Research: {item.title}",
+                summary=f"{item.summary or item.content[:200]}\nSource: {item.source} | {item.url}",
+                significance=min(item.relevance_score, 10),
+                category="research",
             )
 
         # Save high-scoring items as browsable markdown files

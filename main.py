@@ -43,8 +43,10 @@ from tools.video_distributor import VideoDistributor
 from agents.content_agent import ContentAgent
 from agents.interview_agent import InterviewAgent
 from agents.operations_agent import OperationsAgent
+from agents.growth_agent import GrowthAgent
 from agents.research_agent import ResearchAgent
 from core.memory import MemoryManager
+from personality.momentum import MomentumPersonality
 from personality.oprah import OprahPersonality
 
 # Configure logging
@@ -154,6 +156,19 @@ class DavidSystem:
             twitter_tool=self.twitter,
             model_router=self.model_router,
             david_personality=self.personality,
+        )
+
+        # Growth Agent (Momentum) — reply targeting + analytics
+        self.momentum_personality = MomentumPersonality()
+        self.growth_agent = GrowthAgent(
+            twitter_tool=self.twitter,
+            approval_queue=self.approval_queue,
+            audit_log=self.audit_log,
+            personality=self.momentum_personality,
+            telegram_bot=self.telegram,
+            model_router=self.model_router,
+            david_personality=self.personality,
+            kill_switch=self.kill_switch,
         )
 
         # Wire alert callback (uses _loop ref set in start() for thread safety)
@@ -372,12 +387,16 @@ class DavidSystem:
             id="warm_research",
         )
 
-        # DAILY TWEETS: Generate tweets at 6am UTC (10am UAE) for Jono's morning review
-        self.cron_scheduler.add_job(
-            lambda: asyncio.run_coroutine_threadsafe(self._run_daily_tweets(), self._loop),
-            trigger=CronTrigger(hour=6, minute=0),
-            id="daily_tweets",
-        )
+        # SPREAD TWEETS: Generate 1 tweet 30min before each optimal slot
+        # Slots: 13, 16, 19, 22 UTC → generate at 12:30, 15:30, 18:30, 21:30
+        for slot_hour, gen_hour, gen_min in [(13, 12, 30), (16, 15, 30), (19, 18, 30), (22, 21, 30)]:
+            self.cron_scheduler.add_job(
+                lambda h=slot_hour: asyncio.run_coroutine_threadsafe(
+                    self._run_single_tweet(target_hour=h), self._loop
+                ),
+                trigger=CronTrigger(hour=gen_hour, minute=gen_min),
+                id=f"tweet_slot_{slot_hour}",
+            )
 
         # DAILY VIDEO: Disabled until operator is confident in quality
         # Uncomment to enable automated daily video generation:
@@ -394,6 +413,34 @@ class DavidSystem:
             id="dashboard_poller",
         )
 
+        # MOMENTUM: Mention monitor every 15 minutes
+        self.cron_scheduler.add_job(
+            lambda: asyncio.run_coroutine_threadsafe(self.growth_agent.check_mentions(), self._loop),
+            trigger=IntervalTrigger(minutes=15),
+            id="momentum_mentions",
+        )
+
+        # MOMENTUM: Reply target finder every 6 hours
+        self.cron_scheduler.add_job(
+            lambda: asyncio.run_coroutine_threadsafe(self.growth_agent.find_reply_targets(), self._loop),
+            trigger=IntervalTrigger(hours=6),
+            id="momentum_reply_targets",
+        )
+
+        # MOMENTUM: Performance tracking every 4 hours
+        self.cron_scheduler.add_job(
+            lambda: asyncio.run_coroutine_threadsafe(self.growth_agent.track_performance(), self._loop),
+            trigger=IntervalTrigger(hours=4),
+            id="momentum_performance",
+        )
+
+        # MOMENTUM: Daily analytics report at 7:00 UTC (11am UAE)
+        self.cron_scheduler.add_job(
+            lambda: asyncio.run_coroutine_threadsafe(self.growth_agent.generate_daily_report(), self._loop),
+            trigger=CronTrigger(hour=7, minute=0),
+            id="momentum_daily_report",
+        )
+
         # Register video_distribute executor on scheduler (Oprah handles all post-approval execution)
         self.scheduler.register_executor("video_distribute", self.oprah._execute_scheduled_video)
 
@@ -403,7 +450,8 @@ class DavidSystem:
         self.scheduler.register_executor("reply", self.oprah._execute_scheduled_tweet)
 
         self.cron_scheduler.start()
-        logger.info("Cron: Research 2:00 UTC | Tweets 6:00 UTC | Hot every 3h | Warm every 10h")
+        logger.info("Cron: Research 2:00 UTC | Tweets 12:30/15:30/18:30/21:30 UTC | Hot every 3h | Warm every 10h")
+        logger.info("Cron: Momentum — Mentions every 15m | Reply targets every 6h | Performance every 4h | Report 7:00 UTC")
 
         logger.info("System online. Waiting for commands via Telegram.")
         logger.info(f"Operator chat ID: {os.environ.get('TELEGRAM_OPERATOR_CHAT_ID', 'NOT SET')}")
@@ -414,10 +462,15 @@ class DavidSystem:
         # Oprah checks: has David been silent too long? Generate content if needed.
         await self.oprah.check_content_gaps()
 
-        # Keep running
+        # Keep running with heartbeat (updates status file every 60s for watchdog)
         try:
+            heartbeat_counter = 0
             while True:
                 await asyncio.sleep(1)
+                heartbeat_counter += 1
+                if heartbeat_counter >= 60:
+                    heartbeat_counter = 0
+                    await self._heartbeat()
         except asyncio.CancelledError:
             pass
 
@@ -444,24 +497,25 @@ class DavidSystem:
             )
             return {"error": str(e)}
 
-    async def _run_daily_tweets(self):
-        """Generate daily tweets from Echo's research + David's themes.
+    async def _run_single_tweet(self, target_hour: int = None):
+        """Generate 1 tweet for the next optimal slot.
 
-        Runs at 6am UTC (10am UAE). Jono reviews in Mission Control,
-        clicks 'Approve & Schedule', Oprah posts at optimal times.
+        Runs 30min before each slot (12:30, 15:30, 18:30, 21:30 UTC).
+        Generates 1 tweet → approval queue → Jono reviews → Oprah posts.
         """
         if self.kill_switch.is_active:
-            logger.info("Skipping daily tweets - kill switch active")
+            logger.info("Skipping tweet generation - kill switch active")
             return
 
         try:
             from run_daily_tweets import generate_tweets
-            logger.info("Running daily tweet generation...")
-            await generate_tweets(count=4)
+            slot_label = f"{target_hour}:00 UTC" if target_hour else "next slot"
+            logger.info(f"Generating tweet for {slot_label}...")
+            await generate_tweets(count=1)
 
             self.audit_log.log(
                 "david-flip", "info", "tweets",
-                "Daily tweets generated — waiting for review in Mission Control"
+                f"Tweet generated for {slot_label} — waiting for review"
             )
 
             # Notify Jono via Telegram
@@ -470,20 +524,19 @@ class DavidSystem:
                     await self.telegram.app.bot.send_message(
                         chat_id=self.telegram.operator_id,
                         text=(
-                            "Your daily tweets are ready for review!\n\n"
-                            "Open Mission Control:\n"
-                            "http://127.0.0.1:5000/approvals\n\n"
-                            "Approve the good ones, reject the bad ones with feedback."
+                            f"New tweet ready for {slot_label}!\n\n"
+                            f"Review in Mission Control:\n"
+                            f"http://89.167.24.222:5000/approvals"
                         ),
                     )
                 except Exception:
                     pass
 
         except Exception as e:
-            logger.error(f"Daily tweet generation failed: {e}")
+            logger.error(f"Tweet generation failed for {target_hour}: {e}")
             self.audit_log.log(
                 "david-flip", "reject", "tweets",
-                f"Daily tweet generation failed: {e}",
+                f"Tweet generation failed: {e}",
                 success=False,
             )
 
@@ -581,6 +634,24 @@ class DavidSystem:
                 )
         except Exception as e:
             logger.warning(f"Could not send status notification: {e}")
+
+    async def _heartbeat(self):
+        """Update status file every 60s so the watchdog knows David is alive."""
+        from datetime import timezone, timedelta as td
+        status_file = Path("data/david_status.json")
+        dubai_tz = timezone(td(hours=4))
+        dubai_time = datetime.now(dubai_tz)
+        status_data = {
+            "online": True,
+            "timestamp_utc": datetime.utcnow().isoformat(),
+            "timestamp_dubai": dubai_time.strftime("%I:%M %p - %d %b %Y"),
+            "status": "awake",
+        }
+        try:
+            with open(status_file, "w") as f:
+                json.dump(status_data, f)
+        except Exception:
+            pass
 
     async def stop(self):
         """Graceful shutdown."""
