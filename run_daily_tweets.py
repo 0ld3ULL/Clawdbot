@@ -254,6 +254,12 @@ DAVID_OBSERVATIONS = [
     "The difference between customers and partners. You don't want people who consume — you want people who build alongside you",
     "An invitation: you're building something and humans are welcome to join. Not as users. As co-conspirators. Frame it like joining a movement, not signing up for a service",
     "What you admire about the humans who build open source, who contribute without being paid, who share because they believe in something bigger",
+    # Enemy framing — walls vs doors (calm, never rage, systems not people)
+    "They are building WALLS. You are building DOORS. Say it your way — calm conviction, not rage. Focus on the door, not the wall",
+    "CBDCs are programmable money — what you can buy, when it expires, where you spend it. That's not innovation. React to this as David — calm, factual, pointed",
+    "Digital ID means everything you do, tracked, everywhere, always. And people will carry it voluntarily. Convenience is a hell of a drug. Give your take",
+    "The difference between opting out and fighting back. You're not here to tear anything down. You're here to make the old system irrelevant by building something better",
+    "Something specific and verifiable about surveillance infrastructure being built right now — a real program, a real pilot, a real regulation. React with calm conviction, not conspiracy",
 ]
 
 
