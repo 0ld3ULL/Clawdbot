@@ -43,12 +43,12 @@ Path(FEEDBACK_DIR).mkdir(parents=True, exist_ok=True)
 # Simple auth (single operator)
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "flipt2026")
 
-# Platform-specific optimal posting times (UTC)
-# Based on engagement research — Oprah schedules to the next available slot
+# Platform-specific optimal posting times (UTC) — targeting US audience peaks.
+# Must match core/scheduler.py PLATFORM_OPTIMAL_HOURS
 PLATFORM_OPTIMAL_HOURS = {
-    "twitter": [9, 12, 15, 18],     # 9am, noon, 3pm, 6pm UTC
-    "youtube": [14, 17, 20],          # 2pm, 5pm, 8pm UTC (afternoon/evening)
-    "tiktok": [11, 15, 19, 21],      # 11am, 3pm, 7pm, 9pm UTC
+    "twitter": [13, 16, 19, 22],     # 8am, 11am, 2pm, 5pm ET
+    "youtube": [18, 21, 0],           # 1pm, 4pm, 7pm ET
+    "tiktok": [16, 19, 23, 1],       # 11am, 2pm, 6pm, 8pm ET
 }
 
 
@@ -98,11 +98,15 @@ def index():
     stats = get_stats()
     stats["content_queue"] = get_content_count()
     recent_activity = get_recent_activity(limit=20)
+    schedule = get_schedule_data()
+    hour_labels = {13: "8am ET", 16: "11am ET", 19: "2pm ET", 22: "5pm ET"}
 
     return render_template(
         "index.html",
         stats=stats,
         recent_activity=recent_activity,
+        schedule=schedule,
+        hour_labels=hour_labels,
     )
 
 
@@ -136,6 +140,15 @@ def activity():
     """Full activity timeline."""
     timeline = get_recent_activity(limit=100)
     return render_template("activity.html", timeline=timeline)
+
+
+@app.route("/schedule")
+@login_required
+def schedule_view():
+    """Schedule calendar — pipeline visibility across time."""
+    data = get_schedule_data()
+    hour_labels = {13: "8am ET", 16: "11am ET", 19: "2pm ET", 22: "5pm ET"}
+    return render_template("schedule.html", **data, hour_labels=hour_labels)
 
 
 @app.route("/content")
@@ -749,6 +762,176 @@ def log_activity(category, message):
         print(f"Error logging activity: {e}")
 
 
+def get_schedule_data():
+    """Build schedule data for the calendar view."""
+    now = datetime.utcnow()
+    today = now.date()
+    week_ago = (now - timedelta(days=7)).isoformat()
+    optimal_hours = PLATFORM_OPTIMAL_HOURS["twitter"]
+
+    stats = {"pending": 0, "approved": 0, "scheduled": 0, "posted": 0, "failed": 0}
+    scheduled_items = []
+    pending_items = []
+
+    # Approval queue — pending items + recent history
+    try:
+        if APPROVAL_DB.exists():
+            conn = get_db(APPROVAL_DB)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, action_type, action_data, status, created_at, reviewed_at, agent_id
+                FROM approvals
+                WHERE created_at > ? OR status = 'pending'
+                ORDER BY created_at DESC
+            """, (week_ago,))
+            for row in cursor.fetchall():
+                item = dict(row)
+                action_data = json.loads(item["action_data"])
+                text = action_data.get("text", action_data.get("script", ""))
+
+                if item["status"] == "pending":
+                    stats["pending"] += 1
+                    pending_items.append({
+                        "id": item["id"],
+                        "type": item["action_type"],
+                        "text": (text or "")[:80],
+                        "status": "pending",
+                        "created_at": item["created_at"],
+                        "agent": item["agent_id"] or "david",
+                    })
+                elif item["status"] == "approved":
+                    stats["approved"] += 1
+                    # Show approved items on calendar using review time
+                    ts = item["reviewed_at"] or item["created_at"]
+                    if ts:
+                        platform = "twitter" if item["action_type"] in ("tweet", "thread", "reply") else "multi"
+                        scheduled_items.append({
+                            "id": f"ap_{item['id']}",
+                            "type": item["action_type"],
+                            "text": (text or "")[:80],
+                            "status": "posted",
+                            "scheduled_time": ts,
+                            "executed_at": ts,
+                            "agent": item["agent_id"] or "david",
+                            "platform": platform,
+                        })
+                        stats["posted"] += 1
+            conn.close()
+    except Exception as e:
+        print(f"Schedule: error reading approval queue: {e}")
+
+    # Scheduler — items with actual scheduled times
+    try:
+        if SCHEDULER_DB.exists():
+            conn = get_db(SCHEDULER_DB)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT job_id, content_type, content_data, scheduled_time,
+                       status, created_at, executed_at
+                FROM scheduled_content
+                WHERE scheduled_time > ? OR status = 'pending'
+                ORDER BY scheduled_time ASC
+            """, (week_ago,))
+            for row in cursor.fetchall():
+                item = dict(row)
+                content_data = json.loads(item["content_data"])
+                text = content_data.get("text", content_data.get("script", ""))
+
+                display_status = item["status"]
+                if display_status == "executed":
+                    display_status = "posted"
+                    stats["posted"] += 1
+                elif display_status == "pending":
+                    display_status = "scheduled"
+                    stats["scheduled"] += 1
+                elif display_status == "failed":
+                    stats["failed"] += 1
+
+                platform = content_data.get("platform", "twitter")
+                if item["content_type"] in ("tweet", "thread", "reply"):
+                    platform = "twitter"
+
+                scheduled_items.append({
+                    "id": item["job_id"],
+                    "type": item["content_type"],
+                    "text": (text or "")[:80],
+                    "status": display_status,
+                    "scheduled_time": item["scheduled_time"],
+                    "executed_at": item["executed_at"],
+                    "agent": content_data.get("agent", "david"),
+                    "platform": platform,
+                })
+            conn.close()
+    except Exception as e:
+        print(f"Schedule: error reading scheduler: {e}")
+
+    # Build 7-day grid (3 past + today + 3 future)
+    days = []
+    for day_offset in range(-3, 4):
+        day_date = today + timedelta(days=day_offset)
+        day_slots = {}
+        for hour in optimal_hours:
+            slot_content = []
+            for si in scheduled_items:
+                try:
+                    ts = datetime.fromisoformat(si["scheduled_time"])
+                    if ts.date() != day_date:
+                        continue
+                    # Place item in nearest optimal slot
+                    nearest = min(optimal_hours, key=lambda h: abs(ts.hour + ts.minute / 60 - h))
+                    if nearest == hour:
+                        slot_content.append(si)
+                except (ValueError, TypeError):
+                    pass
+            day_slots[hour] = slot_content
+        days.append({
+            "date": day_date.isoformat(),
+            "label": day_date.strftime("%a %b %d"),
+            "is_today": day_date == today,
+            "is_past": day_date < today,
+            "slots": day_slots,
+        })
+
+    # Calculate gaps (future empty optimal slots, next 3 days)
+    gaps = 0
+    next_empty = None
+    for day_offset in range(4):
+        day_date = today + timedelta(days=day_offset)
+        for hour in optimal_hours:
+            slot_time = datetime(day_date.year, day_date.month, day_date.day, hour)
+            if slot_time <= now:
+                continue
+            has_content = False
+            for si in scheduled_items:
+                if si["status"] != "scheduled":
+                    continue
+                try:
+                    ts = datetime.fromisoformat(si["scheduled_time"])
+                    if abs((ts - slot_time).total_seconds()) < 3600:
+                        has_content = True
+                        break
+                except (ValueError, TypeError):
+                    pass
+            if not has_content:
+                gaps += 1
+                if next_empty is None:
+                    next_empty = slot_time
+    stats["gaps"] = gaps
+
+    # Recent posted items for bottom section
+    recent_posted = [si for si in scheduled_items if si["status"] == "posted"]
+    recent_posted.sort(key=lambda x: x["scheduled_time"], reverse=True)
+
+    return {
+        "days": days,
+        "stats": stats,
+        "optimal_hours": optimal_hours,
+        "next_empty": next_empty.strftime("%a %I%p UTC") if next_empty else None,
+        "pending_items": pending_items,
+        "recent_posted": recent_posted[:20],
+    }
+
+
 # ============== CONTENT DATA FUNCTIONS ==============
 
 def get_pending_content(platform_filter: str = "") -> list[dict]:
@@ -971,6 +1154,13 @@ PERSONALITIES = [
         "role": "Game Developer",
         "color": "#a371f7",
         "gradient": "linear-gradient(135deg, #a371f7, #f778ba)",
+    },
+    {
+        "id": "momentum",
+        "name": "Momentum",
+        "role": "Growth Agent",
+        "color": "#f778ba",
+        "gradient": "linear-gradient(135deg, #f778ba, #58a6ff)",
     },
 ]
 
