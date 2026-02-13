@@ -387,9 +387,14 @@ class DavidSystem:
             id="warm_research",
         )
 
-        # SPREAD TWEETS: Generate 1 tweet 30min before each optimal slot
-        # Slots: 13, 16, 19, 22 UTC → generate at 12:30, 15:30, 18:30, 21:30
-        for slot_hour, gen_hour, gen_min in [(13, 12, 30), (16, 15, 30), (19, 18, 30), (22, 21, 30)]:
+        # SPREAD TWEETS: Generate 1 tweet 30min before each of 6 daily slots
+        # Slots: 12, 15, 18, 21, 0, 3 UTC (7am–10pm ET, 3h spacing)
+        # = 6 tweets/day for Jono to review and approve
+        tweet_schedule = [
+            (12, 11, 30), (15, 14, 30), (18, 17, 30),
+            (21, 20, 30), (0, 23, 30), (3, 2, 30),
+        ]
+        for slot_hour, gen_hour, gen_min in tweet_schedule:
             self.cron_scheduler.add_job(
                 lambda h=slot_hour: asyncio.run_coroutine_threadsafe(
                     self._run_single_tweet(target_hour=h), self._loop
@@ -450,7 +455,7 @@ class DavidSystem:
         self.scheduler.register_executor("reply", self.oprah._execute_scheduled_tweet)
 
         self.cron_scheduler.start()
-        logger.info("Cron: Research 2:00 UTC | Tweets 12:30/15:30/18:30/21:30 UTC | Hot every 3h | Warm every 10h")
+        logger.info("Cron: Research 2:00 UTC | Tweets 6/day (11:30/14:30/17:30/20:30/23:30/2:30 UTC) | Hot every 3h | Warm every 10h")
         logger.info("Cron: Momentum — Mentions every 15m | Reply targets every 6h | Performance every 4h | Report 7:00 UTC")
 
         logger.info("System online. Waiting for commands via Telegram.")

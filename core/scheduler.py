@@ -275,7 +275,7 @@ class ContentScheduler:
 # TikTok:   16, 19, 23, 1 UTC = 11am, 2pm, 6pm, 8pm ET
 # Must match dashboard/app.py PLATFORM_OPTIMAL_HOURS
 PLATFORM_OPTIMAL_HOURS = {
-    "twitter": [13, 16, 19, 22],
+    "twitter": [12, 15, 18, 21, 0, 3],  # 7am–10pm ET, 3h spacing, 6 slots
     "youtube": [18, 21, 0],
     "tiktok": [16, 19, 23, 1],
 }

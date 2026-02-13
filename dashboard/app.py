@@ -46,9 +46,9 @@ DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "flipt2026")
 # Platform-specific optimal posting times (UTC) — targeting US audience peaks.
 # Must match core/scheduler.py PLATFORM_OPTIMAL_HOURS
 PLATFORM_OPTIMAL_HOURS = {
-    "twitter": [13, 16, 19, 22],     # 8am, 11am, 2pm, 5pm ET
-    "youtube": [18, 21, 0],           # 1pm, 4pm, 7pm ET
-    "tiktok": [16, 19, 23, 1],       # 11am, 2pm, 6pm, 8pm ET
+    "twitter": [12, 15, 18, 21, 0, 3],  # 7am, 10am, 1pm, 4pm, 7pm, 10pm ET — 6 slots, 3h apart
+    "youtube": [18, 21, 0],              # 1pm, 4pm, 7pm ET
+    "tiktok": [16, 19, 23, 1],          # 11am, 2pm, 6pm, 8pm ET
 }
 
 
