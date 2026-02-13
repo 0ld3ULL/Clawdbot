@@ -10,7 +10,7 @@ Architecture:
 - Domain allowlist: restricted to focalml.com + approved domains only
 
 Requires:
-    pip install browser-use langchain-anthropic
+    pip install browser-use
     playwright install chromium
 """
 
@@ -62,7 +62,6 @@ class FocalBrowser:
     ):
         self.headless = headless
         self.browser = None
-        self._session = None
         self.page = None
         self._running = False
 
@@ -104,9 +103,9 @@ class FocalBrowser:
 
             self.browser = Browser(**browser_kwargs)
 
-            # Start the browser session to get a page
-            self._session = await self.browser.new_context()
-            self.page = await self._session.get_current_page()
+            # Start the browser and get the page
+            await self.browser.start()
+            self.page = await self.browser.get_current_page()
             self._running = True
 
             logger.info(
@@ -131,27 +130,23 @@ class FocalBrowser:
 
         try:
             # Save session state for future runs
-            if self._session:
+            if self.browser:
                 try:
-                    state = await self._session.storage_state()
+                    state = await self.browser.export_storage_state()
                     state_path = BROWSER_PROFILE_DIR / "state.json"
                     with open(state_path, "w") as f:
                         json.dump(state, f)
                     logger.info(f"Browser state saved to {state_path}")
                 except Exception:
-                    pass  # storage_state may not be available on all session types
+                    pass  # export_storage_state may not always work
 
-                await self._session.close()
-
-            if self.browser:
-                await self.browser.close()
+                await self.browser.stop()
 
         except Exception as e:
             logger.error(f"Error during browser shutdown: {e}")
         finally:
             self._running = False
             self.browser = None
-            self._session = None
             self.page = None
             logger.info("Browser stopped")
 
@@ -161,11 +156,11 @@ class FocalBrowser:
 
         Navigates to Focal ML and checks if we're logged in or at a login page.
         """
-        if not self._running or not self._session:
+        if not self._running or not self.browser:
             return False
 
         try:
-            page = await self._session.get_current_page()
+            page = await self.browser.get_current_page()
             await page.goto("https://focalml.com", timeout=30000)
             await page.wait_for_load_state("networkidle", timeout=15000)
 
@@ -200,7 +195,7 @@ class FocalBrowser:
 
         Returns True if navigation succeeded and domain is allowed.
         """
-        if not self._running or not self._session:
+        if not self._running or not self.browser:
             logger.error("Browser not running")
             return False
 
@@ -214,7 +209,7 @@ class FocalBrowser:
             return False
 
         try:
-            page = await self._session.get_current_page()
+            page = await self.browser.get_current_page()
             await page.goto(url, timeout=30000)
             await page.wait_for_load_state("networkidle", timeout=15000)
             logger.info(f"Navigated to: {url}")
@@ -229,7 +224,7 @@ class FocalBrowser:
 
         Returns path to saved screenshot, or None on failure.
         """
-        if not self._running or not self._session:
+        if not self._running or not self.browser:
             return None
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -237,7 +232,7 @@ class FocalBrowser:
         filepath = SCREENSHOT_DIR / filename
 
         try:
-            page = await self._session.get_current_page()
+            page = await self.browser.get_current_page()
             await page.screenshot(path=str(filepath), full_page=False)
             logger.info(f"Screenshot saved: {filepath}")
             return filepath
@@ -265,11 +260,12 @@ class FocalBrowser:
 
         try:
             from browser_use import Agent
-            from langchain_anthropic import ChatAnthropic
+            from browser_use.llm import ChatAnthropic
 
-            # Use Claude for browser vision + decision making
+            # Use browser-use's own ChatAnthropic (not langchain's —
+            # browser-use requires a .provider property that langchain lacks)
             llm = ChatAnthropic(
-                model_name="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-20250514",
                 api_key=os.environ.get("ANTHROPIC_API_KEY"),
             )
 
@@ -277,7 +273,6 @@ class FocalBrowser:
                 task=task,
                 llm=llm,
                 browser=self.browser,
-                browser_session=self._session,
                 max_actions_per_step=5,
             )
 
@@ -301,20 +296,20 @@ class FocalBrowser:
 
     async def get_page_text(self) -> str:
         """Get visible text content of the current page."""
-        if not self._running or not self._session:
+        if not self._running or not self.browser:
             return ""
         try:
-            page = await self._session.get_current_page()
+            page = await self.browser.get_current_page()
             return await page.inner_text("body")
         except Exception:
             return ""
 
     async def get_page_url(self) -> str:
         """Get current page URL."""
-        if not self._running or not self._session:
+        if not self._running or not self.browser:
             return ""
         try:
-            page = await self._session.get_current_page()
+            page = await self.browser.get_current_page()
             return page.url
         except Exception:
             return ""
