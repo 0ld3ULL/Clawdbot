@@ -1,7 +1,7 @@
 """
-Pixel Learning Engine — Systematic Focal ML feature exploration.
+Occy Learning Engine — Systematic Focal ML feature exploration.
 
-Pixel doesn't guess. It explores features methodically, documents everything,
+Occy doesn't guess. It explores features methodically, documents everything,
 and builds a searchable knowledge base of what works, what doesn't, and how
 much it costs.
 
@@ -14,7 +14,7 @@ Exploration cycle:
 6. Update confidence score in feature map
 7. Report to Jono via Telegram
 
-Requires: pixel_browser.py, KnowledgeStore, pixel_curriculum.yaml
+Requires: occy_browser.py, KnowledgeStore, occy_curriculum.yaml
 """
 
 import asyncio
@@ -30,11 +30,11 @@ import yaml
 
 logger = logging.getLogger(__name__)
 
-CURRICULUM_PATH = Path("config/pixel_curriculum.yaml")
-FEATURE_MAP_PATH = Path("data/pixel_feature_map.json")
+CURRICULUM_PATH = Path("config/occy_curriculum.yaml")
+FEATURE_MAP_PATH = Path("data/occy_feature_map.json")
 
 
-class PixelLearner:
+class OccyLearner:
     """
     Systematic feature exploration engine for Focal ML.
 
@@ -59,7 +59,7 @@ class PixelLearner:
         Load feature map from saved state, or initialize from curriculum.
 
         The feature map tracks learning progress. It starts from the
-        curriculum YAML and gets updated as Pixel explores.
+        curriculum YAML and gets updated as Occy explores.
         """
         # Try saved state first (preserves progress)
         if FEATURE_MAP_PATH.exists():
@@ -246,7 +246,7 @@ class PixelLearner:
                 category="technical",
                 topic=f"Focal ML UI: {feature_name}",
                 content=ui_result["result"][:2000],
-                source="pixel_exploration",
+                source="occy_exploration",
                 confidence=0.7,
                 tags=["ui_element", category, feature_name],
             )
@@ -288,7 +288,7 @@ class PixelLearner:
             category="technical",
             topic=f"Focal ML feature: {feature_name}",
             content=finding_text[:4000],
-            source="pixel_exploration",
+            source="occy_exploration",
             confidence=0.8,
             tags=["feature_exploration", category, feature_name],
         )
@@ -304,7 +304,7 @@ class PixelLearner:
 
         if self.audit_log:
             self.audit_log.log(
-                "pixel", "info", "exploration",
+                "occy", "info", "exploration",
                 f"Explored {feature_name}",
                 details=f"confidence_delta={confidence_delta}, credits={credits_used}",
             )
@@ -407,7 +407,7 @@ class PixelLearner:
             category=category,
             topic=topic,
             content=content,
-            source="pixel_manual",
+            source="occy_manual",
             confidence=0.9,
             tags=tags or ["manual_finding"],
         )

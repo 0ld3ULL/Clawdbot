@@ -1,11 +1,11 @@
 """
-Pixel Production Pipeline — Job-driven video production.
+Occy Production Pipeline — Job-driven video production.
 
 Full pipeline: job received → plan → approval → produce in Focal → review → deliver.
 
 Every production goes through the approval queue. Jono always has final say
 before credits are spent. Quality review uses Gemini to watch the output.
-If quality is below 7/10, Pixel re-renders with adjustments (max 3 attempts).
+If quality is below 7/10, Occy re-renders with adjustments (max 3 attempts).
 
 Job states: received → planned → approved → producing → reviewing → delivered | failed
 """
@@ -20,8 +20,8 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-JOBS_DB_PATH = Path("data/pixel_jobs.db")
-PORTFOLIO_DIR = Path("data/pixel_portfolio")
+JOBS_DB_PATH = Path("data/occy_jobs.db")
+PORTFOLIO_DIR = Path("data/occy_portfolio")
 
 # Maximum render attempts before giving up
 MAX_RENDER_ATTEMPTS = 3
@@ -53,7 +53,7 @@ class ProductionJob:
     delivered_at: str | None
 
 
-class PixelProducer:
+class OccyProducer:
     """
     Video production pipeline.
 
@@ -120,7 +120,7 @@ class PixelProducer:
         """)
         conn.commit()
         conn.close()
-        logger.info("Pixel jobs database initialized")
+        logger.info("Occy jobs database initialized")
 
     # ------------------------------------------------------------------
     # Job lifecycle
@@ -156,7 +156,7 @@ class PixelProducer:
 
         if self.audit_log:
             self.audit_log.log(
-                "pixel", "info", "job",
+                "occy", "info", "job",
                 f"Job created: {title}",
                 details=f"id={job_id}, model={model}, duration={duration_seconds}s",
             )
@@ -277,8 +277,8 @@ class PixelProducer:
         plan = json.loads(job.production_plan)
 
         approval_id = self.approval_queue.submit(
-            project_id="pixel",
-            agent_id="pixel-producer",
+            project_id="occy",
+            agent_id="occy-producer",
             action_type="video_production",
             action_data={
                 "job_id": job_id,
@@ -289,7 +289,7 @@ class PixelProducer:
                 "script_preview": job.script[:300] if job.script else job.description[:300],
             },
             context_summary=(
-                f"Pixel video production: {job.title} | "
+                f"Occy video production: {job.title} | "
                 f"{plan.get('model', '?')} model, ~{plan.get('estimated_credits', '?')} credits"
             ),
             cost_estimate=plan.get("estimated_credits", 0) * 0.01,  # Rough USD estimate
@@ -343,7 +343,7 @@ class PixelProducer:
                 logger.warning(f"Render attempt {attempt} failed: {render_result.get('error')}")
                 if self.audit_log:
                     self.audit_log.log(
-                        "pixel", "warn", "render",
+                        "occy", "warn", "render",
                         f"Render failed for job #{job_id} (attempt {attempt})",
                         details=render_result.get("error", ""),
                     )
@@ -402,7 +402,7 @@ class PixelProducer:
 
             if self.audit_log:
                 self.audit_log.log(
-                    "pixel", "info", "production",
+                    "occy", "info", "production",
                     f"Job #{job_id} delivered: {best_score.overall:.1f}/10",
                     details=f"credits={total_credits}, attempts={job.render_attempts}",
                 )
@@ -425,7 +425,7 @@ class PixelProducer:
 
             if self.audit_log:
                 self.audit_log.log(
-                    "pixel", "reject", "production",
+                    "occy", "reject", "production",
                     f"Job #{job_id} failed after {MAX_RENDER_ATTEMPTS} attempts",
                     details=f"best_score={best_score.overall:.1f if best_score else 0}",
                     success=False,
@@ -493,7 +493,7 @@ class PixelProducer:
 
     def _estimate_credits(self, model: str, duration_seconds: int) -> int:
         """Estimate credit cost based on model and duration."""
-        # Default estimates (updated as Pixel learns actual costs)
+        # Default estimates (updated as Occy learns actual costs)
         cost_per_second = {
             "seedance": 4,
             "veo": 5,

@@ -1,5 +1,5 @@
 """
-Load the distilled Focal ML course into Pixel's knowledge base.
+Load the distilled Focal ML course into Occy's knowledge base.
 Chunks the course by section and stores each with date-stamp metadata.
 """
 
@@ -7,8 +7,8 @@ import re
 from pathlib import Path
 from core.memory.knowledge_store import KnowledgeStore
 
-COURSE_PATH = Path("data/pixel_focal_course.md")
-KB_PATH = Path("data/pixel_knowledge.db")
+COURSE_PATH = Path("data/occy_focal_course.md")
+KB_PATH = Path("data/occy_knowledge.db")
 
 def split_sections(text: str) -> list[dict]:
     """Split the course into sections by ## headers."""

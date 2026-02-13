@@ -1,15 +1,15 @@
 """
-Pixel — Standalone Entry Point
+Occy — Standalone Entry Point
 
-Runs Pixel (autonomous video production agent) independently on the D computer.
+Runs Occy (autonomous video production agent) independently on the D computer.
 Does NOT need the VPS, Telegram bot, or Twitter. Shares safety infrastructure
 (KillSwitch, AuditLog, TokenBudget).
 
 Usage:
-    python pixel_main.py                    # Headless mode (production)
-    python pixel_main.py --visible          # Visible browser (for manual login / debugging)
-    python pixel_main.py --explore 60       # Run 60-minute exploration session
-    python pixel_main.py --status           # Print status and exit
+    python occy_main.py                    # Headless mode (production)
+    python occy_main.py --visible          # Visible browser (for manual login / debugging)
+    python occy_main.py --explore 60       # Run 60-minute exploration session
+    python occy_main.py --status           # Print status and exit
 
 Environment:
     Requires .env file with:
@@ -32,7 +32,7 @@ from dotenv import load_dotenv
 # Load environment variables before anything else
 load_dotenv()
 
-from agents.pixel_agent import PixelAgent
+from agents.occy_agent import OccyAgent
 from core.audit_log import AuditLog
 from core.kill_switch import KillSwitch
 from core.token_budget import TokenBudgetManager
@@ -43,15 +43,15 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("data/pixel.log", encoding="utf-8"),
+        logging.FileHandler("data/occy.log", encoding="utf-8"),
     ],
 )
-logger = logging.getLogger("pixel")
+logger = logging.getLogger("occy")
 
 
-class PixelSystem:
+class OccySystem:
     """
-    Standalone system for Pixel agent.
+    Standalone system for Occy agent.
 
     Mirrors DavidSystem's safety patterns but runs independently:
     - Own KillSwitch (shares the file-based mechanism)
@@ -66,14 +66,14 @@ class PixelSystem:
 
         # Safety infrastructure
         self.kill_switch = KillSwitch()
-        self.audit_log = AuditLog(db_path="data/pixel_audit.db")
-        self.token_budget = TokenBudgetManager(db_path="data/pixel_budget.db")
+        self.audit_log = AuditLog(db_path="data/occy_audit.db")
+        self.token_budget = TokenBudgetManager(db_path="data/occy_budget.db")
 
-        # Set Pixel's budget (separate from David's)
-        self.token_budget.set_budget("pixel", daily=5.00, monthly=100.00)
+        # Set Occy's budget (separate from David's)
+        self.token_budget.set_budget("occy", daily=5.00, monthly=100.00)
 
         # The agent
-        self.agent = PixelAgent(
+        self.agent = OccyAgent(
             kill_switch=self.kill_switch,
             audit_log=self.audit_log,
             token_budget=self.token_budget,
@@ -84,32 +84,32 @@ class PixelSystem:
         self._loop = None
 
     async def start(self):
-        """Start Pixel system."""
+        """Start Occy system."""
         logger.info("=" * 60)
-        logger.info("PIXEL — VIDEO PRODUCTION AGENT — STARTING")
+        logger.info("OCCY — VIDEO PRODUCTION AGENT — STARTING")
         logger.info("=" * 60)
 
         # Check kill switch
         if self.kill_switch.is_active:
             reason = self.kill_switch.get_reason()
             logger.warning(f"Kill switch is active: {reason}")
-            logger.warning("Deactivate kill switch to start Pixel")
+            logger.warning("Deactivate kill switch to start Occy")
             return
 
         # Start agent
-        self.audit_log.log("pixel", "info", "system", "Pixel system starting")
+        self.audit_log.log("occy", "info", "system", "Occy system starting")
 
         success = await self.agent.start()
         if not success:
-            logger.error("Failed to start Pixel agent")
+            logger.error("Failed to start Occy agent")
             self.audit_log.log(
-                "pixel", "reject", "system",
-                "Pixel failed to start",
+                "occy", "reject", "system",
+                "Occy failed to start",
                 success=False,
             )
             return
 
-        logger.info("Pixel system online.")
+        logger.info("Occy system online.")
 
         # Notify systemd if running as service
         self._notify_systemd("READY=1")
@@ -130,7 +130,7 @@ class PixelSystem:
             pass
 
     async def start_exploration(self, duration_minutes: int = 30):
-        """Start Pixel, run exploration, then stop."""
+        """Start Occy, run exploration, then stop."""
         logger.info(f"Running {duration_minutes}-minute exploration session")
 
         success = await self.agent.start()
@@ -151,17 +151,17 @@ class PixelSystem:
 
     async def stop(self):
         """Graceful shutdown."""
-        logger.info("Pixel system shutting down...")
-        self.audit_log.log("pixel", "info", "system", "Pixel system stopping")
+        logger.info("Occy system shutting down...")
+        self.audit_log.log("occy", "info", "system", "Occy system stopping")
         await self.agent.stop()
-        logger.info("Pixel system stopped.")
+        logger.info("Occy system stopped.")
 
     async def _heartbeat(self):
         """Update status file and systemd watchdog."""
-        status_file = Path("data/pixel_status.json")
+        status_file = Path("data/occy_status.json")
         status_data = {
             "online": True,
-            "agent": "Pixel",
+            "agent": "Occy",
             "mode": self.agent._mode,
             "timestamp_utc": datetime.utcnow().isoformat(),
         }
@@ -193,7 +193,7 @@ class PixelSystem:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Pixel — Autonomous Video Production Agent"
+        description="Occy — Autonomous Video Production Agent"
     )
     parser.add_argument(
         "--visible", action="store_true",
@@ -214,7 +214,7 @@ async def main():
     args = parse_args()
     headless = not args.visible
 
-    system = PixelSystem(headless=headless)
+    system = OccySystem(headless=headless)
 
     # Handle shutdown signals
     loop = asyncio.get_event_loop()

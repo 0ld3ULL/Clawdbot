@@ -1,6 +1,6 @@
 """
 Fetch Focal ML tutorial transcripts via Supadata API.
-Saves each transcript with metadata (title, channel, date) for Pixel's knowledge base.
+Saves each transcript with metadata (title, channel, date) for Occy's knowledge base.
 """
 
 import asyncio
@@ -17,7 +17,7 @@ load_dotenv()
 
 SUPADATA_KEY = os.environ.get("SUPADATA_API_KEY", "sd_d826ccdab9a7a682d5716084f28d4d73")
 SUPADATA_URL = "https://api.supadata.ai/v1/transcript"
-OUTPUT_DIR = Path("data/pixel_transcripts")
+OUTPUT_DIR = Path("data/occy_transcripts")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Top Focal ML tutorials — prioritized by comprehensiveness

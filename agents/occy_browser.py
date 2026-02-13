@@ -1,5 +1,5 @@
 """
-Focal ML Browser Controller — Pixel's eyes and hands.
+Focal ML Browser Controller — Occy's eyes and hands.
 
 Wraps Browser Use to provide reliable browser automation for Focal ML.
 Handles persistent login sessions, screenshots, and common Focal operations.
@@ -25,11 +25,11 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 # Persistent browser profile directory
-BROWSER_PROFILE_DIR = Path("data/pixel_browser_profile")
-SCREENSHOT_DIR = Path("data/pixel_screenshots")
-DOWNLOAD_DIR = Path("data/pixel_downloads")
+BROWSER_PROFILE_DIR = Path("data/occy_browser_profile")
+SCREENSHOT_DIR = Path("data/occy_screenshots")
+DOWNLOAD_DIR = Path("data/occy_downloads")
 
-# Domain allowlist — Pixel can ONLY visit these domains
+# Domain allowlist — Occy can ONLY visit these domains
 ALLOWED_DOMAINS = [
     "focalml.com",
     "www.focalml.com",

@@ -1,11 +1,11 @@
 """
-Pixel Agent — Main orchestrator for autonomous video production.
+Occy Agent — Main orchestrator for autonomous video production.
 
-Ties together all Pixel subsystems:
+Ties together all Occy subsystems:
 - FocalBrowser: browser automation for Focal ML
-- PixelLearner: systematic feature exploration
-- PixelProducer: job-driven video production pipeline
-- PixelReviewer: quality assessment via Gemini
+- OccyLearner: systematic feature exploration
+- OccyProducer: job-driven video production pipeline
+- OccyReviewer: quality assessment via Gemini
 - KnowledgeStore: permanent knowledge base
 - EventStore: event memory with decay
 
@@ -25,14 +25,14 @@ from core.kill_switch import KillSwitch
 from core.memory.knowledge_store import KnowledgeStore
 from core.memory.event_store import EventStore
 from core.token_budget import TokenBudgetManager
-from personality.pixel import PixelPersonality
+from personality.occy import OccyPersonality
 
 logger = logging.getLogger(__name__)
 
 
-class PixelAgent:
+class OccyAgent:
     """
-    Main orchestrator for Pixel — autonomous video production specialist.
+    Main orchestrator for Occy — autonomous video production specialist.
 
     Lazy-loads sub-components on first use. Can operate in three modes:
     - Exploration: learning Focal ML features systematically
@@ -55,11 +55,11 @@ class PixelAgent:
         self.approval_queue = approval_queue
 
         # Personality
-        self.personality = PixelPersonality()
+        self.personality = OccyPersonality()
 
         # Knowledge stores (separate DBs from David's)
-        self.knowledge = KnowledgeStore(db_path=Path("data/pixel_knowledge.db"))
-        self.events = EventStore(db_path=Path("data/pixel_events.db"))
+        self.knowledge = KnowledgeStore(db_path=Path("data/occy_knowledge.db"))
+        self.events = EventStore(db_path=Path("data/occy_events.db"))
 
         # Sub-components (lazy-loaded)
         self._browser = None
@@ -80,16 +80,16 @@ class PixelAgent:
 
     async def start(self) -> bool:
         """
-        Start Pixel agent.
+        Start Occy agent.
 
         Launches browser and verifies Focal ML access.
         Returns True if ready to operate.
         """
         if self.kill_switch.is_active:
-            logger.warning("Kill switch active — Pixel will not start")
+            logger.warning("Kill switch active — Occy will not start")
             return False
 
-        logger.info("Starting Pixel agent...")
+        logger.info("Starting Occy agent...")
 
         # Start browser
         browser = await self._get_browser()
@@ -109,7 +109,7 @@ class PixelAgent:
             else:
                 logger.warning(
                     "Not logged in to Focal ML. Browser is visible — "
-                    "please log in manually. Pixel will wait."
+                    "please log in manually. Occy will wait."
                 )
                 # In visible mode, wait for manual login
                 # The browser stays open for Jono to log in
@@ -117,14 +117,14 @@ class PixelAgent:
         self._running = True
 
         self.audit_log.log(
-            "pixel", "info", "system",
-            "Pixel agent started",
+            "occy", "info", "system",
+            "Occy agent started",
             details=f"mode={'headless' if self._headless else 'visible'}, login={'ok' if logged_in else 'pending'}",
         )
 
         # Record event
         self.events.add(
-            title="Pixel agent started",
+            title="Occy agent started",
             summary=f"Started in {'headless' if self._headless else 'visible'} mode",
             significance=3,
             category="system",
@@ -134,7 +134,7 @@ class PixelAgent:
 
     async def stop(self):
         """Graceful shutdown — save state and close browser."""
-        logger.info("Stopping Pixel agent...")
+        logger.info("Stopping Occy agent...")
         self._running = False
         self._mode = "idle"
 
@@ -142,8 +142,8 @@ class PixelAgent:
             await self._browser.stop()
             self._browser = None
 
-        self.audit_log.log("pixel", "info", "system", "Pixel agent stopped")
-        logger.info("Pixel agent stopped")
+        self.audit_log.log("occy", "info", "system", "Occy agent stopped")
+        logger.info("Occy agent stopped")
 
     def get_status(self) -> dict:
         """Get current agent status."""
@@ -176,7 +176,7 @@ class PixelAgent:
     async def _get_browser(self):
         """Get or create the browser instance."""
         if self._browser is None:
-            from agents.pixel_browser import FocalBrowser
+            from agents.occy_browser import FocalBrowser
             self._browser = FocalBrowser(headless=self._headless)
             success = await self._browser.start()
             if not success:
@@ -187,8 +187,8 @@ class PixelAgent:
     def _get_learner(self):
         """Get or create the learner instance."""
         if self._learner is None:
-            from agents.pixel_learner import PixelLearner
-            self._learner = PixelLearner(
+            from agents.occy_learner import OccyLearner
+            self._learner = OccyLearner(
                 browser=self._browser,
                 knowledge_store=self.knowledge,
                 audit_log=self.audit_log,
@@ -198,15 +198,15 @@ class PixelAgent:
     def _get_reviewer(self):
         """Get or create the reviewer instance."""
         if self._reviewer is None:
-            from agents.pixel_reviewer import PixelReviewer
-            self._reviewer = PixelReviewer(knowledge_store=self.knowledge)
+            from agents.occy_reviewer import OccyReviewer
+            self._reviewer = OccyReviewer(knowledge_store=self.knowledge)
         return self._reviewer
 
     def _get_producer(self):
         """Get or create the producer instance."""
         if self._producer is None:
-            from agents.pixel_producer import PixelProducer
-            self._producer = PixelProducer(
+            from agents.occy_producer import OccyProducer
+            self._producer = OccyProducer(
                 browser=self._browser,
                 reviewer=self._get_reviewer(),
                 knowledge_store=self.knowledge,
@@ -223,7 +223,7 @@ class PixelAgent:
         """
         Run an exploration session.
 
-        Pixel explores Focal ML features systematically for the given duration.
+        Occy explores Focal ML features systematically for the given duration.
         """
         if self.kill_switch.is_active:
             return {"error": "Kill switch active"}
@@ -254,7 +254,7 @@ class PixelAgent:
         except Exception as e:
             logger.error(f"Exploration failed: {e}")
             self.audit_log.log(
-                "pixel", "reject", "exploration",
+                "occy", "reject", "exploration",
                 f"Exploration session failed: {e}",
                 success=False,
             )
@@ -433,7 +433,7 @@ class PixelAgent:
 
         else:
             return (
-                "Pixel commands:\n"
+                "Occy commands:\n"
                 "  status — Current agent status\n"
                 "  explore [minutes] — Start exploration session\n"
                 "  job <description> — Submit new video job\n"

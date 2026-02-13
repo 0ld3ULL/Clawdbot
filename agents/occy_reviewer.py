@@ -1,5 +1,5 @@
 """
-Pixel Quality Reviewer — Video quality assessment via Gemini.
+Occy Quality Reviewer — Video quality assessment via Gemini.
 
 Uses Gemini 2.0 Flash to watch produced videos natively (audio + visual)
 and score them across multiple quality dimensions. This replaces the
@@ -62,7 +62,7 @@ DELIVERY_THRESHOLD = 7.0
 PORTFOLIO_THRESHOLD = 8.0
 
 
-class PixelReviewer:
+class OccyReviewer:
     """
     Quality review engine using Gemini 2.0 Flash video analysis.
 
