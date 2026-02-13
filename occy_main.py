@@ -39,6 +39,7 @@ os.environ.setdefault("TIMEOUT_BrowserLaunchEvent", "120")
 from agents.occy_agent import OccyAgent
 from core.audit_log import AuditLog
 from core.kill_switch import KillSwitch
+from core.model_router import ModelRouter
 from core.token_budget import TokenBudgetManager
 
 # Configure logging
@@ -76,11 +77,15 @@ class OccySystem:
         # Set Occy's budget (separate from David's)
         self.token_budget.set_budget("occy", daily=5.00, monthly=100.00)
 
+        # Model router for knowledge distillation
+        self.model_router = ModelRouter()
+
         # The agent
         self.agent = OccyAgent(
             kill_switch=self.kill_switch,
             audit_log=self.audit_log,
             token_budget=self.token_budget,
+            model_router=self.model_router,
             headless=headless,
         )
 

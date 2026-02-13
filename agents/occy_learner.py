@@ -42,16 +42,18 @@ class OccyLearner:
     explores them in the browser, and stores findings in the knowledge base.
     """
 
-    def __init__(self, browser, knowledge_store, audit_log=None):
+    def __init__(self, browser, knowledge_store, audit_log=None, model_router=None):
         """
         Args:
             browser: FocalBrowser instance
             knowledge_store: KnowledgeStore for permanent findings
             audit_log: AuditLog for tracking exploration actions
+            model_router: ModelRouter for knowledge distillation via Haiku
         """
         self.browser = browser
         self.knowledge = knowledge_store
         self.audit_log = audit_log
+        self.model_router = model_router
         self.feature_map = self._load_feature_map()
 
     def _load_feature_map(self) -> dict:
@@ -194,6 +196,82 @@ class OccyLearner:
             combined = combined[:3000] + "\n[...truncated]"
         return combined
 
+    async def _distill_knowledge(
+        self, raw_content: str, feature_name: str, category: str,
+        knowledge_type: str = "feature",
+    ) -> str:
+        """
+        Distill raw browser output into clean, structured knowledge via Haiku.
+
+        Uses the same proven pattern as Oprah's _distill_identity_rule().
+
+        Args:
+            raw_content: Raw browser agent output (often debug dumps)
+            feature_name: Name of the feature being explored
+            category: Feature category (e.g. "generation", "editing")
+            knowledge_type: "ui_elements" or "feature"
+
+        Returns:
+            Clean structured text, or raw_content[:2000] if distillation fails
+        """
+        if not self.model_router or not raw_content.strip():
+            return raw_content[:2000]
+
+        try:
+            from core.model_router import ModelTier
+
+            model = self.model_router.models.get(ModelTier.CHEAP)
+            if not model:
+                model = self.model_router.select_model("simple_qa")
+
+            if knowledge_type == "ui_elements":
+                system_prompt = (
+                    "You extract clean UI element catalogs from raw browser automation output. "
+                    "Given messy browser debug output from exploring a feature, extract a clean catalog of "
+                    "every UI element found. For each element list:\n"
+                    "- Label/name\n"
+                    "- Type (button, dropdown, slider, toggle, input, etc.)\n"
+                    "- Available options (for dropdowns/selects)\n"
+                    "- Default value (if visible)\n\n"
+                    "Return ONLY the clean catalog, no commentary. Use a compact structured format."
+                )
+            else:
+                system_prompt = (
+                    "You distill raw browser automation output into clean, structured feature documentation. "
+                    "Given messy browser debug output from exploring a feature, extract:\n"
+                    "- What the feature does (1-2 sentences)\n"
+                    "- How to use it (numbered steps)\n"
+                    "- Available options and their effects\n"
+                    "- Gotchas or limitations discovered\n"
+                    "- Credit/cost info if mentioned\n\n"
+                    "Return ONLY the clean documentation, no commentary. Be concise but thorough."
+                )
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": (
+                    f"FEATURE: {feature_name} (category: {category})\n\n"
+                    f"RAW BROWSER OUTPUT:\n{raw_content[:3000]}\n\n"
+                    f"Distill this into clean, structured knowledge:"
+                )},
+            ]
+
+            response = await self.model_router.invoke(model, messages, max_tokens=500)
+            distilled = response["content"].strip()
+
+            if distilled:
+                logger.info(
+                    f"Distilled {len(raw_content)} chars -> {len(distilled)} chars "
+                    f"for {feature_name} ({knowledge_type})"
+                )
+                return distilled
+
+        except Exception as e:
+            logger.warning(f"Knowledge distillation failed for {feature_name}: {e}")
+
+        # Graceful fallback: return truncated raw content (current behavior)
+        return raw_content[:2000]
+
     async def explore_feature(self, category: str, feature: dict) -> dict:
         """
         Explore a single feature in Focal ML.
@@ -302,11 +380,16 @@ class OccyLearner:
         if ui_result["success"]:
             findings.append(f"UI elements: {ui_result['result']}")
 
+            # Distill raw browser output into clean UI catalog
+            distilled_ui = await self._distill_knowledge(
+                ui_result["result"], feature_name, category, "ui_elements"
+            )
+
             # Store UI mapping
             self.knowledge.add(
                 category="technical",
                 topic=f"Focal ML UI: {feature_name}",
-                content=ui_result["result"][:2000],
+                content=distilled_ui,
                 source="occy_exploration",
                 confidence=0.7,
                 tags=["ui_element", category, feature_name],
@@ -336,12 +419,16 @@ class OccyLearner:
 
         if explore_result.get("disconnected"):
             logger.warning(f"Browser disconnected during option exploration of {feature_name}")
-            # Still save what we have
+            # Still save what we have — distill even partial findings
             if findings:
+                raw_partial = "\n".join(findings)
+                distilled_partial = await self._distill_knowledge(
+                    raw_partial, feature_name, category, "feature"
+                )
                 self.knowledge.add(
                     category="technical",
                     topic=f"Focal ML feature: {feature_name} (partial)",
-                    content="\n".join(findings)[:4000],
+                    content=distilled_partial,
                     source="occy_exploration",
                     confidence=0.5,
                     tags=["feature_exploration", "partial", category, feature_name],
@@ -366,12 +453,15 @@ class OccyLearner:
         if credits_before is not None and credits_after is not None:
             credits_used = max(0, credits_before - credits_after)
 
-        # Store comprehensive finding
-        finding_text = "\n".join(findings)
+        # Distill and store comprehensive finding
+        raw_finding = "\n".join(findings)
+        distilled_finding = await self._distill_knowledge(
+            raw_finding, feature_name, category, "feature"
+        )
         knowledge_id = self.knowledge.add(
             category="technical",
             topic=f"Focal ML feature: {feature_name}",
-            content=finding_text[:4000],
+            content=distilled_finding,
             source="occy_exploration",
             confidence=0.8,
             tags=["feature_exploration", category, feature_name],

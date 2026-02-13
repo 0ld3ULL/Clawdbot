@@ -1,7 +1,7 @@
 # Occy Learning Curriculum — Focal ML Feature Map
 #
-# Every known Focal ML feature, organized by category.
-# Occy explores these systematically, updating confidence as it learns.
+# Built from live interface mapping on 2026-02-13.
+# Every feature name matches an actual UI element in Focal ML.
 #
 # Confidence levels:
 #   0.0 — Never explored
@@ -11,275 +11,404 @@
 #   0.9-1.0 — Mastered, knows edge cases and optimization
 
 categories:
-  script_input:
-    description: "Getting scripts/prompts into Focal ML"
+  project_creation:
+    description: "Creating new projects — input methods, duration, language"
     features:
-      - name: paste_script
-        description: "Paste a full script into the editor"
+      - name: idea_input
+        description: "Create a project from a text idea using the main text area"
         confidence: 0.0
-        priority: 1  # Critical — needed for every video
-        notes: ""
+        priority: 1
+        notes: "Main text area with 'Make a video about...' placeholder"
 
-      - name: chat_editing
-        description: "Use chat interface to modify/refine script"
+      - name: script_input
+        description: "Create a project from a full script (Script option in input method dropdown)"
+        confidence: 0.0
+        priority: 1
+        notes: "Input method dropdown: Idea / Script / JSON"
+
+      - name: json_input
+        description: "Create a project from JSON (structured input for precise control)"
         confidence: 0.0
         priority: 2
-        notes: ""
+        notes: "Third option in input method dropdown"
 
-      - name: prompt_templates
-        description: "Pre-built templates or starting points"
+      - name: target_duration
+        description: "Set video target duration (Auto, 15s, 30s, 45s, 1m, 2m, 3m, 4m, 5m)"
         confidence: 0.0
-        priority: 3
-        notes: ""
+        priority: 1
+        notes: "Duration dropdown — 9 options. Auto is default"
+
+      - name: language_selection
+        description: "Set project language (40+ languages with native scripts)"
+        confidence: 0.0
+        priority: 2
+        notes: "Language dropdown in top bar — English default, has search"
+
+      - name: upload_media
+        description: "Upload media files (audio/image/video) via Browse Files (+) button"
+        confidence: 0.0
+        priority: 2
+        notes: "Accepts .mp3, .wav, .mp4, .mov, .jpg, .png and more"
+
+      - name: from_template
+        description: "Start a project from a template via Browse Files > From template"
+        confidence: 0.0
+        priority: 2
+        notes: "Browse Files (+) menu has 3 options: Upload media, From template, Models"
 
   video_models:
-    description: "AI video generation models available in Focal"
+    description: "AI video generation models — found under Browse Files > Models > Video"
     features:
-      - name: seedance
-        description: "Seedance video model — capabilities, quality, cost"
+      - name: seedance_1_5_pro
+        description: "Seedance 1.5 Pro — video generation model"
+        confidence: 0.0
+        priority: 1
+        notes: "Listed in Models > Video submenu"
+
+      - name: seedance_1_pro_fast
+        description: "Seedance 1 Pro Fast — faster/cheaper variant"
+        confidence: 0.0
+        priority: 2
+        notes: ""
+
+      - name: google_veo_3_1
+        description: "Google Veo 3.1 — high quality video model"
         confidence: 0.0
         priority: 1
         notes: ""
 
-      - name: veo
-        description: "Google Veo model — capabilities, quality, cost"
+      - name: google_veo_3_1_fast
+        description: "Google Veo 3.1 Fast — faster variant of Veo"
         confidence: 0.0
         priority: 2
         notes: ""
 
-      - name: kling
-        description: "Kling model — capabilities, quality, cost"
+      - name: kling_3_0_pro
+        description: "Kling 3.0 Pro — video generation model"
         confidence: 0.0
         priority: 2
         notes: ""
 
-      - name: minimax
-        description: "Minimax model — capabilities, quality, cost"
+      - name: hailuo_2_3_minimax
+        description: "Hailuo 2.3 (Minimax) — video generation model"
+        confidence: 0.0
+        priority: 2
+        notes: "Currently set as default video model in Settings"
+
+      - name: omnihuman_1_5
+        description: "OmniHuman 1.5 — human-focused video model"
+        confidence: 0.0
+        priority: 2
+        notes: ""
+
+      - name: infinitetalk
+        description: "InfiniteTalk — talking head / conversation video model"
+        confidence: 0.0
+        priority: 2
+        notes: ""
+
+      - name: ltx2
+        description: "LTX2 — video generation model"
         confidence: 0.0
         priority: 3
         notes: ""
 
-      - name: luma
-        description: "Luma model — capabilities, quality, cost"
+      - name: grok_imagine_video
+        description: "Grok Imagine Video — xAI video model"
         confidence: 0.0
         priority: 3
         notes: ""
 
-      - name: runway
-        description: "Runway model — capabilities, quality, cost"
+      - name: web_render
+        description: "Web Render — web-based rendering model"
+        confidence: 0.0
+        priority: 3
+        notes: "Also listed under Image models"
+
+  image_models:
+    description: "AI image generation models — found under Browse Files > Models > Image"
+    features:
+      - name: gpt_image_1_5
+        description: "GPT Image 1.5 — primary image generation model"
+        confidence: 0.0
+        priority: 1
+        notes: "Currently set as default image model in Settings"
+
+      - name: gpt_image_1_5_low
+        description: "GPT Image 1.5 Low — cheaper/faster image variant"
+        confidence: 0.0
+        priority: 2
+        notes: ""
+
+      - name: seedream_4_5
+        description: "Seedream 4.5 — image generation model"
+        confidence: 0.0
+        priority: 2
+        notes: ""
+
+      - name: nano_banana
+        description: "Nano Banana — image generation model"
         confidence: 0.0
         priority: 3
         notes: ""
 
-      - name: model_comparison
-        description: "Side-by-side comparison of model outputs for same prompt"
+      - name: nano_banana_pro
+        description: "Nano Banana Pro — enhanced image model"
         confidence: 0.0
-        priority: 2
+        priority: 3
         notes: ""
 
-  characters:
-    description: "Character creation and consistency"
-    features:
-      - name: create_character
-        description: "Create a new character from reference image or description"
-        confidence: 0.0
-        priority: 1
-        notes: ""
-
-      - name: save_character
-        description: "Save character for reuse across projects"
-        confidence: 0.0
-        priority: 1
-        notes: ""
-
-      - name: character_consistency
-        description: "Maintain character appearance across scenes"
-        confidence: 0.0
-        priority: 1
-        notes: ""
-
-      - name: character_library
-        description: "Browse and manage saved characters"
-        confidence: 0.0
-        priority: 2
-        notes: ""
-
-  locations:
-    description: "Location/background creation and management"
-    features:
-      - name: create_location
-        description: "Create a new location/background"
-        confidence: 0.0
-        priority: 2
-        notes: ""
-
-      - name: save_location
-        description: "Save location for reuse"
-        confidence: 0.0
-        priority: 2
-        notes: ""
-
-      - name: location_consistency
-        description: "Maintain location appearance across scenes"
-        confidence: 0.0
-        priority: 2
-        notes: ""
-
-      - name: location_evolution
-        description: "Change location over time (day/night, weather)"
+      - name: flux_klein_9b
+        description: "Flux Klein 9B — image generation model"
         confidence: 0.0
         priority: 3
         notes: ""
 
   voice_tts:
-    description: "Voice and text-to-speech options"
+    description: "Voice models and character voice assignment"
     features:
-      - name: elevenlabs_voices
-        description: "ElevenLabs voice options and quality"
+      - name: elevenlabs_v3
+        description: "Eleven Labs V3 — primary TTS voice model (Settings > Voice Model)"
         confidence: 0.0
-        priority: 2
-        notes: ""
+        priority: 1
+        notes: "Currently set as default voice model in Settings panel"
 
-      - name: openai_voices
-        description: "OpenAI TTS voice options and quality"
+      - name: elevenlabs_turbo
+        description: "Eleven Labs Turbo — faster TTS variant"
         confidence: 0.0
         priority: 2
-        notes: ""
+        notes: "Second option in Voice models list"
 
       - name: voice_assignment
-        description: "Assign voices to characters"
+        description: "Assign voices to characters (Alloy, George, etc.) in Characters panel"
+        confidence: 0.0
+        priority: 1
+        notes: "Characters panel shows voice selection per character"
+
+      - name: narrator_voice
+        description: "Configure the Narrator character voice (currently George)"
+        confidence: 0.0
+        priority: 1
+        notes: "Narrator is a built-in character with description + voice"
+
+  characters:
+    description: "Character creation, management, and voice in Characters panel"
+    features:
+      - name: add_character
+        description: "Add Character button in Characters panel — create new character"
+        confidence: 0.0
+        priority: 1
+        notes: "Characters panel has search + Add Character button"
+
+      - name: character_search
+        description: "Search characters using the search input in Characters panel"
         confidence: 0.0
         priority: 2
-        notes: ""
+        notes: "Search input: 'Search characters...'"
 
-      - name: voice_timing
-        description: "Control voice timing and pacing"
+      - name: character_voice_config
+        description: "Configure character avatar, description, and voice type"
         confidence: 0.0
-        priority: 3
-        notes: ""
+        priority: 1
+        notes: "Each character card has avatar, description, voice type"
 
-  editing:
-    description: "Video editing capabilities within Focal"
+  editor_chat:
+    description: "Chat/Co-Pilot panel for AI-driven editing commands"
     features:
       - name: chat_commands
-        description: "Edit video via chat commands (add scene, change shot, etc.)"
+        description: "Enter editing commands in the Chat panel ('Enter a command here')"
         confidence: 0.0
         priority: 1
-        notes: ""
+        notes: "Chat panel with text input, file upload, send button"
 
-      - name: timeline_editing
-        description: "Direct timeline manipulation"
+      - name: chat_file_upload
+        description: "Upload files (audio/image/video) directly in chat"
         confidence: 0.0
         priority: 2
-        notes: ""
+        notes: "Accepts audio, image, video files"
 
-      - name: transitions
-        description: "Scene transition types and options"
-        confidence: 0.0
-        priority: 2
-        notes: ""
-
-      - name: shot_types
-        description: "Camera angles, zooms, pans available"
-        confidence: 0.0
-        priority: 2
-        notes: ""
-
-      - name: music_audio
-        description: "Background music and audio options"
-        confidence: 0.0
-        priority: 2
-        notes: ""
-
-      - name: text_overlays
-        description: "Adding text, titles, captions"
+      - name: chat_history
+        description: "View and expand previous chat conversations and tool calls"
         confidence: 0.0
         priority: 3
-        notes: ""
+        notes: "Shows expandable conversation bubbles, 'show more' button"
 
-  rendering:
-    description: "Video rendering and export"
+  stock_media:
+    description: "Stock media library — Images, Videos, Music tabs in Stock panel"
     features:
-      - name: quality_settings
-        description: "Resolution, FPS, quality presets"
+      - name: stock_music
+        description: "Browse 3,101 music tracks with BPM, duration, tags, artist info"
         confidence: 0.0
         priority: 1
-        notes: ""
+        notes: "Music tab in Stock panel. 311 pages. Search + filter. Preview + Add to Media Library"
 
-      - name: export_formats
-        description: "Available export formats (MP4, etc.)"
+      - name: stock_images
+        description: "Browse stock images (Pexels integration) in Stock panel"
+        confidence: 0.0
+        priority: 2
+        notes: "Images tab in Stock panel"
+
+      - name: stock_videos
+        description: "Browse stock video clips in Stock panel"
+        confidence: 0.0
+        priority: 2
+        notes: "Videos tab in Stock panel"
+
+  transitions:
+    description: "Scene transition effects — Transitions panel"
+    features:
+      - name: transitions_catalog
+        description: "16 transitions: Slide left/right, Black fade, Page curl, Circle, Linear blur, Simple zoom, Water drop, Glitch, Morph, Cross zoom, Dreamy, Hexagonalize, Ripple, Circle open, Pixelize"
+        confidence: 0.0
+        priority: 2
+        notes: "Drag onto gap between clips, or click to add at playhead"
+
+  effects:
+    description: "Visual effects — Effects panel"
+    features:
+      - name: effects_catalog
+        description: "3 effects: Fade In (from black), Fade Out (to black), Zoom Out from Black"
+        confidence: 0.0
+        priority: 2
+        notes: "Click to add effect at playhead position"
+
+  text_overlays:
+    description: "Text overlays — Text panel"
+    features:
+      - name: add_heading
+        description: "Add heading text element to timeline"
+        confidence: 0.0
+        priority: 2
+        notes: "Text panel > Add heading button"
+
+      - name: add_body_text
+        description: "Add body text element to timeline"
+        confidence: 0.0
+        priority: 2
+        notes: "Text panel > Add body text button"
+
+  captions:
+    description: "Auto-generated captions system — Captions panel"
+    features:
+      - name: caption_toggle
+        description: "Enable/disable captions (auto-generated from audio)"
         confidence: 0.0
         priority: 1
-        notes: ""
+        notes: "Enable Captions toggle switch"
 
-      - name: render_progress
-        description: "Monitor render progress and estimated time"
+      - name: caption_font
+        description: "Font family (Inter), size (72px), bold, italic, character spacing"
         confidence: 0.0
-        priority: 1
-        notes: ""
+        priority: 2
+        notes: "Font Family + Font Size dropdowns, formatting buttons"
 
-      - name: download
-        description: "Download rendered video"
+      - name: caption_style
+        description: "Caption style (Standard), lines (Single Line), chunk duration (1.2s)"
         confidence: 0.0
-        priority: 1
-        notes: ""
+        priority: 2
+        notes: "Style dropdown, Lines dropdown, chunk duration input"
 
-      - name: render_queue
-        description: "Queue multiple renders"
+      - name: caption_position
+        description: "Vertical position slider (0-100%)"
         confidence: 0.0
         priority: 3
         notes: ""
 
-  credits:
-    description: "Credit system and cost optimization"
-    features:
-      - name: credit_balance
-        description: "Check current credit balance"
+      - name: caption_visual
+        description: "Fill, Stroke, Background, Shadow styling options"
         confidence: 0.0
-        priority: 1
-        notes: ""
+        priority: 3
+        notes: "Each has color picker + options"
 
-      - name: cost_per_model
-        description: "Credits per second for each video model"
-        confidence: 0.0
-        priority: 1
-        notes: ""
-
-      - name: cost_optimization
-        description: "Strategies to minimize credit usage"
+      - name: caption_presets
+        description: "4 presets: Standard, Yellow, Highlight, Black on White"
         confidence: 0.0
         priority: 2
         notes: ""
 
-      - name: credit_purchase
-        description: "How to purchase additional credits"
+  settings:
+    description: "Global project settings — Settings panel in editor"
+    features:
+      - name: aspect_ratio
+        description: "Set aspect ratio (currently 16:9)"
+        confidence: 0.0
+        priority: 1
+        notes: "Aspect Ratio dropdown in Settings panel"
+
+      - name: global_style
+        description: "Global visual style toggle (e.g. 'realistic medieval')"
+        confidence: 0.0
+        priority: 1
+        notes: "Toggle switch + style preview image"
+
+      - name: model_selection
+        description: "Set default Image, Video, and Voice models for the project"
+        confidence: 0.0
+        priority: 1
+        notes: "3 dropdowns: Image Model, Video Model, Voice Model"
+
+      - name: waveform_display
+        description: "Show/hide audio waveforms in timeline"
         confidence: 0.0
         priority: 3
-        notes: ""
+        notes: "Waveform Display dropdown: Show All Waveforms"
+
+  timeline:
+    description: "Timeline editing and playback controls"
+    features:
+      - name: timeline_navigation
+        description: "Timeline scrubber, time markers (0:00 to 0:28+), timestamp display"
+        confidence: 0.0
+        priority: 1
+        notes: "Horizontal scrollable timeline with clickable markers"
+
+      - name: edit_controls
+        description: "Edit and Controls toggle buttons for timeline modes"
+        confidence: 0.0
+        priority: 1
+        notes: "Edit button + Controls button at bottom"
+
+      - name: export
+        description: "Export button — render and download video"
+        confidence: 0.0
+        priority: 1
+        notes: "Export button at bottom right of timeline"
+
+      - name: publish
+        description: "Publish button — share/publish video"
+        confidence: 0.0
+        priority: 1
+        notes: "Publish button next to Export"
 
   ui_navigation:
-    description: "General UI navigation and layout"
+    description: "General navigation — sidebar, top bar, projects"
     features:
-      - name: main_menu
-        description: "Main navigation menu structure"
+      - name: sidebar_navigation
+        description: "Left sidebar: Home, Projects (Recent/All/Starred/Shared), Templates, Channel, Published Templates, Support"
         confidence: 0.0
         priority: 1
-        notes: ""
+        notes: "Projects section is expandable with subsections"
 
       - name: project_management
-        description: "Create, open, delete projects"
+        description: "Create, open, star, share projects via sidebar"
         confidence: 0.0
         priority: 1
-        notes: ""
+        notes: "Recent, All projects, Starred, Shared with me"
 
-      - name: settings
-        description: "Account and project settings"
+      - name: account_menu
+        description: "Profile dropdown: Manage Subscription, Support, Dark Mode, Logout"
         confidence: 0.0
-        priority: 3
-        notes: ""
+        priority: 2
+        notes: "$10/mo plan, 1121 credits, davidflipt25@gmail.com"
 
-      - name: keyboard_shortcuts
-        description: "Available keyboard shortcuts"
+      - name: credit_balance
+        description: "Credit counter in top bar (clickable)"
         confidence: 0.0
-        priority: 3
-        notes: ""
+        priority: 1
+        notes: "Shows '1121 Credits' — click for credit management"
+
+      - name: templates
+        description: "Personal templates (Templates) and Published Templates (community)"
+        confidence: 0.0
+        priority: 2
+        notes: "Templates under USER, Published Templates under RESOURCES"

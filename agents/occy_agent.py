@@ -45,6 +45,7 @@ class OccyAgent:
         kill_switch: KillSwitch,
         audit_log: AuditLog,
         token_budget: TokenBudgetManager,
+        model_router=None,
         approval_queue=None,
         headless: bool = True,
     ):
@@ -52,6 +53,7 @@ class OccyAgent:
         self.kill_switch = kill_switch
         self.audit_log = audit_log
         self.token_budget = token_budget
+        self.model_router = model_router
         self.approval_queue = approval_queue
 
         # Personality
@@ -192,6 +194,7 @@ class OccyAgent:
                 browser=self._browser,
                 knowledge_store=self.knowledge,
                 audit_log=self.audit_log,
+                model_router=self.model_router,
             )
         return self._learner
 
