@@ -456,6 +456,10 @@ class DavidSystem:
         logger.info("System online. Waiting for commands via Telegram.")
         logger.info(f"Operator chat ID: {os.environ.get('TELEGRAM_OPERATOR_CHAT_ID', 'NOT SET')}")
 
+        # Tell systemd we're ready (for Type=notify services) + first watchdog ping
+        self._notify_systemd("READY=1")
+        self._notify_systemd("WATCHDOG=1")
+
         # Send startup notification to Telegram
         await self._send_status_notification(online=True)
 
@@ -498,35 +502,93 @@ class DavidSystem:
             return {"error": str(e)}
 
     async def _run_single_tweet(self, target_hour: int = None):
-        """Generate 1 tweet for the next optimal slot.
+        """Generate 1 tweet and auto-schedule for the target slot.
 
         Runs 30min before each slot (12:30, 15:30, 18:30, 21:30 UTC).
-        Generates 1 tweet → approval queue → Jono reviews → Oprah posts.
+        Generates tweet → auto-approves → schedules → notifies Jono with cancel option.
+
+        Jono can cancel via /cancel in Telegram if he doesn't like a tweet.
+        This inverts the flow: post by default, cancel if bad (vs approve each one).
         """
         if self.kill_switch.is_active:
             logger.info("Skipping tweet generation - kill switch active")
             return
 
         try:
+            import random as _rand
+            from datetime import datetime as _dt, timedelta as _td
             from run_daily_tweets import generate_tweets
+
             slot_label = f"{target_hour}:00 UTC" if target_hour else "next slot"
             logger.info(f"Generating tweet for {slot_label}...")
             await generate_tweets(count=1)
 
-            self.audit_log.log(
-                "david-flip", "info", "tweets",
-                f"Tweet generated for {slot_label} — waiting for review"
+            # Auto-approve and auto-schedule the most recent pending tweet
+            pending = self.approval_queue.get_pending()
+            tweet_approval = None
+            tweet_text = ""
+            for item in reversed(pending):
+                if item["action_type"] == "tweet" and item["status"] == "pending":
+                    tweet_approval = item
+                    action_data = json.loads(item["action_data"]) if isinstance(item["action_data"], str) else item["action_data"]
+                    tweet_text = action_data.get("text", "")
+                    break
+
+            if not tweet_approval:
+                logger.warning("Tweet generated but no pending tweet found in queue")
+                return
+
+            approval_id = tweet_approval["id"]
+
+            # Auto-approve
+            self.approval_queue.approve(approval_id, notes="Auto-approved by scheduler")
+
+            # Schedule for target slot with 0-15 min jitter
+            now = _dt.utcnow()
+            if target_hour is not None:
+                scheduled_time = now.replace(
+                    hour=target_hour, minute=_rand.randint(0, 15),
+                    second=0, microsecond=0
+                )
+                # If slot already passed today, schedule for tomorrow
+                if scheduled_time <= now:
+                    scheduled_time += _td(days=1)
+            else:
+                scheduled_time = now + _td(hours=2)
+
+            action_data = json.loads(tweet_approval["action_data"]) if isinstance(tweet_approval["action_data"], str) else tweet_approval["action_data"]
+            action_data["action"] = "tweet"
+            action_data["approval_id"] = approval_id
+
+            job_id = self.oprah.scheduler.schedule(
+                content_type="tweet",
+                content_data=action_data,
+                scheduled_time=scheduled_time,
             )
 
-            # Notify Jono via Telegram
+            self.approval_queue.mark_executed(approval_id)
+
+            self.audit_log.log(
+                "david-flip", "info", "tweets",
+                f"Tweet #{approval_id} auto-scheduled for {scheduled_time.strftime('%H:%M UTC')}",
+                details=f"job={job_id}",
+            )
+
+            logger.info(
+                f"Tweet #{approval_id} auto-scheduled for "
+                f"{scheduled_time.strftime('%H:%M UTC')} (job: {job_id})"
+            )
+
+            # Notify Jono with the tweet text — he can cancel if needed
             if self.telegram and self.telegram.app:
                 try:
+                    preview = tweet_text[:200] + ("..." if len(tweet_text) > 200 else "")
                     await self.telegram.app.bot.send_message(
                         chat_id=self.telegram.operator_id,
                         text=(
-                            f"New tweet ready for {slot_label}!\n\n"
-                            f"Review in Mission Control:\n"
-                            f"http://89.167.24.222:5000/approvals"
+                            f"AUTO-SCHEDULED for {scheduled_time.strftime('%I:%M %p UTC')}:\n\n"
+                            f"{preview}\n\n"
+                            f"Reply /cancel {approval_id} to stop it."
                         ),
                     )
                 except Exception:
@@ -598,7 +660,13 @@ class DavidSystem:
         asyncio.run_coroutine_threadsafe(self._run_daily_video(), self._loop)
 
     async def _send_status_notification(self, online: bool):
-        """Send David's status to Telegram with Dubai time and update status file."""
+        """Send David's status to Telegram only on state CHANGES, not every restart.
+
+        Reads the previous state from the status file. Only sends a Telegram
+        message if the state actually changed (offline→online or online→offline),
+        or if David has been offline for more than 5 minutes before coming back.
+        This prevents notification spam when the service crash-loops.
+        """
         from datetime import timezone, timedelta
         import json
 
@@ -607,8 +675,20 @@ class DavidSystem:
         dubai_time = datetime.now(dubai_tz)
         dubai_time_str = dubai_time.strftime("%I:%M %p - %d %b %Y")
 
-        # Update status file for dashboard
+        # Read previous state to detect changes
         status_file = Path("data/david_status.json")
+        previous_online = None
+        previous_timestamp = None
+        try:
+            if status_file.exists():
+                with open(status_file, "r") as f:
+                    prev = json.load(f)
+                previous_online = prev.get("online")
+                previous_timestamp = prev.get("timestamp_utc")
+        except Exception:
+            pass
+
+        # Update status file for dashboard (always update)
         status_data = {
             "online": online,
             "timestamp_utc": datetime.utcnow().isoformat(),
@@ -620,6 +700,32 @@ class DavidSystem:
                 json.dump(status_data, f)
         except Exception as e:
             logger.warning(f"Could not write status file: {e}")
+
+        # Decide whether to send Telegram notification
+        should_notify = False
+        if previous_online is None:
+            # First ever boot — always notify
+            should_notify = True
+        elif online and not previous_online:
+            # Was offline, now online — notify (recovery)
+            should_notify = True
+        elif not online:
+            # Going offline — always notify
+            should_notify = True
+        elif online and previous_online and previous_timestamp:
+            # Was online, still online (restart). Only notify if gap > 5 minutes
+            try:
+                prev_time = datetime.fromisoformat(previous_timestamp)
+                gap = (datetime.utcnow() - prev_time).total_seconds()
+                if gap > 300:
+                    should_notify = True
+                else:
+                    logger.info(f"Suppressing AWAKE notification (restart within {gap:.0f}s)")
+            except Exception:
+                should_notify = True
+
+        if not should_notify:
+            return
 
         if online:
             message = f"🟢 DAVID IS AWAKE\n\n{dubai_time_str} (Dubai)"
@@ -636,7 +742,7 @@ class DavidSystem:
             logger.warning(f"Could not send status notification: {e}")
 
     async def _heartbeat(self):
-        """Update status file every 60s so the watchdog knows David is alive."""
+        """Update status file every 60s and notify systemd watchdog."""
         from datetime import timezone, timedelta as td
         status_file = Path("data/david_status.json")
         dubai_tz = timezone(td(hours=4))
@@ -650,6 +756,26 @@ class DavidSystem:
         try:
             with open(status_file, "w") as f:
                 json.dump(status_data, f)
+        except Exception:
+            pass
+
+        # Notify systemd watchdog (prevents WatchdogSec from killing us)
+        self._notify_systemd("WATCHDOG=1")
+
+    @staticmethod
+    def _notify_systemd(message: str):
+        """Send a notification to systemd via NOTIFY_SOCKET (no extra packages needed)."""
+        import socket
+        notify_socket = os.environ.get("NOTIFY_SOCKET")
+        if not notify_socket:
+            return
+        try:
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+            if notify_socket.startswith("@"):
+                notify_socket = "\0" + notify_socket[1:]
+            sock.connect(notify_socket)
+            sock.sendall(message.encode())
+            sock.close()
         except Exception:
             pass
 

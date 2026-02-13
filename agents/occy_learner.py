@@ -108,7 +108,11 @@ class OccyLearner:
         with open(FEATURE_MAP_PATH, "w") as f:
             json.dump(feature_map, f, indent=2)
 
-    def _select_next_feature(self, job_relevant: list[str] = None) -> tuple[str, dict] | None:
+    def _select_next_feature(
+        self,
+        job_relevant: list[str] = None,
+        exclude: set[str] = None,
+    ) -> tuple[str, dict] | None:
         """
         Select the next feature to explore.
 
@@ -118,9 +122,15 @@ class OccyLearner:
         3. Job-relevant features (if a job needs specific skills)
         4. Random deep-dive on a known feature
 
+        Args:
+            job_relevant: Feature names relevant to a current job
+            exclude: Feature names to skip (already attempted this session)
+
         Returns:
-            (category_name, feature_dict) or None if all mastered
+            (category_name, feature_dict) or None if all mastered/excluded
         """
+        exclude = exclude or set()
+
         unexplored = []
         partial = []
         relevant = []
@@ -128,6 +138,10 @@ class OccyLearner:
 
         for cat_name, cat_data in self.feature_map.get("categories", {}).items():
             for feat in cat_data.get("features", []):
+                # Skip features already attempted this session
+                if feat["name"] in exclude:
+                    continue
+
                 entry = (cat_name, feat)
 
                 if feat["confidence"] == 0.0:
@@ -145,11 +159,15 @@ class OccyLearner:
         # Pick from highest priority group
         for group in [unexplored, partial, relevant, deep_dive]:
             if group:
-                # Sort by priority (lower number = higher priority)
-                group.sort(key=lambda x: x[1]["priority"])
+                # Sort by priority (lower number = higher priority), then
+                # by explored_count (prefer least-explored as tiebreaker)
+                group.sort(key=lambda x: (x[1]["priority"], x[1].get("explored_count", 0)))
                 return group[0]
 
-        logger.info("All features at confidence >= 0.9 — exploration complete!")
+        if exclude:
+            logger.info(f"No more features to explore this session ({len(exclude)} already attempted)")
+        else:
+            logger.info("All features at confidence >= 0.9 — exploration complete!")
         return None
 
     def _get_course_knowledge(self, feature_name: str, category: str) -> str:
@@ -220,6 +238,8 @@ class OccyLearner:
 
         if not nav_result["success"]:
             findings.append(f"Could not navigate to {feature_name}: {nav_result.get('error')}")
+            # Still update progress so repeated failures eventually move past this feature
+            self._update_feature_progress(category, feature_name, 0.05)
             return {
                 "success": False,
                 "findings": findings,
@@ -349,20 +369,24 @@ class OccyLearner:
         knowledge_entries = 0
         total_credits = 0
         explored_features = []
+        session_attempted = set()  # Track features tried this session to avoid repeats
 
         logger.info(f"Starting {duration_minutes}-minute exploration session")
 
         while datetime.now().timestamp() < deadline:
-            # Select next feature
-            selection = self._select_next_feature()
+            # Select next feature — exclude ones already tried this session
+            selection = self._select_next_feature(exclude=session_attempted)
             if selection is None:
-                logger.info("All features explored — ending session early")
+                logger.info("No more features to explore — ending session early")
                 break
 
             category, feature = selection
+            session_attempted.add(feature["name"])
+
             logger.info(
                 f"Session: Exploring [{category}] {feature['name']} "
-                f"(confidence: {feature['confidence']:.1f})"
+                f"(confidence: {feature['confidence']:.1f}) "
+                f"[{len(session_attempted)}/{features_explored + 1} this session]"
             )
 
             # Explore it

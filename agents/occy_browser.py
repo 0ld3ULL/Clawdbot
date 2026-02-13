@@ -64,6 +64,7 @@ class FocalBrowser:
         self.browser = None
         self.page = None
         self._running = False
+        self._temp_profile = None  # Set if we fall back to temp profile
 
         # Build domain allowlist
         self.allowed_domains = list(ALLOWED_DOMAINS)
@@ -79,10 +80,28 @@ class FocalBrowser:
         """
         Launch browser with persistent profile.
 
+        Falls back to a temp profile + saved storage state if the persistent
+        profile is locked by another process (common on Windows after crashes).
+
         Returns True if browser started successfully and Focal is accessible.
         """
         try:
             from browser_use import Browser
+
+            # Clean up stale lockfile from previous sessions — Chrome hangs
+            # if it can't acquire the profile lock on startup
+            use_persistent = True
+            lockfile = BROWSER_PROFILE_DIR / "lockfile"
+            if lockfile.exists():
+                try:
+                    lockfile.unlink()
+                    logger.info("Removed stale browser lockfile")
+                except OSError:
+                    logger.warning(
+                        "Lockfile held by another process — "
+                        "falling back to temp profile with saved session"
+                    )
+                    use_persistent = False
 
             # Build Browser kwargs — the new API takes everything directly
             browser_kwargs = {
@@ -93,9 +112,24 @@ class FocalBrowser:
                 "keep_alive": True,
             }
 
-            # Use persistent user data dir for cookie/session persistence
-            # (don't combine with storage_state — causes warning spam)
-            browser_kwargs["user_data_dir"] = str(BROWSER_PROFILE_DIR)
+            if use_persistent:
+                # Use persistent user data dir for cookie/session persistence
+                # (don't combine with storage_state — causes warning spam)
+                browser_kwargs["user_data_dir"] = str(BROWSER_PROFILE_DIR)
+            else:
+                # Profile locked — use temp dir with cookies from state.json
+                # Don't pass both user_data_dir AND storage_state (warning spam)
+                import tempfile
+                self._temp_profile = Path(tempfile.mkdtemp(prefix="occy-browser-"))
+                state_file = BROWSER_PROFILE_DIR / "state.json"
+                if state_file.exists():
+                    browser_kwargs["storage_state"] = str(state_file)
+                    # Explicitly disable user_data_dir to prevent browser-use
+                    # from auto-creating one (which triggers warning spam)
+                    browser_kwargs["user_data_dir"] = None
+                    logger.info(f"Loading session from {state_file}")
+                else:
+                    browser_kwargs["user_data_dir"] = str(self._temp_profile)
 
             self.browser = Browser(**browser_kwargs)
 
@@ -144,6 +178,14 @@ class FocalBrowser:
             self._running = False
             self.browser = None
             self.page = None
+            # Clean up temp profile if we used one
+            if self._temp_profile and self._temp_profile.exists():
+                import shutil
+                try:
+                    shutil.rmtree(self._temp_profile, ignore_errors=True)
+                except Exception:
+                    pass
+                self._temp_profile = None
             logger.info("Browser stopped")
 
     async def check_login(self) -> bool:
@@ -166,14 +208,15 @@ class FocalBrowser:
                 max_steps=5,
             )
 
-            if result["success"] and result["result"]:
-                result_text = str(result["result"]).upper()
-                if "LOGGED IN" in result_text and "NOT LOGGED IN" not in result_text:
-                    logger.info("Focal ML login verified — session active")
-                    return True
-                else:
-                    logger.warning("Not logged in to Focal ML")
-                    return False
+            # Check the result text directly — browser-use's simple judge
+            # sometimes overrides the success flag even when the task worked
+            result_text = str(result.get("result") or "").upper()
+            if "LOGGED IN" in result_text and "NOT LOGGED IN" not in result_text:
+                logger.info("Focal ML login verified — session active")
+                return True
+            elif "NOT LOGGED IN" in result_text:
+                logger.warning("Not logged in to Focal ML")
+                return False
 
             logger.warning("Login check inconclusive")
             return False
@@ -274,12 +317,12 @@ class FocalBrowser:
                 max_actions_per_step=5,
             )
 
-            result = await agent.run(max_steps=max_steps)
+            history = await agent.run(max_steps=max_steps)
 
             return {
-                "success": True,
-                "result": str(result),
-                "steps_taken": max_steps,  # Browser Use doesn't expose exact count easily
+                "success": history.is_done() and history.is_successful() is not False,
+                "result": history.final_result(),
+                "steps_taken": len(history.history),
                 "error": None,
             }
 

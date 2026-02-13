@@ -1128,14 +1128,14 @@ def _get_next_optimal_slot(platforms: list[str]) -> datetime:
 
 def _get_next_available_tweet_slot() -> datetime:
     """
-    Find the next available tweet slot at optimal hours (9, 12, 15, 18 UTC).
+    Find the next available tweet slot at optimal hours (13, 16, 19, 22 UTC).
 
     Reads scheduler.db to avoid conflicts with already-scheduled posts.
     Adds 0-15 min jitter so tweets don't land exactly on the hour.
     """
     now = datetime.utcnow()
     min_post_time = now + timedelta(minutes=30)
-    optimal_hours = PLATFORM_OPTIMAL_HOURS.get("twitter", [9, 12, 15, 18])
+    optimal_hours = PLATFORM_OPTIMAL_HOURS.get("twitter", [13, 16, 19, 22])
 
     # Read already-scheduled times from scheduler.db
     taken_times = []

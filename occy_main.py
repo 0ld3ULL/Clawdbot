@@ -32,6 +32,10 @@ from dotenv import load_dotenv
 # Load environment variables before anything else
 load_dotenv()
 
+# Browser-use event bus timeouts — default 30s is too tight for cold starts
+os.environ.setdefault("TIMEOUT_BrowserStartEvent", "120")
+os.environ.setdefault("TIMEOUT_BrowserLaunchEvent", "120")
+
 from agents.occy_agent import OccyAgent
 from core.audit_log import AuditLog
 from core.kill_switch import KillSwitch
