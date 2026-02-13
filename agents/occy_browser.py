@@ -150,35 +150,32 @@ class FocalBrowser:
         """
         Check if we have a valid Focal ML login session.
 
-        Navigates to Focal ML and checks if we're logged in or at a login page.
+        Uses a browser-use Agent task to navigate and check login state,
+        since the CDP page object doesn't support Playwright-style methods.
         """
         if not self._running or not self.browser:
             return False
 
         try:
-            page = await self.browser.get_current_page()
-            await page.goto("https://focalml.com")
-            await page.wait_for_load_state("networkidle")
+            result = await self.run_task(
+                "Navigate to https://focalml.com and check if you are logged in. "
+                "Look for indicators like: a dashboard, projects list, credit balance, "
+                "or a user profile icon. If you see a login/signup page instead, "
+                "report 'NOT LOGGED IN'. If you see a dashboard or project interface, "
+                "report 'LOGGED IN'. Return ONLY one of those two phrases.",
+                max_steps=5,
+            )
 
-            # Check URL and page content for login indicators
-            url = page.url
-            content = await page.content()
+            if result["success"] and result["result"]:
+                result_text = str(result["result"]).upper()
+                if "LOGGED IN" in result_text and "NOT LOGGED IN" not in result_text:
+                    logger.info("Focal ML login verified — session active")
+                    return True
+                else:
+                    logger.warning("Not logged in to Focal ML")
+                    return False
 
-            # If redirected to login/signup page, not logged in
-            login_indicators = ["login", "sign-in", "signin", "signup", "sign-up"]
-            if any(ind in url.lower() for ind in login_indicators):
-                logger.warning("Not logged in to Focal ML — login page detected")
-                return False
-
-            # Check for common logged-in indicators (dashboard, projects, etc.)
-            logged_in_indicators = ["dashboard", "project", "create", "workspace"]
-            if any(ind in content.lower() for ind in logged_in_indicators):
-                logger.info("Focal ML login verified — session active")
-                return True
-
-            # Ambiguous — take a screenshot for manual review
-            await self.take_screenshot("login_check")
-            logger.warning("Login status unclear — screenshot saved for review")
+            logger.warning("Login check inconclusive")
             return False
 
         except Exception as e:
@@ -205,11 +202,16 @@ class FocalBrowser:
             return False
 
         try:
-            page = await self.browser.get_current_page()
-            await page.goto(url)
-            await page.wait_for_load_state("networkidle")
-            logger.info(f"Navigated to: {url}")
-            return True
+            result = await self.run_task(
+                f"Navigate to {url} and confirm the page has loaded.",
+                max_steps=3,
+            )
+            if result["success"]:
+                logger.info(f"Navigated to: {url}")
+                return True
+            else:
+                logger.error(f"Navigation failed: {result.get('error')}")
+                return False
         except Exception as e:
             logger.error(f"Navigation failed: {e}")
             return False
