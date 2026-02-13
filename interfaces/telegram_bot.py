@@ -138,7 +138,6 @@ class TelegramBot:
         self.app.add_handler(CommandHandler("davidnews", self.cmd_david_news))
         self.app.add_handler(CommandHandler("video", self.cmd_video))
         self.app.add_handler(CommandHandler("schedule", self.cmd_schedule))
-        self.app.add_handler(CommandHandler("cancel", self.cmd_cancel_tweet))
         self.app.add_handler(CommandHandler("help", self.cmd_help))
 
         # Research agent commands
@@ -270,7 +269,6 @@ class TelegramBot:
             "**Twitter:**\n"
             "/tweet <text> - Post exact text\n"
             "/david <topic> - David writes tweet\n"
-            "/cancel <id> - Cancel auto-scheduled tweet\n"
             "/mentions - Check for mentions\n"
             "/reply <id> <text> - Reply to tweet\n\n"
             "**Research:**\n"
@@ -1651,57 +1649,6 @@ class TelegramBot:
 
         except Exception as e:
             await update.message.reply_text(f"Error loading schedule: {e}")
-
-    async def cmd_cancel_tweet(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Cancel an auto-scheduled tweet. Usage: /cancel <approval_id>"""
-        if not self._is_operator(update):
-            return
-
-        if not context.args:
-            await update.message.reply_text(
-                "Usage: /cancel <approval_id>\n\n"
-                "Cancels an auto-scheduled tweet before it posts."
-            )
-            return
-
-        try:
-            approval_id = int(context.args[0])
-        except ValueError:
-            await update.message.reply_text("Invalid ID. Use: /cancel <number>")
-            return
-
-        try:
-            # Find and remove the scheduled job
-            scheduler = self.scheduler
-            if not scheduler:
-                from core.scheduler import ContentScheduler
-                scheduler = ContentScheduler()
-
-            pending = scheduler.get_pending()
-            cancelled = False
-            for item in pending:
-                content_data = json.loads(item["content_data"])
-                if content_data.get("approval_id") == approval_id:
-                    scheduler.cancel(item["job_id"])
-                    cancelled = True
-                    break
-
-            if cancelled:
-                self.audit.log(
-                    "david-flip", "info", "cancel",
-                    f"Cancelled scheduled tweet #{approval_id} via Telegram"
-                )
-                await update.message.reply_text(
-                    f"Cancelled tweet #{approval_id}. It won't be posted."
-                )
-            else:
-                await update.message.reply_text(
-                    f"Tweet #{approval_id} not found in schedule. "
-                    f"It may have already posted or been cancelled."
-                )
-
-        except Exception as e:
-            await update.message.reply_text(f"Error cancelling: {e}")
 
     async def cmd_makevideo(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Create a cinematic video using the automated pipeline."""

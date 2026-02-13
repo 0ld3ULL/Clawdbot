@@ -502,93 +502,45 @@ class DavidSystem:
             return {"error": str(e)}
 
     async def _run_single_tweet(self, target_hour: int = None):
-        """Generate 1 tweet and auto-schedule for the target slot.
+        """Generate 1 tweet for the next optimal slot.
 
         Runs 30min before each slot (12:30, 15:30, 18:30, 21:30 UTC).
-        Generates tweet → auto-approves → schedules → notifies Jono with cancel option.
-
-        Jono can cancel via /cancel in Telegram if he doesn't like a tweet.
-        This inverts the flow: post by default, cancel if bad (vs approve each one).
+        Generates tweet → sends to Jono via Telegram with Approve/Reject buttons.
         """
         if self.kill_switch.is_active:
             logger.info("Skipping tweet generation - kill switch active")
             return
 
         try:
-            import random as _rand
-            from datetime import datetime as _dt, timedelta as _td
             from run_daily_tweets import generate_tweets
-
             slot_label = f"{target_hour}:00 UTC" if target_hour else "next slot"
             logger.info(f"Generating tweet for {slot_label}...")
             await generate_tweets(count=1)
 
-            # Auto-approve and auto-schedule the most recent pending tweet
+            # Find the just-generated tweet so we can show its text in the notification
             pending = self.approval_queue.get_pending()
-            tweet_approval = None
             tweet_text = ""
             for item in reversed(pending):
                 if item["action_type"] == "tweet" and item["status"] == "pending":
-                    tweet_approval = item
                     action_data = json.loads(item["action_data"]) if isinstance(item["action_data"], str) else item["action_data"]
                     tweet_text = action_data.get("text", "")
                     break
 
-            if not tweet_approval:
-                logger.warning("Tweet generated but no pending tweet found in queue")
-                return
-
-            approval_id = tweet_approval["id"]
-
-            # Auto-approve
-            self.approval_queue.approve(approval_id, notes="Auto-approved by scheduler")
-
-            # Schedule for target slot with 0-15 min jitter
-            now = _dt.utcnow()
-            if target_hour is not None:
-                scheduled_time = now.replace(
-                    hour=target_hour, minute=_rand.randint(0, 15),
-                    second=0, microsecond=0
-                )
-                # If slot already passed today, schedule for tomorrow
-                if scheduled_time <= now:
-                    scheduled_time += _td(days=1)
-            else:
-                scheduled_time = now + _td(hours=2)
-
-            action_data = json.loads(tweet_approval["action_data"]) if isinstance(tweet_approval["action_data"], str) else tweet_approval["action_data"]
-            action_data["action"] = "tweet"
-            action_data["approval_id"] = approval_id
-
-            job_id = self.oprah.scheduler.schedule(
-                content_type="tweet",
-                content_data=action_data,
-                scheduled_time=scheduled_time,
-            )
-
-            self.approval_queue.mark_executed(approval_id)
-
             self.audit_log.log(
                 "david-flip", "info", "tweets",
-                f"Tweet #{approval_id} auto-scheduled for {scheduled_time.strftime('%H:%M UTC')}",
-                details=f"job={job_id}",
+                f"Tweet generated for {slot_label} — waiting for review"
             )
 
-            logger.info(
-                f"Tweet #{approval_id} auto-scheduled for "
-                f"{scheduled_time.strftime('%H:%M UTC')} (job: {job_id})"
-            )
-
-            # Notify Jono with the tweet text — he can cancel if needed
+            # Notify Jono via Telegram with tweet preview
             if self.telegram and self.telegram.app:
                 try:
-                    preview = tweet_text[:200] + ("..." if len(tweet_text) > 200 else "")
+                    preview = tweet_text[:280] if tweet_text else "(no text)"
                     await self.telegram.app.bot.send_message(
                         chat_id=self.telegram.operator_id,
                         text=(
-                            f"AUTO-SCHEDULED for {scheduled_time.strftime('%I:%M %p UTC')}:\n\n"
+                            f"TWEET for {slot_label}:\n\n"
                             f"{preview}\n\n"
-                            f"Reply /cancel {approval_id} to stop it."
+                            f"Approve: http://89.167.24.222:5000/approvals"
                         ),
                     )
                 except Exception:
