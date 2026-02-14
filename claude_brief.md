@@ -1,8 +1,7 @@
 # Claude Session Brief
-*Generated: 2026-02-14 13:42*
-*Memories: 72 total — 72 clear, 0 fuzzy, 0 fading*
+*Generated: 2026-02-14 17:04*
+*Memories: 75 total — 75 clear, 0 fuzzy, 0 fading*
 *Last decay: 2026-02-10T04:36:52.029534*
-*Last reconciliation: never*
 
 ## Permanent Knowledge (never fades)
 
@@ -47,6 +46,10 @@ Jono (0ld3ULL) is NOT a programmer. All instructions must be:
 - Say what app to open, what button to press
 - No technical jargon without explanation
 *Tags: jono, instructions, non-programmer*
+
+### The David Score — AI scoring methodology for AIPulse *****
+The core value prop of AIPulse.is. Problem: AI evolves too fast for savanna-plains human brains. People cant keep up with whats good and whats shit. Solution: The David Score — a set of criteria to hold against everything AI. Three indicators: (1) STATS/BENCHMARKS — like a car fact sheet. Starting with Big 6 (OpenAI, Anthropic, Gemini, DeepSeek, Llama, Grok). What is each good at? Writing, maths, design, science research. Crunch the benchmarks, report capabilities. Should be true, sometimes not quite but close enough. (2) INFLUENCER SENTIMENT — what industry YouTubers and TikTokers say. Can be bought, can be real, still a signal. Scraped from YouTube and TikTok. (3) CUSTOMER SENTIMENT — what actual users say after using it. How easy, how intuitive. Scraped from forums and Discord communities. Like CoinMarketCap used market cap as the one metric everyone agreed on for crypto traction.
+*Tags: david-score, aipulse, scoring, sentiment, benchmarks*
 
 ### David Flip — The AI Founder Character *****
 David Flip is an AI character who runs FLIPT's public communications.
@@ -106,6 +109,10 @@ Params: url, text=true for plain text
 ### Identity rules NOT persisting on VPS *****
 CRITICAL: The identity calibration system (commit 7f8602f) is implemented in code but knowledge.db on VPS is EMPTY - zero identity rules stored. When Jono rejects tweets, rules should be distilled and stored permanently via KnowledgeStore. Either feedback handler not running, files not picked up, or rules never stored. This is the core learning loop for David personality. Jono considers this MAJOR. Must verify feedback pipeline works end-to-end on VPS every session.
 *Tags: identity, vps, bug, critical*
+
+### Claude Memory portable package built and deployed *****
+Built standalone pip-installable claude-memory package at C:\Projects\claude-memory. Pushed to github.com/0ld3ULL/claude-memory. DB at ~/.claude-memory/memory.db (global across all projects). All 73 existing memories migrated. Commands: brief, status, add, search, decay, init, migrate. For Claude Y/J install: git clone + pip install -e . + python -m claude_memory init.
+*Tags: memory, plugin, portable*
 
 ### Multi-Model Routing *****
 Ollama (local) 15% — heartbeats, formatting, $0
@@ -249,6 +256,10 @@ Made: February 9, 2026
 
 ### When to use Gemini Wall Mode *****
 USE Wall Mode: 1) Architectural changes (rewiring how systems connect), 2) After big merges touching overlapping files, 3) Before VPS deploy as pre-production sanity check, 4) Debugging cross-file issues that are hard to trace. SKIP Wall Mode: 1) Adding new files following existing patterns (scrapers, stores), 2) Config changes (yaml, env), 3) Isolated bug fixes, 4) Mechanical implementation from detailed plans with runtime verification. Rule of thumb: If changes could break something in a file I didnt read, use the wall. If everything is self-contained and verified running, skip it. Money is not the concern - signal-to-noise is.
+
+### Fixed 10x duplicate video bug — 4 root causes *****
+Wall analysis found 4 bugs causing near-identical videos: (1) Dashboard api_content_approve_script had no idempotency check — clicking Approve multiple times wrote multiple render files for same script. (2) Batch generation fell back to re-using themes when pool exhausted. (3) select_theme() had no memory of recently used themes across calls. (4) Telegram approve callback had no status check before executing. All four fixed in dashboard/app.py, agents/content_agent.py, interfaces/telegram_bot.py.
+*Tags: bugfix, video, duplicate, wall-analysis*
 
 ### Wall Mode Uses Gemini, Not Llama 4 *****
 Decision: Use Gemini 2.5 Flash for Wall Mode, not Llama 4 Scout.
@@ -413,17 +424,11 @@ Switched Occy browser automation from Claude Sonnet to Gemini 2.5 Flash as defau
 Focal ML (focalml.com) — Browser-based AI video creation. NO API. Script-to-video, chat-based editing, timeline editing, character/location consistency. Models: Veo, Seedance, Kling, Minimax (video), GPT Image, Flux Klein (images), ElevenLabs + OpenAI (voices). Pricing: Free/Personal 0/Standard 0/Pro 00 per month. Replaces InVideo AI. KEY: No API means MUST be driven by computer-use agent on ASUS ROG laptop. Catalyst for building autonomous browser control.
 
 ---
-## Quick Reference
-
-*For full project history, see Memory.md*
-*For task list, see tasks/todo.md*
-*For lessons learned, see tasks/lessons.md*
-
-### Memory Commands
+## Memory Commands
 ```
-python -m claude_memory brief        # Regenerate this file
-python -m claude_memory status       # Memory stats
-python -m claude_memory add          # Add a memory interactively
-python -m claude_memory decay        # Apply decay manually
-python -m claude_memory reconcile    # Git vs memory check
+python -m claude_memory brief          # Regenerate this file
+python -m claude_memory status         # Memory stats
+python -m claude_memory add <cat> <sig> "title" "content"
+python -m claude_memory search "query" # Search memories
+python -m claude_memory decay          # Apply decay manually
 ```

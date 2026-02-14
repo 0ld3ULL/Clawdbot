@@ -288,6 +288,11 @@ def api_content_approve_script(approval_id):
             conn.close()
             return jsonify({"success": False, "error": "Not a script review item"})
 
+        # Idempotency: prevent duplicate renders from double-clicks or page refreshes
+        if row["status"] != "pending":
+            conn.close()
+            return jsonify({"success": False, "error": f"Already {row['status']} — video render already triggered"})
+
         action_data = json.loads(row["action_data"])
 
         # Mark script as approved
