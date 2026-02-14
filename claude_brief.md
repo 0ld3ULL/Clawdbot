@@ -1,6 +1,6 @@
 # Claude Session Brief
-*Generated: 2026-02-14 07:33*
-*Memories: 69 total — 69 clear, 0 fuzzy, 0 fading*
+*Generated: 2026-02-14 13:42*
+*Memories: 72 total — 72 clear, 0 fuzzy, 0 fading*
 *Last decay: 2026-02-10T04:36:52.029534*
 *Last reconciliation: never*
 
@@ -169,6 +169,12 @@ Added browser health tracking and restart() to occy_browser.py. run_task() detec
 
 ### Fixed /video command 3 bugs *****
 Bug1: /video text was literal script (4sec videos). Fixed: passes as custom_topic so LLM writes 100-200 word script. Bug2: _rewrite_content() used tweet rules for videos. Fixed: video rewrites use script rules (max_tokens=1000). Bug3: requeue lost video metadata. Fixed: video rewrites requeue as script_review with metadata preserved. Deployed fa6e253.
+
+### Occy exploration session 33/33 features *****
+Occy ran 8-hour exploration of all 33 Focal ML features using Gemini 2.5 Flash. Logged into Focal, explored transitions, effects, styles, aspect ratios. Screenshot save bug (path kwarg) not blocking. Ready for hands-on learning phase next.
+
+### AIPulse plan pushed for Claude J *****
+Pushed AIPULSE_PLAN.md to 0ld3ULL/AIpulse repo. 16-step plan: Stage 1 (AI directory) + Stage 2 (community marketplace). Jet working on it from J computer. FLIPT codebase is foundation.
 
 ## Current State (manually updated)
 
@@ -387,6 +393,11 @@ deployment
 
 ### Identity Calibration System Implemented
 Implemented the David Identity Calibration System across 6 files. When Jono rejects content with feedback, Oprah now: (1) distills feedback into a permanent identity rule via LLM, (2) stores it in KnowledgeStore category=identity (never fades), (3) rewrites rejected content with all rules applied, (4) requeues for approval, (5) notifies via Telegram. All future content generation (main.py, run_daily_tweets.py) loads identity rules into system prompts. Dashboard now passes tweet text in rejection feedback. Files changed: knowledge_store.py, operations_agent.py, main.py, david_flip.py, run_daily_tweets.py, dashboard/app.py.
+
+## Bugfix
+
+### Fix: 10x duplicate video bug
+Generic Exception handler in operations_agent.py poll_dashboard_actions() was missing action_file.unlink(). Failed render requests stayed in queue, re-processed every 30s, causing 10x duplicate Hedra renders. Fixed by adding unlink(missing_ok=True).
 
 ## Technical
 
