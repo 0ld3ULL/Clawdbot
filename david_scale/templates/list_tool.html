@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Get Listed{% endblock %}
+
+{% block content %}
+<section class="listing-page">
+    <div class="listing-header">
+        <h2>Get Listed on <span>AIPulse</span></h2>
+        <p>
+            We track what real users, influencers, and the industry say about AI tools.
+            Getting listed means your tool gets scored, ranked, and seen by people
+            trying to find the right AI tools.
+        </p>
+    </div>
+
+    <div class="listing-benefits">
+        <div class="benefit">
+            <div class="benefit-title">Tracked Weekly</div>
+            <div class="benefit-desc">We monitor forums, reviews, and influencer content for mentions of your tool every week.</div>
+        </div>
+        <div class="benefit">
+            <div class="benefit-title">Honest Scoring</div>
+            <div class="benefit-desc">Six pillars. Industry stats, influencer reviews, customer sentiment, usability, value, and momentum.</div>
+        </div>
+        <div class="benefit">
+            <div class="benefit-title">Discovery</div>
+            <div class="benefit-desc">People come here to find out what's good. Like CoinMarketCap, but for AI.</div>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST" class="listing-form">
+        <div class="form-group">
+            <label for="tool_name">Tool Name *</label>
+            <input type="text" id="tool_name" name="tool_name" required
+                   placeholder="e.g. SuperAI Studio">
+        </div>
+
+        <div class="form-group">
+            <label for="website">Website *</label>
+            <input type="url" id="website" name="website" required
+                   placeholder="https://your-tool.com">
+        </div>
+
+        <div class="form-group">
+            <label for="category">Category *</label>
+            <select id="category" name="category" required>
+                <option value="">Select a category</option>
+                {% for slug, name in all_categories.items() %}
+                <option value="{{ slug }}">{{ name }}</option>
+                {% endfor %}
+                <option value="other">Other (suggest a new category)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Short Description</label>
+            <input type="text" id="description" name="description"
+                   placeholder="One sentence about what your tool does"
+                   maxlength="200">
+        </div>
+
+        <div class="form-group">
+            <label for="price_info">Pricing</label>
+            <input type="text" id="price_info" name="price_info"
+                   placeholder="e.g. Free tier + $20/mo Pro, or Open Source">
+        </div>
+
+        <div class="form-group">
+            <label for="why_list">Why should your tool be listed?</label>
+            <textarea id="why_list" name="why_list" rows="3"
+                      placeholder="What makes your tool notable? User base, unique features, recent traction..."></textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="contact_name">Your Name</label>
+                <input type="text" id="contact_name" name="contact_name"
+                       placeholder="Name or handle">
+            </div>
+            <div class="form-group">
+                <label for="contact_email">Contact Email *</label>
+                <input type="email" id="contact_email" name="contact_email" required
+                       placeholder="you@company.com">
+            </div>
+        </div>
+
+        <button type="submit" class="cta submit-btn">Submit for Review</button>
+        <p class="form-note">
+            Listing is free. We review applications weekly.
+            Tools are scored based on real data, not paid placement.
+        </p>
+    </form>
+</section>
+{% endblock %}

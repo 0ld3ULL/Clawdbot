@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category_name }}{% endblock %}
+
+{% block content %}
+<section class="category-section">
+    <div class="category-header">
+        <h3>{{ category_name }}</h3>
+        <span style="color: var(--text-secondary); font-size: 0.85rem;">
+            {{ tools|length }} tools tracked
+        </span>
+    </div>
+
+    {% if not tools %}
+    <div class="coming-soon">
+        <h3>No Tools Listed Yet</h3>
+        <p>Rankings for this category will appear after tools are listed and scored.</p>
+        <a href="/list-your-tool" class="cta">List Your Tool</a>
+    </div>
+    {% else %}
+
+    {# ===== FREE SECTION — Rankings table (everyone sees this) ===== #}
+    <div class="table-wrap">
+        <table class="ranking-table">
+            <thead>
+                <tr>
+                    <th class="col-rank">#</th>
+                    <th class="col-name">Name</th>
+                    <th class="col-score">Pulse</th>
+                    <th class="col-price">Price</th>
+                    <th class="col-learn">Learn Time</th>
+                    <th class="col-pillar">Ind</th>
+                    <th class="col-pillar">Inf</th>
+                    <th class="col-pillar">Cust</th>
+                    <th class="col-pillar">Use</th>
+                    <th class="col-pillar">Val</th>
+                    <th class="col-pillar">Mom</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tool in tools %}
+                <tr class="tool-row">
+                    <td class="col-rank {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}">
+                        {{ tool.rank_in_category }}
+                    </td>
+                    <td class="col-name">
+                        <div class="tool-name-cell">
+                            <span class="tool-name">
+                                {{ tool.name }}
+                                {% if tool.website %}
+                                <a href="{{ tool.website }}" target="_blank" rel="noopener" class="ext-link">&nearr;</a>
+                                {% endif %}
+                            </span>
+                            <span class="tool-desc-inline">{{ tool.description }}</span>
+                        </div>
+                    </td>
+                    <td class="col-score">
+                        <span class="pulse-score">{{ "%.1f"|format(tool.david_score) }}</span>
+                        <div class="score-bar-mini">
+                            <div class="score-bar-fill" style="width: {{ tool.david_score * 10 }}%"></div>
+                        </div>
+                    </td>
+                    <td class="col-price">
+                        {% if tool.price_monthly is not none and tool.price_monthly == 0 %}
+                        <span class="price-tag free">Free</span>
+                        {% elif tool.price_monthly %}
+                        <span class="price-tag">${{ "%.0f"|format(tool.price_monthly) }}/mo</span>
+                        {% else %}
+                        <span class="na">--</span>
+                        {% endif %}
+                        {% if tool.price_notes %}
+                        <span class="tool-desc-inline" style="display:block; margin-top: 0.15rem;">{{ tool.price_notes }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="col-learn">
+                        {% if tool.learning_hours is not none %}
+                        ~{{ tool.learning_hours }}h
+                        {% else %}
+                        <span class="na">--</span>
+                        {% endif %}
+                    </td>
+                    {# Pillar scores — visible but these are the "free preview" #}
+                    <td class="col-pillar">{% if tool.industry is not none %}{{ "%.1f"|format(tool.industry) }}{% else %}<span class="na">--</span>{% endif %}</td>
+                    <td class="col-pillar">{% if tool.influencer is not none %}{{ "%.1f"|format(tool.influencer) }}{% else %}<span class="na">--</span>{% endif %}</td>
+                    <td class="col-pillar">{% if tool.customer is not none %}{{ "%.1f"|format(tool.customer) }}{% else %}<span class="na">--</span>{% endif %}</td>
+                    <td class="col-pillar">{% if tool.usability is not none %}{{ "%.1f"|format(tool.usability) }}{% else %}<span class="na">--</span>{% endif %}</td>
+                    <td class="col-pillar">{% if tool.value is not none %}{{ "%.1f"|format(tool.value) }}{% else %}<span class="na">--</span>{% endif %}</td>
+                    <td class="col-pillar">{% if tool.momentum is not none %}{{ "%.1f"|format(tool.momentum) }}{% else %}<span class="na">--</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {# ===== SUBSCRIBE GATE — The juice is behind this ===== #}
+    <div class="subscribe-gate">
+        <h3>Unlock the Full Picture</h3>
+        <div class="price-highlight">$1/month</div>
+        <p>See WHY tools rank where they do. The numbers above tell you WHAT, subscribers get the WHY.</p>
+        <ul>
+            <li>Influencer review summaries &mdash; who reviewed it and what they said</li>
+            <li>Customer sentiment quotes &mdash; real user opinions from forums and Discord</li>
+            <li>Influencer credibility scores &mdash; which reviewers actually know their stuff</li>
+            <li>Score history &mdash; how rankings change week to week</li>
+            <li>Weekly newsletter &mdash; analysis of what moved and why</li>
+            <li>Early access to new categories and tools</li>
+        </ul>
+        <a href="#" class="cta">Subscribe &mdash; $1/month</a>
+        <p style="font-size: 0.75rem; margin-top: 0.8rem; color: var(--text-secondary);">
+            Cancel anytime. No contracts. Just the juice.
+        </p>
+    </div>
+
+    {% endif %}
+</section>
+
+<div class="list-cta-section">
+    <h3>Missing a Tool?</h3>
+    <p>If you've built an AI tool that should be tracked, apply to get listed.</p>
+    <a href="/list-your-tool" class="cta">Get Listed</a>
+</div>
+{% endblock %}

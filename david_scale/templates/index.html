@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+    <h2>Check the <span>Pulse</span> on AI</h2>
+    <p class="subtitle">
+        Not just benchmarks. What influencers review. What customers say.
+        How easy it is. What it costs. What's trending. All in one score.
+    </p>
+    <div class="formula">Industry + Influencer + Customer + Usability + Value + Momentum = Pulse Score</div>
+</section>
+
+{% if not rankings %}
+<div class="coming-soon">
+    <h3>First Scored Rankings Coming Soon</h3>
+    <p>We're collecting sentiment data. Scored rankings drop this Sunday. Showing preliminary data below.</p>
+</div>
+{% endif %}
+
+{% for cat in category_rankings %}
+<section class="category-section">
+    <div class="category-header">
+        <h3>{{ cat.name }}</h3>
+        <a href="/category/{{ cat.slug }}" class="view-all">View all {{ cat.tools|length }}+ &rarr;</a>
+    </div>
+
+    <div class="table-wrap">
+        <table class="ranking-table">
+            <thead>
+                <tr>
+                    <th class="col-rank">#</th>
+                    <th class="col-name">Name</th>
+                    <th class="col-score">Pulse</th>
+                    <th class="col-pillar">Ind</th>
+                    <th class="col-pillar">Inf</th>
+                    <th class="col-pillar">Cust</th>
+                    <th class="col-pillar">Use</th>
+                    <th class="col-pillar">Val</th>
+                    <th class="col-pillar">Mom</th>
+                    <th class="col-price">Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tool in cat.tools[:5] %}
+                <tr class="tool-row">
+                    <td class="col-rank {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}">
+                        {{ tool.rank_in_category }}
+                    </td>
+                    <td class="col-name">
+                        <div class="tool-name-cell">
+                            <span class="tool-name">{{ tool.name }}</span>
+                            <span class="tool-desc-inline">{{ tool.description }}</span>
+                        </div>
+                    </td>
+                    <td class="col-score">
+                        <span class="pulse-score">{{ "%.1f"|format(tool.david_score) }}</span>
+                        <div class="score-bar-mini">
+                            <div class="score-bar-fill" style="width: {{ tool.david_score * 10 }}%"></div>
+                        </div>
+                    </td>
+                    <td class="col-pillar">{% if tool.industry is not none %}{{ "%.1f"|format(tool.industry) }}{% else %}<span class="na">--</span>{% endif %}</td>
+                    <td class="col-pillar">{% if tool.influencer is not none %}{{ "%.1f"|format(tool.influencer) }}{% else %}<span class="na">--</span>{% endif %}</td>
+                    <td class="col-pillar">{% if tool.customer is not none %}{{ "%.1f"|format(tool.customer) }}{% else %}<span class="na">--</span>{% endif %}</td>
+                    <td class="col-pillar">{% if tool.usability is not none %}{{ "%.1f"|format(tool.usability) }}{% else %}<span class="na">--</span>{% endif %}</td>
+                    <td class="col-pillar">{% if tool.value is not none %}{{ "%.1f"|format(tool.value) }}{% else %}<span class="na">--</span>{% endif %}</td>
+                    <td class="col-pillar">{% if tool.momentum is not none %}{{ "%.1f"|format(tool.momentum) }}{% else %}<span class="na">--</span>{% endif %}</td>
+                    <td class="col-price">
+                        {% if tool.price_monthly is not none and tool.price_monthly == 0 %}
+                        <span class="price-tag free">Free</span>
+                        {% elif tool.price_monthly %}
+                        <span class="price-tag">${{ "%.0f"|format(tool.price_monthly) }}</span>
+                        {% else %}
+                        <span class="na">--</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endfor %}
+
+<div class="list-cta-section">
+    <h3>Build an AI Tool?</h3>
+    <p>Get listed on AIPulse. We track what real users and influencers are saying about your product.</p>
+    <a href="/list-your-tool" class="cta">Get Listed</a>
+</div>
+{% endblock %}

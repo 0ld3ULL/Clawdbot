@@ -9,6 +9,9 @@ Usage:
     python occy_main.py                    # Headless, Gemini Flash (default)
     python occy_main.py --visible          # Visible browser (for manual login / debugging)
     python occy_main.py --explore 60       # Run 60-minute exploration session
+    python occy_main.py --hands-on 60      # Run 60-minute hands-on session (spends credits)
+    python occy_main.py --hands-on 60 --budget 200  # Hands-on with 200 credit budget
+    python occy_main.py --auto             # Auto-progress: explore → hands-on → production
     python occy_main.py --llm gemini       # Use Gemini Flash (~1-3s/action, default)
     python occy_main.py --llm sonnet       # Use Claude Sonnet (~8-12s/action)
     python occy_main.py --llm ollama       # Use local Ollama (~2-4s/action, free)
@@ -157,6 +160,73 @@ class OccySystem:
         finally:
             await self.agent.stop()
 
+    async def start_hands_on(
+        self, duration_minutes: int = 60, credit_budget: int = 100,
+    ):
+        """Start Occy, run hands-on learning, then stop."""
+        logger.info(
+            f"Running {duration_minutes}-minute hands-on session "
+            f"(budget: {credit_budget} credits)"
+        )
+
+        success = await self.agent.start()
+        if not success:
+            logger.error("Failed to start — cannot run hands-on")
+            return
+
+        try:
+            result = await self.agent.run_hands_on(duration_minutes, credit_budget)
+            logger.info(f"Hands-on complete: {json.dumps(result, indent=2)}")
+        finally:
+            await self.agent.stop()
+
+    async def start_auto_session(self):
+        """
+        Auto-progression session: explore → hands-on → production.
+
+        Checks learning progress and runs the appropriate phase:
+        1. If features under 0.5 confidence exist → exploration
+        2. If features between 0.5-0.7 exist → hands-on learning
+        3. Otherwise → poll job queue for production work
+        """
+        logger.info("Starting auto-progression session")
+
+        success = await self.agent.start()
+        if not success:
+            logger.error("Failed to start — cannot run auto session")
+            return
+
+        try:
+            progress = self.agent.get_learning_progress()
+            logger.info(f"Current progress: {json.dumps(progress, indent=2)}")
+
+            # Phase 1: Exploration (if unexplored features remain)
+            if progress["explored"] < progress["total_features"]:
+                logger.info(
+                    f"Phase 1 — Exploration: "
+                    f"{progress['explored']}/{progress['total_features']} explored"
+                )
+                result = await self.agent.run_exploration(duration_minutes=120)
+                logger.info(f"Exploration result: {json.dumps(result, indent=2)}")
+
+            # Phase 2: Hands-on (if explored but not proficient)
+            if progress["proficient"] < progress["explored"]:
+                logger.info(
+                    f"Phase 2 — Hands-on: "
+                    f"{progress['proficient']}/{progress['explored']} proficient"
+                )
+                result = await self.agent.run_hands_on(
+                    duration_minutes=120, credit_budget=100,
+                )
+                logger.info(f"Hands-on result: {json.dumps(result, indent=2)}")
+
+            # Phase 3: Idle / production
+            else:
+                logger.info("Phase 3 — All features proficient. Ready for production.")
+
+        finally:
+            await self.agent.stop()
+
     async def print_status(self):
         """Print current status and exit."""
         status = self.agent.get_status()
@@ -217,6 +287,18 @@ def parse_args():
         help="Run an exploration session for N minutes, then exit"
     )
     parser.add_argument(
+        "--hands-on", type=int, metavar="MINUTES", dest="hands_on",
+        help="Run a hands-on learning session for N minutes (spends credits)"
+    )
+    parser.add_argument(
+        "--budget", type=int, default=100,
+        help="Credit budget for hands-on session (default: 100)"
+    )
+    parser.add_argument(
+        "--auto", action="store_true",
+        help="Auto-progress: explore → hands-on → production"
+    )
+    parser.add_argument(
         "--status", action="store_true",
         help="Print current status and exit"
     )
@@ -254,6 +336,14 @@ async def main():
 
     if args.explore:
         await system.start_exploration(args.explore)
+        return
+
+    if args.hands_on:
+        await system.start_hands_on(args.hands_on, args.budget)
+        return
+
+    if args.auto:
+        await system.start_auto_session()
         return
 
     # Default: run as persistent service

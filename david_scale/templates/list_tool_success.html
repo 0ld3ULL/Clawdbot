@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Application Submitted{% endblock %}
+
+{% block content %}
+<div class="coming-soon" style="margin-top: 3rem;">
+    <h3>Application Received</h3>
+    <p>
+        <strong>{{ tool_name }}</strong> has been submitted for review.
+        We review applications weekly and will reach out if we need more info.
+    </p>
+    <p style="margin-top: 1rem;">
+        Once approved, your tool will be tracked across forums, influencer reviews,
+        and customer sentiment — and given a Pulse Score.
+    </p>
+    <a href="/" class="cta">Back to Rankings</a>
+</div>
+{% endblock %}

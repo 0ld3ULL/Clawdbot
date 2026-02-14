@@ -55,9 +55,9 @@
         <button class="btn btn-primary" onclick="approveApproval({{ approval.id }})">Approve & Schedule</button>
     </div>
 
-    {% elif approval.action_type in ('video_distribute', 'video_create', 'video_tweet') %}
-    <!-- Video content — redirect to content queue -->
-    <div class="tweet-text">
+    {% elif approval.action_type in ('video_distribute', 'video_create', 'video_tweet', 'script_review') %}
+    <!-- Video/Script content — redirect to content queue -->
+    <div class="tweet-text" style="white-space: pre-wrap;">
         {{ approval.action_data.get('script', '')[:300] }}{% if approval.action_data.get('script', '')|length > 300 %}...{% endif %}
     </div>
     <div class="actions" style="display: flex; justify-content: flex-end; gap: 12px;">

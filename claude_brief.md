@@ -1,6 +1,6 @@
 # Claude Session Brief
-*Generated: 2026-02-13 16:43*
-*Memories: 68 total — 68 clear, 0 fuzzy, 0 fading*
+*Generated: 2026-02-14 07:33*
+*Memories: 69 total — 69 clear, 0 fuzzy, 0 fading*
 *Last decay: 2026-02-10T04:36:52.029534*
 *Last reconciliation: never*
 
@@ -392,6 +392,9 @@ Implemented the David Identity Calibration System across 6 files. When Jono reje
 
 ### Fixed 7 bugs in cinematic video pipeline
 Fixed all 7 bugs: (1) Scene.image_url for Runway, (2) await on_progress callbacks, (3) FFmpeg map instead of amix for silent video, (4) MusicLibrary().get_track, (5) use_browser_music=False, (6) async _run_ffmpeg helper, (7) generate_script() with ModelRouter + video_script personality. Ready for Wall verification.
+
+### Occy hybrid LLM: Gemini Flash + Sonnet escalation
+Switched Occy browser automation from Claude Sonnet to Gemini 2.5 Flash as default (3x faster, 30x cheaper). Auto-escalation: when Flash fails a task, retries with Sonnet, then drops back to Flash. Configurable via --llm gemini|sonnet|ollama flag. RTX 4060 8GB available for local Ollama. Also added: Google OAuth domains to allowlist, 5-min login wait loop, removed credit balance checks, EDITOR_CATEGORIES nav hints.
 
 ## Tools
 

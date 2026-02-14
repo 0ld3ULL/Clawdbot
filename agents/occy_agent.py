@@ -285,6 +285,56 @@ class OccyAgent:
         finally:
             self._mode = "idle"
 
+    async def run_hands_on(
+        self, duration_minutes: int = 60, credit_budget: int = 100,
+    ) -> dict:
+        """
+        Run a hands-on learning session.
+
+        Occy actually USES generative features — spending credits to
+        create real content, measuring costs, and reviewing quality.
+        """
+        if self.kill_switch.is_active:
+            return {"error": "Kill switch active"}
+
+        if not self._running:
+            return {"error": "Agent not started"}
+
+        self._mode = "hands_on"
+        logger.info(
+            f"Starting {duration_minutes}-minute hands-on session "
+            f"(budget: {credit_budget} credits)"
+        )
+
+        try:
+            learner = self._get_learner()
+            result = await learner.run_hands_on_session(
+                duration_minutes, credit_budget
+            )
+
+            self.events.add(
+                title=f"Hands-on session: {result['features_tested']} features tested",
+                summary=(
+                    f"Tested {result['features_tested']} features, "
+                    f"spent {result['total_credits_spent']}/{result['credit_budget']} credits"
+                ),
+                significance=5,
+                category="learning",
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Hands-on session failed: {e}")
+            self.audit_log.log(
+                "occy", "reject", "hands_on",
+                f"Hands-on session failed: {e}",
+                success=False,
+            )
+            return {"error": str(e)}
+        finally:
+            self._mode = "idle"
+
     async def submit_job(
         self,
         title: str,
@@ -426,6 +476,14 @@ class OccyAgent:
             result = await self.run_exploration(minutes)
             return json.dumps(result, indent=2)
 
+        elif command == "hands_on":
+            # Parse: hands_on <minutes> <budget>
+            parts = args.strip().split()
+            minutes = int(parts[0]) if len(parts) >= 1 and parts[0].isdigit() else 60
+            budget = int(parts[1]) if len(parts) >= 2 and parts[1].isdigit() else 100
+            result = await self.run_hands_on(minutes, budget)
+            return json.dumps(result, indent=2)
+
         elif command == "job":
             if not args.strip():
                 return "Usage: job <description of video to create>"
@@ -459,6 +517,7 @@ class OccyAgent:
                 "Occy commands:\n"
                 "  status — Current agent status\n"
                 "  explore [minutes] — Start exploration session\n"
+                "  hands_on [minutes] [budget] — Hands-on learning (spend credits)\n"
                 "  job <description> — Submit new video job\n"
                 "  produce <job_id> — Execute approved job\n"
                 "  screenshot [name] — Take screenshot\n"

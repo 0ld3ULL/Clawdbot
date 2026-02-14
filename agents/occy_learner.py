@@ -33,6 +33,23 @@ logger = logging.getLogger(__name__)
 CURRICULUM_PATH = Path("config/occy_curriculum.yaml")
 FEATURE_MAP_PATH = Path("data/occy_feature_map.json")
 
+# Categories containing features that generate content (cost credits).
+# Used to filter _select_next_feature() in hands-on mode.
+GENERATIVE_CATEGORIES = {
+    "video_models", "image_models", "voice_tts", "project_creation",
+}
+
+# Default test prompts per category when a feature lacks its own test_prompt.
+DEFAULT_TEST_PROMPTS = {
+    "video_models": "A person walking through a park on a sunny day",
+    "image_models": "A mountain landscape at sunset",
+    "voice_tts": "Hello, welcome to AIPulse",
+    "project_creation": "A 10 second video about a sunrise over the ocean",
+}
+
+# Credit safety floor — stop hands-on learning if balance drops below this.
+CREDIT_SAFETY_FLOOR = 200
+
 
 class OccyLearner:
     """
@@ -93,6 +110,8 @@ class OccyLearner:
                     "confidence": feat.get("confidence", 0.0),
                     "priority": feat.get("priority", 5),
                     "notes": feat.get("notes", ""),
+                    "generative": feat.get("generative", False),
+                    "test_prompt": feat.get("test_prompt", ""),
                     "explored_count": 0,
                     "last_explored": None,
                     "knowledge_ids": [],  # IDs of related KnowledgeStore entries
@@ -114,25 +133,69 @@ class OccyLearner:
         self,
         job_relevant: list[str] = None,
         exclude: set[str] = None,
+        mode: str = "explore",
     ) -> tuple[str, dict] | None:
         """
-        Select the next feature to explore.
+        Select the next feature to explore or practice hands-on.
 
-        Priority order:
-        1. Unexplored (confidence 0.0) with highest priority
-        2. Partially explored (confidence < 0.5) with highest priority
-        3. Job-relevant features (if a job needs specific skills)
-        4. Random deep-dive on a known feature
+        In "explore" mode (default):
+            1. Unexplored (confidence 0.0) with highest priority
+            2. Partially explored (confidence < 0.5) with highest priority
+            3. Job-relevant features (if a job needs specific skills)
+            4. Random deep-dive on a known feature
+
+        In "hands_on" mode:
+            - Only selects generative features (ones that cost credits)
+            - Targets confidence 0.3-0.7 (explored but not production-tested)
+            - Priority 1 features first
 
         Args:
             job_relevant: Feature names relevant to a current job
             exclude: Feature names to skip (already attempted this session)
+            mode: "explore" or "hands_on"
 
         Returns:
             (category_name, feature_dict) or None if all mastered/excluded
         """
         exclude = exclude or set()
 
+        if mode == "hands_on":
+            # Hands-on mode: only generative features at 0.3-0.7 confidence
+            candidates = []
+            for cat_name, cat_data in self.feature_map.get("categories", {}).items():
+                for feat in cat_data.get("features", []):
+                    if feat["name"] in exclude:
+                        continue
+                    # Must be generative (costs credits) or in a generative category
+                    is_generative = feat.get("generative", False) or cat_name in GENERATIVE_CATEGORIES
+                    if not is_generative:
+                        continue
+                    # Target range: explored but not yet hands-on tested
+                    if 0.3 <= feat["confidence"] <= 0.7:
+                        candidates.append((cat_name, feat))
+
+            if candidates:
+                candidates.sort(key=lambda x: (x[1]["priority"], x[1]["confidence"]))
+                return candidates[0]
+
+            # Fallback: any generative feature under 0.7 (including unexplored)
+            fallback = []
+            for cat_name, cat_data in self.feature_map.get("categories", {}).items():
+                for feat in cat_data.get("features", []):
+                    if feat["name"] in exclude:
+                        continue
+                    is_generative = feat.get("generative", False) or cat_name in GENERATIVE_CATEGORIES
+                    if is_generative and feat["confidence"] < 0.7:
+                        fallback.append((cat_name, feat))
+
+            if fallback:
+                fallback.sort(key=lambda x: (x[1]["priority"], -x[1]["confidence"]))
+                return fallback[0]
+
+            logger.info("All generative features at confidence >= 0.7 — hands-on complete!")
+            return None
+
+        # --- Standard explore mode ---
         unexplored = []
         partial = []
         relevant = []
@@ -507,6 +570,334 @@ class OccyLearner:
             "confidence_delta": confidence_delta,
             "credits_used": credits_used,
         }
+
+    async def explore_hands_on(
+        self, category: str, feature: dict, credit_budget: int = 10,
+    ) -> dict:
+        """
+        Actually USE a generative feature — spend credits, measure results.
+
+        Unlike explore_feature() which only catalogues UI, this method:
+        1. Checks credit balance before starting
+        2. Creates a minimal test (simple prompt, short duration)
+        3. Clicks Generate — actually spends credits
+        4. Waits for result
+        5. Measures real credit cost (before - after)
+        6. Reviews output quality
+        7. Stores findings tagged source="hands_on_test"
+        8. Updates confidence into the 0.7-0.9 range
+
+        Args:
+            category: Feature category (e.g. "video_models")
+            feature: Feature dict from feature map
+            credit_budget: Max credits to spend on this single test
+
+        Returns:
+            dict with success, credits_spent, generation_time, quality_notes, etc.
+        """
+        feature_name = feature["name"]
+        logger.info(f"Hands-on test: [{category}] {feature_name}")
+
+        # Quick connection check
+        if not self.browser.is_connected:
+            logger.warning(f"Browser disconnected before hands-on test of {feature_name}")
+            return {
+                "success": False,
+                "feature": feature_name,
+                "error": "Browser disconnected",
+                "credits_spent": 0,
+            }
+
+        # Step 1: Check credit balance
+        credits_before = await self.browser.get_credit_balance()
+        if credits_before is None:
+            logger.warning("Could not read credit balance — skipping hands-on test")
+            return {
+                "success": False,
+                "feature": feature_name,
+                "error": "Could not read credit balance",
+                "credits_spent": 0,
+            }
+
+        if credits_before < CREDIT_SAFETY_FLOOR:
+            logger.warning(
+                f"Credit balance {credits_before} below safety floor "
+                f"{CREDIT_SAFETY_FLOOR} — skipping hands-on"
+            )
+            return {
+                "success": False,
+                "feature": feature_name,
+                "error": f"Credit balance {credits_before} below safety floor {CREDIT_SAFETY_FLOOR}",
+                "credits_spent": 0,
+            }
+
+        # Step 2: Determine test prompt
+        test_prompt = feature.get("test_prompt") or DEFAULT_TEST_PROMPTS.get(category, "")
+        if not test_prompt:
+            test_prompt = "A simple test scene with a person walking outdoors"
+
+        # Step 3: Navigate and generate
+        #
+        # Build a generation prompt. This is the key difference from exploration —
+        # we actually click Generate.
+        gen_prompt = (
+            f"You are testing the '{feature_name}' feature in Focal ML. "
+            f"Feature: {feature['description']}. "
+        )
+
+        if category == "video_models":
+            gen_prompt += (
+                f"Create a SHORT test video (5-10 seconds) using this model. "
+                f"Steps:\n"
+                f"1. Make sure you're in a project (create one if needed)\n"
+                f"2. Select '{feature_name}' as the video model\n"
+                f"3. Use this prompt: \"{test_prompt}\"\n"
+                f"4. Set duration to the shortest available option\n"
+                f"5. Click Generate/Render and WAIT for it to complete\n"
+                f"6. Note the result — did it succeed? How long did it take?\n"
+                f"Do NOT cancel — let the generation finish."
+            )
+        elif category == "image_models":
+            gen_prompt += (
+                f"Generate a single test image using this model. "
+                f"Steps:\n"
+                f"1. Make sure you're in a project (create one if needed)\n"
+                f"2. Select '{feature_name}' as the image model\n"
+                f"3. Use this prompt: \"{test_prompt}\"\n"
+                f"4. Click Generate and WAIT for the result\n"
+                f"5. Note the quality of the output."
+            )
+        elif category == "voice_tts":
+            gen_prompt += (
+                f"Generate a short voice clip using this model. "
+                f"Steps:\n"
+                f"1. Make sure you're in a project\n"
+                f"2. Select '{feature_name}' as the voice model\n"
+                f"3. Use this text: \"{test_prompt}\"\n"
+                f"4. Click Generate/Preview and WAIT for the result\n"
+                f"5. Note the voice quality."
+            )
+        else:
+            gen_prompt += (
+                f"Test this feature by creating a minimal output. "
+                f"Use prompt: \"{test_prompt}\". "
+                f"Click Generate/Create and wait for the result."
+            )
+
+        start_time = datetime.now()
+        gen_result = await self.browser.run_task(gen_prompt)
+        generation_time = (datetime.now() - start_time).total_seconds()
+
+        if gen_result.get("disconnected"):
+            logger.warning(f"Browser disconnected during generation of {feature_name}")
+            return {
+                "success": False,
+                "feature": feature_name,
+                "error": "Browser disconnected during generation",
+                "credits_spent": 0,
+                "generation_time_seconds": round(generation_time, 1),
+            }
+
+        # Step 4: Measure credit cost
+        credits_after = await self.browser.get_credit_balance()
+        credits_spent = 0
+        if credits_after is not None and credits_before is not None:
+            credits_spent = max(0, credits_before - credits_after)
+
+        # Step 5: Screenshot and quality review
+        screenshot_path = await self.browser.take_screenshot(f"hands_on_{feature_name}")
+
+        quality_notes = ""
+        if gen_result["success"]:
+            # Ask the browser agent to review the output quality
+            review_result = await self.browser.run_task(
+                f"Look at the output that was just generated by '{feature_name}'. "
+                f"Rate the quality briefly:\n"
+                f"- Did it match the prompt? (yes/partially/no)\n"
+                f"- Visual quality (good/decent/poor)\n"
+                f"- Any artifacts or issues? (face distortion, motion blur, etc.)\n"
+                f"- Would this be usable in a real video? (yes/with-editing/no)\n"
+                f"Be concise — 2-3 sentences max."
+            )
+            if review_result["success"]:
+                quality_notes = await self._distill_knowledge(
+                    review_result["result"], feature_name, category, "feature"
+                )
+
+        # Step 6: Store hands-on knowledge
+        hands_on_entry = {
+            "feature": feature_name,
+            "category": category,
+            "test_prompt": test_prompt,
+            "credits_spent": credits_spent,
+            "generation_time_seconds": round(generation_time, 1),
+            "quality_notes": quality_notes,
+            "generation_succeeded": gen_result["success"],
+            "tested_at": datetime.now().isoformat(),
+        }
+
+        knowledge_id = self.knowledge.add(
+            category="technical",
+            topic=f"Focal ML hands-on: {feature_name}",
+            content=json.dumps(hands_on_entry, indent=2),
+            source="hands_on_test",
+            confidence=0.9,
+            tags=["hands_on_test", category, feature_name],
+        )
+
+        # Step 7: Update confidence
+        # +0.2 for successful generation, +0.1 for quality review
+        if gen_result["success"]:
+            confidence_delta = 0.2
+            if quality_notes:
+                confidence_delta += 0.1  # Quality review completed
+        else:
+            confidence_delta = 0.05  # Failed generation still teaches something
+
+        self._update_feature_progress(category, feature_name, confidence_delta, knowledge_id)
+
+        if self.audit_log:
+            self.audit_log.log(
+                "occy", "info", "hands_on",
+                f"Hands-on test: {feature_name}",
+                details=(
+                    f"credits_spent={credits_spent}, "
+                    f"time={round(generation_time, 1)}s, "
+                    f"success={gen_result['success']}"
+                ),
+            )
+
+        logger.info(
+            f"Hands-on complete: {feature_name} — "
+            f"{credits_spent} credits, {round(generation_time, 1)}s, "
+            f"success={gen_result['success']}"
+        )
+
+        return {
+            "success": gen_result["success"],
+            "feature": feature_name,
+            "credits_spent": credits_spent,
+            "generation_time_seconds": round(generation_time, 1),
+            "quality_notes": quality_notes,
+            "confidence_delta": confidence_delta,
+        }
+
+    async def run_hands_on_session(
+        self, duration_minutes: int = 60, credit_budget: int = 100,
+    ) -> dict:
+        """
+        Run a timed hands-on learning session.
+
+        Selects generative features that have been explored (confidence 0.3-0.7)
+        and actually uses them — spending credits to generate real output.
+
+        Stops when:
+        - Time runs out
+        - Credit budget exhausted
+        - Credit balance drops below safety floor
+        - All generative features at confidence >= 0.7
+
+        Args:
+            duration_minutes: Max session length
+            credit_budget: Max total credits to spend across all tests
+
+        Returns:
+            dict with features_tested, credits_spent, session summary
+        """
+        start = datetime.now()
+        deadline = start.timestamp() + (duration_minutes * 60)
+
+        features_tested = 0
+        total_credits_spent = 0
+        tested_features = []
+        session_attempted = set()
+        browser_restarts = 0
+
+        logger.info(
+            f"Starting {duration_minutes}-minute hands-on session "
+            f"(budget: {credit_budget} credits)"
+        )
+
+        while datetime.now().timestamp() < deadline:
+            # Check browser health
+            if not await self._ensure_browser_connected():
+                logger.error("Browser unrecoverable — ending hands-on session")
+                break
+
+            # Check credit budget
+            if total_credits_spent >= credit_budget:
+                logger.info(
+                    f"Credit budget exhausted ({total_credits_spent}/{credit_budget}) "
+                    f"— ending hands-on session"
+                )
+                break
+
+            # Select next feature for hands-on testing
+            selection = self._select_next_feature(
+                exclude=session_attempted, mode="hands_on"
+            )
+            if selection is None:
+                logger.info("No more features for hands-on testing — ending session")
+                break
+
+            category, feature = selection
+            session_attempted.add(feature["name"])
+
+            # Per-test budget: remaining budget, capped at a reasonable per-test max
+            remaining_budget = credit_budget - total_credits_spent
+            per_test_budget = min(remaining_budget, 50)
+
+            logger.info(
+                f"Hands-on session: Testing [{category}] {feature['name']} "
+                f"(confidence: {feature['confidence']:.1f}, "
+                f"budget remaining: {remaining_budget} credits)"
+            )
+
+            # Run hands-on test
+            result = await self.explore_hands_on(
+                category, feature, credit_budget=per_test_budget
+            )
+
+            features_tested += 1
+            credits_spent = result.get("credits_spent", 0)
+            total_credits_spent += credits_spent
+            tested_features.append({
+                "category": category,
+                "feature": feature["name"],
+                "success": result["success"],
+                "credits_spent": credits_spent,
+                "generation_time": result.get("generation_time_seconds", 0),
+                "confidence_delta": result.get("confidence_delta", 0),
+            })
+
+            # If browser died, try restart
+            if not self.browser.is_connected:
+                browser_restarts += 1
+                if browser_restarts > 3:
+                    logger.error("Too many browser restarts — ending hands-on session")
+                    break
+
+            # Brief pause between tests
+            await asyncio.sleep(3)
+
+        duration_actual = (datetime.now() - start).total_seconds() / 60
+
+        summary = {
+            "features_tested": features_tested,
+            "total_credits_spent": total_credits_spent,
+            "credit_budget": credit_budget,
+            "session_duration_minutes": round(duration_actual, 1),
+            "browser_restarts": browser_restarts,
+            "tested": tested_features,
+        }
+
+        logger.info(
+            f"Hands-on session complete: {features_tested} features tested, "
+            f"{total_credits_spent}/{credit_budget} credits spent, "
+            f"{duration_actual:.1f} minutes"
+        )
+
+        return summary
 
     def _update_feature_progress(
         self, category: str, feature_name: str,

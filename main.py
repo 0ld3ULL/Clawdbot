@@ -454,9 +454,30 @@ class DavidSystem:
         self.scheduler.register_executor("thread", self.oprah._execute_scheduled_tweet)
         self.scheduler.register_executor("reply", self.oprah._execute_scheduled_tweet)
 
+        # --- DAVID SCALE: Weekly scoring pipeline (Sundays) ---
+        # Sunday 06:00 UTC — Run sentiment pipeline
+        self.cron_scheduler.add_job(
+            lambda: asyncio.run_coroutine_threadsafe(self._run_david_scale_sentiment(), self._loop),
+            trigger=CronTrigger(day_of_week="sun", hour=6, minute=0),
+            id="david_scale_sentiment",
+        )
+        # Sunday 07:00 UTC — Calculate scores + detect ranking changes
+        self.cron_scheduler.add_job(
+            lambda: asyncio.run_coroutine_threadsafe(self._run_david_scale_scoring(), self._loop),
+            trigger=CronTrigger(day_of_week="sun", hour=7, minute=0),
+            id="david_scale_scoring",
+        )
+        # Sunday 08:00 UTC — Generate auto-tweets for ranking changes
+        self.cron_scheduler.add_job(
+            lambda: asyncio.run_coroutine_threadsafe(self._run_david_scale_tweets(), self._loop),
+            trigger=CronTrigger(day_of_week="sun", hour=8, minute=0),
+            id="david_scale_tweets",
+        )
+
         self.cron_scheduler.start()
         logger.info("Cron: Research 2:00 UTC | Tweets 6/day (11:30/14:30/17:30/20:30/23:30/2:30 UTC) | Hot every 3h | Warm every 10h")
         logger.info("Cron: Momentum — Mentions every 15m | Reply targets every 6h | Performance every 4h | Report 7:00 UTC")
+        logger.info("Cron: David Scale — Sentiment Sun 06:00 | Scoring Sun 07:00 | Tweets Sun 08:00")
 
         logger.info("System online. Waiting for commands via Telegram.")
         logger.info(f"Operator chat ID: {os.environ.get('TELEGRAM_OPERATOR_CHAT_ID', 'NOT SET')}")
@@ -482,6 +503,77 @@ class DavidSystem:
                     await self._heartbeat()
         except asyncio.CancelledError:
             pass
+
+    # --- David Scale methods ---
+
+    async def _run_david_scale_sentiment(self):
+        """Run the David Scale sentiment pipeline (Sunday 06:00 UTC)."""
+        if self.kill_switch.is_active:
+            logger.warning("Skipping David Scale sentiment - kill switch active")
+            return
+
+        try:
+            from david_scale.sentiment import SentimentPipeline
+            pipeline = SentimentPipeline(
+                model_router=self.model_router,
+                research_db_path="data/research.db",
+            )
+            stats = await pipeline.run(days=7)
+            logger.info(f"David Scale sentiment complete: {stats}")
+            self.audit_log.log(
+                "david-scale", "info", "sentiment",
+                f"Sentiment: {stats.get('customer_mentions', 0)} customer, "
+                f"{stats.get('influencer_reviews', 0)} influencer"
+            )
+        except Exception as e:
+            logger.error(f"David Scale sentiment failed: {e}")
+
+    async def _run_david_scale_scoring(self):
+        """Run the David Scale scoring engine (Sunday 07:00 UTC)."""
+        if self.kill_switch.is_active:
+            return
+
+        try:
+            from david_scale.scorer import DavidScaleScorer
+            from david_scale.models import DavidScaleDB
+            db = DavidScaleDB()
+            scorer = DavidScaleScorer(db=db)
+            results = scorer.score_all()
+            self._david_scale_results = results  # Store for tweet step
+            changes = scorer.detect_ranking_changes(results)
+            self._david_scale_changes = changes
+            logger.info(f"David Scale scoring: {len(results)} tools, {len(changes)} changes")
+            self.audit_log.log(
+                "david-scale", "info", "scoring",
+                f"Scored {len(results)} tools, {len(changes)} ranking changes"
+            )
+        except Exception as e:
+            logger.error(f"David Scale scoring failed: {e}")
+
+    async def _run_david_scale_tweets(self):
+        """Generate auto-tweets for David Scale ranking changes (Sunday 08:00 UTC)."""
+        if self.kill_switch.is_active:
+            return
+
+        changes = getattr(self, "_david_scale_changes", [])
+        if not changes:
+            logger.info("David Scale: no ranking changes to tweet")
+            return
+
+        try:
+            from david_scale.tweets import DavidScaleTweeter
+            tweeter = DavidScaleTweeter(
+                model_router=self.model_router,
+                approval_queue=self.approval_queue,
+            )
+            tweets = await tweeter.generate_tweets(changes)
+            logger.info(f"David Scale: {len(tweets)} tweets queued for approval")
+            self.audit_log.log(
+                "david-scale", "info", "tweets",
+                f"Queued {len(tweets)} auto-tweets for ranking changes"
+            )
+        except Exception as e:
+            logger.error(f"David Scale tweet generation failed: {e}")
 
     async def _run_daily_research(self, data: dict = None) -> dict:
         """Run the daily research cycle."""

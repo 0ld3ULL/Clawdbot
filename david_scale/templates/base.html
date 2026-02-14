@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AIPulse{% endblock %} — Check the Pulse on AI</title>
+    <meta name="description" content="AIPulse — the CoinMarketCap of AI. Check the pulse on any AI tool. Industry stats, influencer reviews, customer sentiment, usability, value — all in one Pulse Score.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="header">
+        <h1><a href="/" style="color: inherit;"><span>AI</span>Pulse</a></h1>
+        <div class="tagline">Check the pulse on AI. All referenced. All scored.</div>
+    </header>
+
+    <nav class="category-tabs">
+        <a href="/" class="category-tab {% if not active_category %}active{% endif %}">All</a>
+        {% for cat in categories %}
+        <a href="/category/{{ cat.slug }}"
+           class="category-tab {% if active_category == cat.slug %}active{% endif %}">
+            {{ cat.name }}
+            <span class="tab-count">{{ cat.count }}</span>
+        </a>
+        {% endfor %}
+        <a href="/list-your-tool" class="category-tab list-tab">+ Get Listed</a>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>AIPulse &mdash; Part of <a href="https://flipt.ai">FLIPT AI</a></p>
+        <p>Industry (10%) + Influencer (25%) + Customer (25%) + Usability (15%) + Value (15%) + Momentum (10%)</p>
+        <p style="margin-top: 0.5rem;">The most powerful car isn't always the best to drive.</p>
+    </footer>
+</body>
+</html>
