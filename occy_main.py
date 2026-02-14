@@ -6,15 +6,18 @@ Does NOT need the VPS, Telegram bot, or Twitter. Shares safety infrastructure
 (KillSwitch, AuditLog, TokenBudget).
 
 Usage:
-    python occy_main.py                    # Headless mode (production)
+    python occy_main.py                    # Headless, Gemini Flash (default)
     python occy_main.py --visible          # Visible browser (for manual login / debugging)
     python occy_main.py --explore 60       # Run 60-minute exploration session
-    python occy_main.py --status           # Print status and exit
+    python occy_main.py --llm gemini       # Use Gemini Flash (~1-3s/action, default)
+    python occy_main.py --llm sonnet       # Use Claude Sonnet (~8-12s/action)
+    python occy_main.py --llm ollama       # Use local Ollama (~2-4s/action, free)
+    python occy_main.py --status           # Print current status and exit
 
 Environment:
     Requires .env file with:
-    - ANTHROPIC_API_KEY (for Browser Use agent)
-    - GOOGLE_API_KEY (for Gemini video review)
+    - GOOGLE_API_KEY (for Gemini browser agent + video review)
+    - ANTHROPIC_API_KEY (only if using --llm sonnet)
 """
 
 import argparse
@@ -65,7 +68,7 @@ class OccySystem:
     - No Telegram bot (yet — Phase 2 will add it)
     """
 
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = True, llm_provider: str = "gemini"):
         # Ensure data directory exists
         Path("data").mkdir(exist_ok=True)
 
@@ -87,6 +90,7 @@ class OccySystem:
             token_budget=self.token_budget,
             model_router=self.model_router,
             headless=headless,
+            llm_provider=llm_provider,
         )
 
         # Event loop reference (for heartbeat)
@@ -216,6 +220,11 @@ def parse_args():
         "--status", action="store_true",
         help="Print current status and exit"
     )
+    parser.add_argument(
+        "--llm", choices=["gemini", "sonnet", "ollama"],
+        default="gemini",
+        help="LLM provider for browser automation: gemini (fast, default), sonnet (reliable), ollama (local/free)"
+    )
     return parser.parse_args()
 
 
@@ -223,7 +232,7 @@ async def main():
     args = parse_args()
     headless = not args.visible
 
-    system = OccySystem(headless=headless)
+    system = OccySystem(headless=headless, llm_provider=args.llm)
 
     # Handle shutdown signals
     loop = asyncio.get_event_loop()

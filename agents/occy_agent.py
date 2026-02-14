@@ -48,6 +48,7 @@ class OccyAgent:
         model_router=None,
         approval_queue=None,
         headless: bool = True,
+        llm_provider: str = "gemini",
     ):
         # Safety infrastructure (shared with main system)
         self.kill_switch = kill_switch
@@ -55,6 +56,7 @@ class OccyAgent:
         self.token_budget = token_budget
         self.model_router = model_router
         self.approval_queue = approval_queue
+        self._llm_provider = llm_provider
 
         # Personality
         self.personality = OccyPersonality()
@@ -111,10 +113,25 @@ class OccyAgent:
             else:
                 logger.warning(
                     "Not logged in to Focal ML. Browser is visible — "
-                    "please log in manually. Occy will wait."
+                    "please log in manually. Occy will wait up to 5 minutes."
                 )
-                # In visible mode, wait for manual login
-                # The browser stays open for Jono to log in
+                # Wait for manual login — poll every 30 seconds for 5 minutes
+                for attempt in range(10):
+                    logger.info(
+                        f"Waiting for manual login... "
+                        f"({(attempt + 1) * 30}s / 300s)"
+                    )
+                    await asyncio.sleep(30)
+                    logged_in = await browser.check_login()
+                    if logged_in:
+                        break
+
+                if not logged_in:
+                    logger.error(
+                        "Login timeout — no manual login detected after 5 minutes. "
+                        "Please run again and log in to Focal ML in the browser window."
+                    )
+                    return False
 
         self._running = True
 
@@ -179,7 +196,10 @@ class OccyAgent:
         """Get or create the browser instance."""
         if self._browser is None:
             from agents.occy_browser import FocalBrowser
-            self._browser = FocalBrowser(headless=self._headless)
+            self._browser = FocalBrowser(
+                headless=self._headless,
+                llm_provider=self._llm_provider,
+            )
             success = await self._browser.start()
             if not success:
                 self._browser = None

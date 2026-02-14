@@ -295,13 +295,7 @@ class OccyLearner:
 
         findings = []
 
-        # Only check credit balance if browser is healthy (this is expensive —
-        # spawns a full Browser Use agent task)
-        credits_before = None
-        if self.browser.is_connected:
-            credits_before = await self.browser.get_credit_balance()
-
-        # Bail early if browser died during credit check
+        # Quick connection check (no API call — just checks internal state)
         if not self.browser.is_connected:
             logger.warning(f"Browser disconnected before exploring {feature_name}")
             self._update_feature_progress(category, feature_name, 0.0)
@@ -312,18 +306,47 @@ class OccyLearner:
                 "credits_used": 0,
             }
 
+        # Skip credit balance checks during exploration — they cost a full
+        # browser-use agent call (~30s each) and we're not spending credits
+        # during learning.  Only check if explicitly producing a video.
+        credits_before = None
+
         # Step 0: Get course material for context
         course_context = self._get_course_knowledge(feature_name, category)
         if course_context:
             logger.info(f"  Course material found for {feature_name} ({len(course_context)} chars)")
 
         # Step 1: Navigate to the feature (with course context if available)
+        #
+        # Categories that live inside the project EDITOR (not the home page):
+        # If the feature is in one of these categories, Occy must open an
+        # existing project first to access the editor workspace.
+        EDITOR_CATEGORIES = {
+            "editor_chat", "stock_media", "transitions", "effects",
+            "text_overlays", "captions", "settings", "timeline",
+            "characters", "voice_tts", "video_models", "image_models",
+        }
+
         nav_prompt = (
             f"Navigate to the '{feature_name}' feature area in Focal ML. "
             f"This is in the '{category}' category. "
             f"Feature description: {feature['description']}. "
-            f"Find and open this feature's UI."
         )
+
+        # Add notes if they contain useful navigation hints
+        if feature.get("notes"):
+            nav_prompt += f"Location hint: {feature['notes']}. "
+
+        # For editor-level features, instruct Occy to enter a project first
+        if category in EDITOR_CATEGORIES:
+            nav_prompt += (
+                "IMPORTANT: This feature is inside the PROJECT EDITOR, not on the home page. "
+                "You MUST first open an existing project (click on any project in the sidebar "
+                "under 'Recent' or 'All projects') to enter the editor workspace. "
+                "Once in the editor, look for the relevant panel in the left sidebar or bottom bar. "
+            )
+        else:
+            nav_prompt += "Find and open this feature's UI. "
         if course_context:
             nav_prompt += (
                 f"\n\nHere is what tutorial videos from ~March 2025 say about this feature "
@@ -444,14 +467,9 @@ class OccyLearner:
         if explore_result["success"]:
             findings.append(f"Options explored: {explore_result['result']}")
 
-        # Step 5: Document findings — skip credit balance if browser is unhealthy
-        credits_after = None
-        if self.browser.is_connected:
-            credits_after = await self.browser.get_credit_balance()
-
+        # Step 5: Document findings
+        # Credit balance check skipped during exploration (too expensive)
         credits_used = 0
-        if credits_before is not None and credits_after is not None:
-            credits_used = max(0, credits_before - credits_after)
 
         # Distill and store comprehensive finding
         raw_finding = "\n".join(findings)

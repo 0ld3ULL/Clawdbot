@@ -34,6 +34,10 @@ ALLOWED_DOMAINS = [
     "focalml.com",
     "www.focalml.com",
     "app.focalml.com",
+    "control.focalml.com",
+    # Google OAuth domains — required for Focal ML login
+    "accounts.google.com",
+    "myaccount.google.com",
 ]
 
 # Extended allowlist for Phase 4 (marketplace) — disabled by default
@@ -43,6 +47,16 @@ MARKETPLACE_DOMAINS = [
     "upwork.com",
     "www.upwork.com",
 ]
+
+
+
+# Supported LLM providers for browser automation
+LLM_PROVIDERS = {
+    "gemini": "Gemini 2.5 Flash — fast (~1-3s/action), cheap, great vision",
+    "sonnet": "Claude Sonnet — slower (~8-12s/action), most reliable",
+    "ollama": "Local Ollama — free, needs GPU, ~2-4s/action",
+}
+DEFAULT_LLM_PROVIDER = "gemini"
 
 
 class FocalBrowser:
@@ -59,6 +73,8 @@ class FocalBrowser:
         self,
         headless: bool = True,
         enable_marketplace: bool = False,
+        llm_provider: str = DEFAULT_LLM_PROVIDER,
+        ollama_model: str = "qwen2.5vl:7b",
     ):
         self.headless = headless
         self.browser = None
@@ -66,6 +82,10 @@ class FocalBrowser:
         self._running = False
         self._connected = False  # Track browser connection health
         self._temp_profile = None  # Set if we fall back to temp profile
+        self._llm_provider = llm_provider
+        self._ollama_model = ollama_model
+        self._llm = None  # Cached fast LLM instance
+        self._smart_llm = None  # Cached escalation LLM (big brain)
 
         # Build domain allowlist
         self.allowed_domains = list(ALLOWED_DOMAINS)
@@ -76,6 +96,49 @@ class FocalBrowser:
         BROWSER_PROFILE_DIR.mkdir(parents=True, exist_ok=True)
         SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
         DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"LLM provider: {self._llm_provider} ({LLM_PROVIDERS.get(self._llm_provider, 'unknown')})")
+
+    def _get_llm(self):
+        """Get or create the LLM instance for browser automation."""
+        if self._llm is not None:
+            return self._llm
+
+        if self._llm_provider == "gemini":
+            from browser_use.llm import ChatGoogle
+            self._llm = ChatGoogle(
+                model="gemini-2.5-flash",
+                api_key=os.environ.get("GOOGLE_API_KEY"),
+                thinking_budget=0,  # Disable thinking — speed over reasoning
+            )
+
+        elif self._llm_provider == "ollama":
+            from browser_use.llm import ChatOllama
+            self._llm = ChatOllama(model=self._ollama_model)
+
+        else:  # sonnet (default fallback)
+            from browser_use.llm import ChatAnthropic
+            self._llm = ChatAnthropic(
+                model="claude-sonnet-4-20250514",
+                api_key=os.environ.get("ANTHROPIC_API_KEY"),
+            )
+
+        logger.info(f"LLM initialized: {self._llm_provider} ({self._llm.name})")
+        return self._llm
+
+    def _get_smart_llm(self):
+        """Get or create the escalation LLM — used when the fast model gets stuck."""
+        if self._smart_llm is not None:
+            return self._smart_llm
+
+        # Escalate to Sonnet — proven reliable for complex UI navigation
+        from browser_use.llm import ChatAnthropic
+        self._smart_llm = ChatAnthropic(
+            model="claude-sonnet-4-20250514",
+            api_key=os.environ.get("ANTHROPIC_API_KEY"),
+        )
+        logger.info(f"Escalation LLM initialized: sonnet ({self._smart_llm.name})")
+        return self._smart_llm
 
     async def start(self) -> bool:
         """
@@ -353,13 +416,47 @@ class FocalBrowser:
         error_lower = error_text.lower()
         return any(p in error_lower for p in self._DISCONNECT_PATTERNS)
 
+    async def _run_agent(self, task: str, llm, max_steps: int) -> dict:
+        """Run a single browser-use agent attempt with the given LLM."""
+        from browser_use import Agent
+
+        agent = Agent(
+            task=task,
+            llm=llm,
+            browser=self.browser,
+            max_actions_per_step=5,
+        )
+
+        history = await agent.run(max_steps=max_steps)
+
+        # Check the history for disconnect errors
+        result_text = str(history.final_result() or "")
+        if self._is_disconnect_error(result_text):
+            self._connected = False
+            logger.warning("Browser disconnected during task execution")
+            return {
+                "success": False,
+                "result": result_text,
+                "steps_taken": len(history.history),
+                "error": "Browser disconnected",
+                "disconnected": True,
+            }
+
+        return {
+            "success": history.is_done() and history.is_successful() is not False,
+            "result": history.final_result(),
+            "steps_taken": len(history.history),
+            "error": None,
+            "disconnected": False,
+        }
+
     async def run_task(self, task: str, max_steps: int = 25) -> dict:
         """
         Run a Browser Use agent task on the current page.
 
-        This is the main entry point for autonomous browser interaction.
-        Browser Use's Agent sees the screen, decides what to click/type,
-        and executes the task step by step.
+        Uses the fast LLM first. If it fails, auto-escalates to the
+        smart LLM (Sonnet) for a retry — then future tasks go back
+        to the fast model.
 
         Args:
             task: Natural language description of what to do
@@ -376,45 +473,27 @@ class FocalBrowser:
             }
 
         try:
-            from browser_use import Agent
-            from browser_use.llm import ChatAnthropic
+            # First attempt: fast model
+            llm = self._get_llm()
+            result = await self._run_agent(task, llm, max_steps)
 
-            # Use browser-use's own ChatAnthropic (not langchain's —
-            # browser-use requires a .provider property that langchain lacks)
-            llm = ChatAnthropic(
-                model="claude-sonnet-4-20250514",
-                api_key=os.environ.get("ANTHROPIC_API_KEY"),
+            # If it worked or browser disconnected, return as-is
+            if result["success"] or result.get("disconnected"):
+                return result
+
+            # Fast model failed — escalate to smart model
+            # Skip escalation if already using sonnet (no point retrying same model)
+            if self._llm_provider == "sonnet":
+                return result
+
+            logger.warning(
+                f"Fast model failed ({self._llm_provider}) after {result['steps_taken']} steps — "
+                f"escalating to Sonnet"
             )
-
-            agent = Agent(
-                task=task,
-                llm=llm,
-                browser=self.browser,
-                max_actions_per_step=5,
-            )
-
-            history = await agent.run(max_steps=max_steps)
-
-            # Check the history for disconnect errors
-            result_text = str(history.final_result() or "")
-            if self._is_disconnect_error(result_text):
-                self._connected = False
-                logger.warning("Browser disconnected during task execution")
-                return {
-                    "success": False,
-                    "result": result_text,
-                    "steps_taken": len(history.history),
-                    "error": "Browser disconnected",
-                    "disconnected": True,
-                }
-
-            return {
-                "success": history.is_done() and history.is_successful() is not False,
-                "result": history.final_result(),
-                "steps_taken": len(history.history),
-                "error": None,
-                "disconnected": False,
-            }
+            smart_llm = self._get_smart_llm()
+            smart_result = await self._run_agent(task, smart_llm, max_steps)
+            smart_result["escalated"] = True
+            return smart_result
 
         except Exception as e:
             error_msg = str(e)
