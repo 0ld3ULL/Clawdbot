@@ -19,7 +19,7 @@ import logging
 import os
 import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -388,8 +388,22 @@ class DavidSystem:
             id="warm_research",
         )
 
-        # DAILY TWEET PLANNER: Momo plans the day's schedule at 6:00 UTC
-        # Replaces the old 6-fixed-slot system with 4-8 organically spaced tweets
+        # WEEKLY CONTENT CALENDAR: Momo plans the week at Monday 05:00 UTC
+        self.cron_scheduler.add_job(
+            lambda: asyncio.run_coroutine_threadsafe(self._plan_weekly_calendar(), self._loop),
+            trigger=CronTrigger(day_of_week="mon", hour=5, minute=0),
+            id="weekly_content_calendar",
+        )
+
+        # Also plan weekly calendar on startup if none exists for this week
+        self.cron_scheduler.add_job(
+            lambda: asyncio.run_coroutine_threadsafe(self._plan_weekly_calendar(), self._loop),
+            trigger=DateTrigger(run_date=datetime.now() + timedelta(seconds=15)),
+            id="weekly_calendar_startup",
+        )
+
+        # DAILY CONTENT PLANNER: Momo plans the day's schedule at 6:00 UTC
+        # Assigns content types (tweet/video/parable/thread) from weekly calendar
         self.cron_scheduler.add_job(
             lambda: asyncio.run_coroutine_threadsafe(self._plan_and_schedule_tweets(), self._loop),
             trigger=CronTrigger(hour=6, minute=0),
@@ -475,7 +489,7 @@ class DavidSystem:
         )
 
         self.cron_scheduler.start()
-        logger.info("Cron: Research 2:00 UTC | Tweet planner 6:00 UTC (Momo 4-8/day organic) | Hot every 3h | Warm every 10h")
+        logger.info("Cron: Research 2:00 UTC | Weekly calendar Mon 05:00 | Daily planner 06:00 (Momo 4-8/day) | Hot every 3h | Warm every 10h")
         logger.info("Cron: Momentum — Mentions every 15m | Reply targets every 6h | Performance every 4h | Report 7:00 UTC")
         logger.info("Cron: David Scale — Sentiment Sun 06:00 | Scoring Sun 07:00 | Tweets Sun 08:00")
 
@@ -598,15 +612,58 @@ class DavidSystem:
             )
             return {"error": str(e)}
 
-    async def _plan_and_schedule_tweets(self):
-        """Have Momo plan today's tweet schedule, then schedule generation jobs.
+    async def _plan_weekly_calendar(self):
+        """Have Momo plan the weekly content calendar if needed.
 
-        Called daily at 6:00 UTC and 30s after boot.
-        For each planned slot, schedules a DateTrigger job 30 minutes before
-        to generate a tweet for Jono to review.
+        Called Monday 05:00 UTC and on startup.
         """
         if self.kill_switch.is_active:
-            logger.info("Skipping tweet planning - kill switch active")
+            logger.info("Skipping weekly calendar - kill switch active")
+            return
+
+        try:
+            plan = self.growth_agent.plan_weekly_calendar()
+
+            # Send summary to Jono via Telegram
+            if self.telegram and self.telegram.app and plan:
+                try:
+                    video_days = plan.get("video_days", [])
+                    parable_days = plan.get("parable_days", [])
+                    thread_days = plan.get("thread_days", [])
+
+                    summary_parts = [
+                        f"MOMO'S WEEKLY CALENDAR — week of {plan['week_start']}\n",
+                        f"Videos ({len(video_days)}): {', '.join(d[5:] for d in video_days) if video_days else 'none'}",
+                        f"Parables ({len(parable_days)}): {', '.join(d[5:] for d in parable_days) if parable_days else 'none'}",
+                        f"Threads ({len(thread_days)}): {', '.join(d[5:] for d in thread_days) if thread_days else 'none'}",
+                        f"\nPlus 4-6 tweets every day.",
+                    ]
+                    await self.telegram.app.bot.send_message(
+                        chat_id=self.telegram.operator_id,
+                        text="\n".join(summary_parts),
+                    )
+                except Exception:
+                    pass
+
+            self.audit_log.log(
+                "david-flip", "info", "weekly_calendar",
+                f"Weekly calendar planned for {plan.get('week_start', '?')}",
+            )
+
+        except Exception as e:
+            logger.error(f"Weekly calendar planning failed: {e}")
+
+    async def _plan_and_schedule_tweets(self):
+        """Have Momo plan today's content schedule, then schedule generation jobs.
+
+        Called daily at 6:00 UTC and 30s after boot.
+        For each planned slot, schedules a generation job with the appropriate
+        lead time based on content type:
+        - tweet/parable/thread: 30 min before
+        - video: 2 hours before (longer generation time)
+        """
+        if self.kill_switch.is_active:
+            logger.info("Skipping content planning - kill switch active")
             return
 
         try:
@@ -615,29 +672,39 @@ class DavidSystem:
             count = plan.get("planned_count", 0)
 
             if not slot_times:
-                logger.warning("Momo returned empty schedule — no tweets planned")
+                logger.warning("Momo returned empty schedule — no content planned")
                 return
 
-            # Schedule a generation job 30min before each slot
+            # Schedule a generation job before each slot
             from apscheduler.triggers.date import DateTrigger
             now = datetime.now()
             scheduled_count = 0
 
-            for i, slot_str in enumerate(slot_times):
+            for i, slot_entry in enumerate(slot_times):
+                # Handle both dict format and legacy string format
+                if isinstance(slot_entry, dict):
+                    slot_str = slot_entry["time"]
+                    content_type = slot_entry.get("type", "tweet")
+                else:
+                    slot_str = slot_entry
+                    content_type = "tweet"
+
                 slot_dt = datetime.fromisoformat(slot_str)
                 # Make naive for APScheduler comparison (APScheduler uses local time)
                 if slot_dt.tzinfo is not None:
                     slot_dt = slot_dt.replace(tzinfo=None)
 
-                gen_time = slot_dt - timedelta(minutes=30)
+                # Video slots need more lead time (2h), others get 30min
+                lead_minutes = 120 if content_type == "video" else 30
+                gen_time = slot_dt - timedelta(minutes=lead_minutes)
 
-                # Skip slots that are already past
+                # Skip slots whose gen time is already past
                 if gen_time < now:
-                    logger.info(f"  Slot {i+1} ({slot_str}) — gen time already passed, skipping")
+                    logger.info(f"  Slot {i+1} ({slot_str} {content_type}) — gen time already passed, skipping")
                     continue
 
                 slot_label = slot_dt.strftime("%H:%M UTC")
-                job_id = f"tweet_gen_{plan['schedule_date']}_{i}"
+                job_id = f"content_gen_{plan['schedule_date']}_{i}"
 
                 # Remove old job if exists (idempotent re-planning)
                 try:
@@ -645,89 +712,116 @@ class DavidSystem:
                 except Exception:
                     pass
 
-                self.cron_scheduler.add_job(
-                    lambda lbl=slot_label: asyncio.run_coroutine_threadsafe(
-                        self._run_single_tweet(slot_label=lbl), self._loop
-                    ),
-                    trigger=DateTrigger(run_date=gen_time),
-                    id=job_id,
-                )
-                scheduled_count += 1
-                logger.info(f"  Slot {i+1}: generate at {gen_time.strftime('%H:%M')} → post at {slot_label}")
+                # Route to the right generator based on content type
+                if content_type == "video":
+                    self.cron_scheduler.add_job(
+                        lambda lbl=slot_label: asyncio.run_coroutine_threadsafe(
+                            self._run_single_video(slot_label=lbl), self._loop
+                        ),
+                        trigger=DateTrigger(run_date=gen_time),
+                        id=job_id,
+                    )
+                else:
+                    self.cron_scheduler.add_job(
+                        lambda lbl=slot_label, ct=content_type: asyncio.run_coroutine_threadsafe(
+                            self._run_single_tweet(slot_label=lbl, content_type=ct), self._loop
+                        ),
+                        trigger=DateTrigger(run_date=gen_time),
+                        id=job_id,
+                    )
 
-            logger.info(f"Momo planned {count} tweets, {scheduled_count} generation jobs scheduled")
+                scheduled_count += 1
+                lead_label = f"{lead_minutes}min lead" if content_type == "video" else "30min lead"
+                logger.info(f"  Slot {i+1}: {content_type} at {slot_label} ({lead_label}, gen at {gen_time.strftime('%H:%M')})")
+
+            logger.info(f"Momo planned {count} content slots, {scheduled_count} generation jobs scheduled")
 
             # Send summary to Jono via Telegram
             if self.telegram and self.telegram.app:
                 try:
-                    slot_list = "\n".join(
-                        f"  {i+1}. {datetime.fromisoformat(s).strftime('%H:%M UTC')}"
-                        for i, s in enumerate(slot_times)
-                    )
+                    lines = []
+                    for i, slot_entry in enumerate(slot_times):
+                        if isinstance(slot_entry, dict):
+                            t = datetime.fromisoformat(slot_entry["time"]).strftime("%H:%M UTC")
+                            ct = slot_entry.get("type", "tweet")
+                        else:
+                            t = datetime.fromisoformat(slot_entry).strftime("%H:%M UTC")
+                            ct = "tweet"
+                        extra = " (script generating 2h before)" if ct == "video" else ""
+                        lines.append(f"  {i+1}. {t} — {ct}{extra}")
+
                     await self.telegram.app.bot.send_message(
                         chat_id=self.telegram.operator_id,
                         text=(
-                            f"MOMO'S PLAN — {count} tweets today\n\n"
-                            f"{slot_list}\n\n"
-                            f"Tweets will be generated 30min before each slot "
-                            f"for your review."
+                            f"MOMO'S PLAN — {count} slots today\n\n"
+                            + "\n".join(lines)
+                            + "\n\nContent will be generated before each slot for your review."
                         ),
                     )
                 except Exception:
                     pass
 
             self.audit_log.log(
-                "david-flip", "info", "tweet_plan",
-                f"Momo planned {count} tweets: {', '.join(datetime.fromisoformat(s).strftime('%H:%M') for s in slot_times)}",
+                "david-flip", "info", "content_plan",
+                f"Momo planned {count} slots: "
+                + ", ".join(
+                    f"{(s.get('type','tweet') if isinstance(s,dict) else 'tweet')}@"
+                    f"{datetime.fromisoformat(s['time'] if isinstance(s,dict) else s).strftime('%H:%M')}"
+                    for s in slot_times
+                ),
             )
 
         except Exception as e:
-            logger.error(f"Tweet planning failed: {e}")
+            logger.error(f"Content planning failed: {e}")
             self.audit_log.log(
-                "david-flip", "reject", "tweet_plan",
+                "david-flip", "reject", "content_plan",
                 f"Planning failed: {e}",
                 success=False,
             )
 
-    async def _run_single_tweet(self, target_hour: int = None, slot_label: str = None):
-        """Generate 1 tweet for a planned slot.
+    async def _run_single_tweet(self, target_hour: int = None, slot_label: str = None, content_type: str = "tweet"):
+        """Generate 1 piece of text content for a planned slot.
 
-        Called 30min before each of Momo's planned slots.
-        Generates tweet -> sends to Jono via Telegram with Approve/Reject buttons.
+        Called before each of Momo's planned slots.
+        Content type determines what kind of content to generate:
+        - "tweet": standard tweet (default)
+        - "parable": village parable from David's observation pool
+        - "thread": 3-5 tweet thread on a topic
         """
         if self.kill_switch.is_active:
-            logger.info("Skipping tweet generation - kill switch active")
+            logger.info("Skipping content generation - kill switch active")
             return
 
         try:
             from run_daily_tweets import generate_tweets
             if not slot_label:
                 slot_label = f"{target_hour}:00 UTC" if target_hour else "next slot"
-            logger.info(f"Generating tweet for {slot_label}...")
-            await generate_tweets(count=1)
+            logger.info(f"Generating {content_type} for {slot_label}...")
+            await generate_tweets(count=1, content_type=content_type)
 
-            # Find the just-generated tweet so we can show its text in the notification
+            # Find the just-generated content so we can show its text in the notification
             pending = self.approval_queue.get_pending()
             tweet_text = ""
             for item in reversed(pending):
-                if item["action_type"] == "tweet" and item["status"] == "pending":
+                if item["action_type"] in ("tweet", "thread") and item["status"] == "pending":
                     action_data = json.loads(item["action_data"]) if isinstance(item["action_data"], str) else item["action_data"]
                     tweet_text = action_data.get("text", "")
                     break
 
             self.audit_log.log(
-                "david-flip", "info", "tweets",
-                f"Tweet generated for {slot_label} — waiting for review"
+                "david-flip", "info", "content",
+                f"{content_type.title()} generated for {slot_label} — waiting for review"
             )
 
-            # Notify Jono via Telegram with tweet preview
+            # Notify Jono via Telegram with preview
             if self.telegram and self.telegram.app:
                 try:
                     preview = tweet_text[:280] if tweet_text else "(no text)"
+                    type_label = content_type.upper() if content_type != "tweet" else "TWEET"
                     await self.telegram.app.bot.send_message(
                         chat_id=self.telegram.operator_id,
                         text=(
-                            f"TWEET for {slot_label}:\n\n"
+                            f"{type_label} for {slot_label}:\n\n"
                             f"{preview}\n\n"
                             f"Approve: http://89.167.24.222:5000/approvals"
                         ),
@@ -736,12 +830,74 @@ class DavidSystem:
                     pass
 
         except Exception as e:
-            logger.error(f"Tweet generation failed for {slot_label}: {e}")
+            logger.error(f"{content_type.title()} generation failed for {slot_label}: {e}")
             self.audit_log.log(
-                "david-flip", "reject", "tweets",
-                f"Tweet generation failed: {e}",
+                "david-flip", "reject", "content",
+                f"{content_type.title()} generation failed: {e}",
                 success=False,
             )
+
+    async def _run_single_video(self, slot_label: str = None):
+        """Generate a video script for a planned video slot.
+
+        Called 2 hours before a video slot. Generates a script via ContentAgent
+        and submits to approval queue. If generation fails, slot becomes a tweet.
+        Also caps: never generates if a video is already pending in the queue.
+        """
+        if self.kill_switch.is_active:
+            logger.info("Skipping video generation - kill switch active")
+            return
+
+        # Safety: don't queue a video if one is already pending
+        pending = self.approval_queue.get_pending()
+        pending_videos = [
+            p for p in pending
+            if p["action_type"] in ("script_review", "video_distribute")
+        ]
+        if pending_videos:
+            logger.info(f"Video slot at {slot_label}: {len(pending_videos)} video(s) already pending, generating tweet instead")
+            await self._run_single_tweet(slot_label=slot_label, content_type="tweet")
+            return
+
+        try:
+            logger.info(f"Generating video for {slot_label}...")
+            result = await self.content_agent.create_video_for_approval()
+
+            self.audit_log.log(
+                "david-flip", "info", "video",
+                f"Video script generated for {slot_label}: {result.get('theme_title', 'unknown')}"
+            )
+
+            # Notify Jono
+            if self.telegram and self.telegram.app:
+                try:
+                    script_preview = result.get("script", "")[:200]
+                    await self.telegram.app.bot.send_message(
+                        chat_id=self.telegram.operator_id,
+                        text=(
+                            f"VIDEO for {slot_label}:\n\n"
+                            f"{result.get('theme_title', 'Untitled')}\n"
+                            f"{script_preview}...\n\n"
+                            f"Approve: http://89.167.24.222:5000/approvals"
+                        ),
+                    )
+                except Exception:
+                    pass
+
+        except Exception as e:
+            logger.error(f"Video generation failed for {slot_label}: {e}")
+            # Fallback: generate a tweet instead
+            logger.info(f"Falling back to tweet for {slot_label}")
+            await self._run_single_tweet(slot_label=slot_label, content_type="tweet")
+
+            if self.telegram and self.telegram.app:
+                try:
+                    await self.telegram.app.bot.send_message(
+                        chat_id=self.telegram.operator_id,
+                        text=f"Video generation failed for {slot_label} — generated a tweet instead.\nError: {str(e)[:100]}",
+                    )
+                except Exception:
+                    pass
 
     async def _run_tier(self, tier: str):
         """Run a specific research frequency tier (hot/warm)."""

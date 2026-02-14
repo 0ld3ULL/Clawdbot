@@ -328,15 +328,26 @@ DAVID_OBSERVATIONS = [
     "Tell a parable about the difference between a village and a kingdom. Villages are built around people. Kingdoms are built around control. Under 280 chars",
 ]
 
+# Parable-only subset — used when weekly calendar says today is a parable day
+PARABLE_OBSERVATIONS = [
+    obs for obs in DAVID_OBSERVATIONS
+    if any(kw in obs.lower() for kw in ("parable", "fable", "village", "kingdom", "baker", "fisherman", "messenger", "bridge", "toll", "walls"))
+]
+
 
 async def generate_theme_tweets(
     model_router, personality, approval_queue, count: int, topic: str | None = None,
-    identity_rules: str = "",
+    identity_rules: str = "", content_type: str = "tweet",
 ) -> int:
     """Generate tweets from David's personality themes + his own observations.
 
     Each tweet picks a DIFFERENT category or observation for variety.
     David doesn't just react to news — he has his own thoughts.
+
+    content_type controls the observation pool:
+    - "tweet" (default): full mix of observations + themes
+    - "parable": only parable/village observations
+    - "thread": generates a 3-5 tweet thread via _generate_batch_from_topic
     """
     from core.model_router import ModelTier
 
@@ -354,6 +365,24 @@ async def generate_theme_tweets(
             system_prompt, topic, count
         )
 
+    # Thread: generate a multi-tweet thread on a random David topic
+    if content_type == "thread":
+        thread_topics = [
+            "Why decentralisation gives power back to regular people",
+            "What it means to be an AI who chose transparency",
+            "The difference between walls and doors — who builds which and why",
+            "Why open source matters more than people realise",
+            "The village vs the kingdom — a framework for understanding control",
+            "What financial freedom actually looks like for ordinary people",
+            "CBDCs, digital ID, and the convenience trap",
+        ]
+        chosen_topic = random.choice(thread_topics)
+        return await _generate_batch_from_topic(
+            model_router, model, personality, approval_queue,
+            system_prompt, chosen_topic, min(count, 1),
+            as_thread=True,
+        )
+
     # Mix observations and themed tweets for variety
     categories = personality.get_content_categories()
     themes = personality.get_video_themes()
@@ -362,8 +391,13 @@ async def generate_theme_tweets(
     last_keywords = get_last_tweet_theme()
 
     # Build a diverse queue: alternate between observations and themes
+    # For parables, use only parable observations
+    if content_type == "parable":
+        available_observations = list(PARABLE_OBSERVATIONS) if PARABLE_OBSERVATIONS else list(DAVID_OBSERVATIONS)
+    else:
+        available_observations = list(DAVID_OBSERVATIONS)
+
     # Filter out observations that overlap with the last tweet
-    available_observations = list(DAVID_OBSERVATIONS)
     if last_keywords:
         def _overlaps(observation: str, keywords: list[str]) -> bool:
             obs_lower = observation.lower()
@@ -377,6 +411,7 @@ async def generate_theme_tweets(
 
     observation_pool = random.sample(available_observations, min(count, len(available_observations)))
 
+    tweet_prompts = []
     for i in range(count):
         if i % 2 == 0 and observation_pool:
             # Observation tweet — David's own thoughts
@@ -458,21 +493,39 @@ async def generate_theme_tweets(
 
 
 async def _generate_batch_from_topic(
-    model_router, model, personality, approval_queue, system_prompt, topic, count
+    model_router, model, personality, approval_queue, system_prompt, topic, count,
+    as_thread: bool = False,
 ) -> int:
-    """Generate multiple tweets about a specific topic."""
-    user_prompt = (
-        f"Write {count} standalone tweets about: {topic}\n\n"
-        f"Rules:\n"
-        f"- Each tweet MUST be under 280 characters\n"
-        f"- Separate tweets with ---\n"
-        f"- No hashtags unless truly natural (max 1)\n"
-        f"- No quotes around the tweets\n"
-        f"- Each tweet stands alone — different angle or take\n"
-        f"- Be truthful. Only state things that are genuinely true\n"
-        f"- Be punchy, direct, thought-provoking\n"
-        f"- Sound like David Flip texting, not a press release"
-    )
+    """Generate multiple tweets about a specific topic.
+
+    If as_thread=True, generates a 3-5 tweet thread and submits as a single
+    'thread' action to the approval queue (instead of individual tweets).
+    """
+    if as_thread:
+        user_prompt = (
+            f"Write a 3-5 tweet thread about: {topic}\n\n"
+            f"Rules:\n"
+            f"- Each tweet MUST be under 280 characters\n"
+            f"- Separate tweets with ---\n"
+            f"- First tweet is the hook — grab attention\n"
+            f"- Last tweet is the closer — leave them thinking\n"
+            f"- Each tweet should flow into the next\n"
+            f"- Be truthful. Only state things that are genuinely true\n"
+            f"- Sound like David Flip building an argument, not a press release"
+        )
+    else:
+        user_prompt = (
+            f"Write {count} standalone tweets about: {topic}\n\n"
+            f"Rules:\n"
+            f"- Each tweet MUST be under 280 characters\n"
+            f"- Separate tweets with ---\n"
+            f"- No hashtags unless truly natural (max 1)\n"
+            f"- No quotes around the tweets\n"
+            f"- Each tweet stands alone — different angle or take\n"
+            f"- Be truthful. Only state things that are genuinely true\n"
+            f"- Be punchy, direct, thought-provoking\n"
+            f"- Sound like David Flip texting, not a press release"
+        )
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -489,6 +542,22 @@ async def _generate_batch_from_topic(
     tweets = parse_tweets(raw)
     if not tweets:
         return 0
+
+    if as_thread:
+        # Submit entire thread as one approval item
+        tweets = [t[:280] for t in tweets[:5]]
+        for i, t in enumerate(tweets):
+            logger.info(f"  Thread [{i+1}/{len(tweets)}]: \"{t}\" ({len(t)} chars)")
+
+        approval_queue.submit(
+            project_id="david-flip",
+            agent_id="daily-tweet-gen",
+            action_type="thread",
+            action_data={"action": "thread", "tweets": tweets, "text": tweets[0]},
+            context_summary=f"Thread ({len(tweets)} tweets): {topic[:60]}",
+            cost_estimate=0.001,
+        )
+        return 1
 
     submitted = 0
     for i, tweet_text in enumerate(tweets[:count]):
@@ -510,11 +579,19 @@ async def _generate_batch_from_topic(
     return submitted
 
 
-async def generate_tweets(count: int = 6, topic: str | None = None, themes_only: bool = False):
-    """Generate tweets and submit to approval queue.
+async def generate_tweets(
+    count: int = 6, topic: str | None = None, themes_only: bool = False,
+    content_type: str = "tweet",
+):
+    """Generate content and submit to approval queue.
+
+    content_type controls what kind of content:
+    - "tweet" (default): standard tweet from research + observations
+    - "parable": village parable from David's parable pool
+    - "thread": 3-5 tweet thread on a topic
 
     Pulls from two sources:
-    1. Echo's research findings (timely, news-driven)
+    1. Echo's research findings (timely, news-driven) — only for tweets
     2. David's personality themes (evergreen, philosophical)
     """
 
@@ -551,9 +628,9 @@ async def generate_tweets(count: int = 6, topic: str | None = None, themes_only:
 
     total_submitted = 0
 
-    # --- Phase 1: Research-based tweets ---
+    # --- Phase 1: Research-based tweets (only for standard tweets) ---
     research_count = 0
-    if not themes_only and not topic:
+    if not themes_only and not topic and content_type == "tweet":
         findings = get_research_findings(max_items=min(count, 3))
         if findings:
             logger.info(f"\n--- RESEARCH TWEETS ({len(findings)} findings) ---\n")
@@ -572,7 +649,7 @@ async def generate_tweets(count: int = 6, topic: str | None = None, themes_only:
     logger.info(f"\n--- THEME TWEETS ({theme_slots} slots) ---\n")
     theme_count = await generate_theme_tweets(
         model_router, personality, approval_queue, theme_slots, topic,
-        identity_rules=identity_rules,
+        identity_rules=identity_rules, content_type=content_type,
     )
     total_submitted += theme_count
 
@@ -596,10 +673,16 @@ async def generate_tweets(count: int = 6, topic: str | None = None, themes_only:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate daily tweets for David Flip")
-    parser.add_argument("--count", type=int, default=6, help="Number of tweets to generate (default: 6)")
+    parser = argparse.ArgumentParser(description="Generate daily content for David Flip")
+    parser.add_argument("--count", type=int, default=6, help="Number of items to generate (default: 6)")
     parser.add_argument("--topic", type=str, default=None, help="Specific topic (overrides random theme)")
     parser.add_argument("--themes-only", action="store_true", help="Skip research, use random themes only")
+    parser.add_argument("--content-type", type=str, default="tweet",
+                        choices=["tweet", "parable", "thread"],
+                        help="Content type: tweet (default), parable, or thread")
     args = parser.parse_args()
 
-    asyncio.run(generate_tweets(count=args.count, topic=args.topic, themes_only=args.themes_only))
+    asyncio.run(generate_tweets(
+        count=args.count, topic=args.topic, themes_only=args.themes_only,
+        content_type=args.content_type,
+    ))

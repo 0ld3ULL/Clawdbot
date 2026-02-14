@@ -308,7 +308,17 @@ class OperationsAgent:
                 rewritten = await self._rewrite_content(rejected_text, context)
                 if rewritten:
                     # --- Step 4: Requeue rewritten content ---
+                    # Look up the ORIGINAL approval record to get the true action_type.
+                    # The feedback context can be unreliable (e.g. tweet rewrites
+                    # were incorrectly becoming script_review).
                     action_type = context.get("action_type", "tweet")
+                    if approval_id:
+                        try:
+                            original = self.approval_queue.get_by_id(int(approval_id))
+                            if original:
+                                action_type = original.get("action_type", action_type)
+                        except (ValueError, TypeError):
+                            pass
                     is_video = action_type in ("video_distribute", "script_review")
 
                     if is_video:

@@ -156,6 +156,14 @@ class GrowthAgent:
                 created_at TEXT NOT NULL
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS weekly_content_calendar (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                week_start TEXT NOT NULL,
+                content_plan TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
         conn.commit()
         conn.close()
 
@@ -904,20 +912,26 @@ class GrowthAgent:
     # ------------------------------------------------------------------
 
     def plan_daily_schedule(self, target_date: str = None) -> dict:
-        """Plan today's tweet schedule with natural human-like spacing.
+        """Plan today's content schedule with natural human-like spacing.
 
-        Picks 4-8 tweets, spreads across 04:00-19:00 UTC (8am-11pm UAE),
+        Reads the weekly content calendar to know what types today needs
+        (video, parable, thread), then assigns content_type tags to each slot.
+        Picks 4-8 slots, spreads across 04:00-19:00 UTC (8am-11pm UAE),
         with organic jitter so posting never looks robotic.
 
-        Returns dict with date, count, and list of ISO datetime strings.
+        Returns dict with date, count, and list of slot dicts:
+        [{"time": "2026-02-14T05:23:00+00:00", "type": "tweet"}, ...]
         """
         today = target_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         # Check if we already have a plan for today
         existing = self._get_daily_plan(today)
         if existing:
-            logger.info(f"Momo: Plan already exists for {today} ({existing['planned_count']} tweets)")
+            logger.info(f"Momo: Plan already exists for {today} ({existing['planned_count']} slots)")
             return existing
+
+        # Get today's content types from weekly calendar
+        content_types = self.get_todays_content_types()
 
         # Pick random count 4-8
         count = random.randint(4, 8)
@@ -926,9 +940,47 @@ class GrowthAgent:
         best_hours = self._get_best_performing_hours()
 
         # Generate organic posting times
-        slot_times = self._generate_organic_times(today, count, best_hours)
+        time_strings = self._generate_organic_times(today, count, best_hours)
 
-        # Store plan
+        # Assign content types to slots
+        # Special types get specific slots, rest are tweets
+        special_types = [t for t in content_types if t != "tweet"]
+        slot_times = []
+        special_assigned = []
+
+        for i, time_str in enumerate(time_strings):
+            if special_types and i not in special_assigned:
+                # Assign special content types to middle-of-day slots for visibility
+                # Video: put in middle third (slots 2-4 roughly)
+                # Parable: first or second slot
+                # Thread: later slot
+                ctype = None
+                if "video" in special_types and len(time_strings) // 3 <= i <= 2 * len(time_strings) // 3:
+                    ctype = "video"
+                    special_types.remove("video")
+                elif "parable" in special_types and i <= len(time_strings) // 3:
+                    ctype = "parable"
+                    special_types.remove("parable")
+                elif "thread" in special_types and i >= 2 * len(time_strings) // 3:
+                    ctype = "thread"
+                    special_types.remove("thread")
+
+                if ctype:
+                    slot_times.append({"time": time_str, "type": ctype})
+                    special_assigned.append(i)
+                    continue
+
+            slot_times.append({"time": time_str, "type": "tweet"})
+
+        # If special types weren't placed (e.g. only 4 slots), force-assign to remaining slots
+        for remaining_type in special_types:
+            # Find a tweet slot to convert
+            for slot in slot_times:
+                if slot["type"] == "tweet":
+                    slot["type"] = remaining_type
+                    break
+
+        # Store plan (slot_times now contains dicts, not just strings)
         conn = sqlite3.connect(str(GROWTH_DB))
         conn.execute(
             """INSERT INTO daily_tweet_schedule
@@ -949,7 +1001,13 @@ class GrowthAgent:
             "planned_count": count,
             "slot_times": slot_times,
         }
-        logger.info(f"Momo: Planned {count} tweets for {today}: {slot_times}")
+
+        type_summary = {}
+        for s in slot_times:
+            t = s["type"]
+            type_summary[t] = type_summary.get(t, 0) + 1
+        type_str = ", ".join(f"{v}x {k}" for k, v in type_summary.items())
+        logger.info(f"Momo: Planned {count} slots for {today} ({type_str})")
         return plan
 
     def _generate_organic_times(
@@ -1088,7 +1146,11 @@ class GrowthAgent:
             return []
 
     def _get_daily_plan(self, date_str: str) -> dict | None:
-        """Read today's plan from DB."""
+        """Read today's plan from DB.
+
+        Handles both old format (list of time strings) and new format
+        (list of {"time": ..., "type": ...} dicts) for backwards compat.
+        """
         try:
             conn = sqlite3.connect(str(GROWTH_DB))
             conn.row_factory = sqlite3.Row
@@ -1101,10 +1163,16 @@ class GrowthAgent:
             if not row:
                 return None
 
+            raw_slots = json.loads(row["slot_times"])
+
+            # Backwards compat: old plans store plain time strings
+            if raw_slots and isinstance(raw_slots[0], str):
+                raw_slots = [{"time": s, "type": "tweet"} for s in raw_slots]
+
             return {
                 "schedule_date": row["schedule_date"],
                 "planned_count": row["planned_count"],
-                "slot_times": json.loads(row["slot_times"]),
+                "slot_times": raw_slots,
             }
         except Exception as e:
             logger.error(f"Momo: Failed to read daily plan: {e}")
@@ -1114,6 +1182,144 @@ class GrowthAgent:
         """Get today's tweet schedule plan."""
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         return self._get_daily_plan(today)
+
+    # ------------------------------------------------------------------
+    # Feature 6: Weekly Content Calendar
+    # ------------------------------------------------------------------
+
+    def plan_weekly_calendar(self) -> dict:
+        """Plan this week's content calendar — what types of content each day.
+
+        Runs Monday 05:00 UTC (or on startup if no plan exists for this week).
+        Decides which days get videos (2-3, spaced out), parables (every 2 days),
+        and threads (1-2/week). Remaining slots default to tweets.
+
+        Returns dict with week_start and daily plan.
+        """
+        # Get Monday of this week
+        today = datetime.now(timezone.utc).date()
+        monday = today - timedelta(days=today.weekday())
+        week_start = monday.isoformat()
+
+        # Check if we already have a plan for this week
+        existing = self.get_weekly_plan(week_start)
+        if existing:
+            logger.info(f"Momo: Weekly plan already exists for week of {week_start}")
+            return existing
+
+        # Build the weekly plan — 7 days of content types
+        days = [(monday + timedelta(days=i)) for i in range(7)]
+        day_labels = [d.isoformat() for d in days]
+
+        # --- Assign video days (2-3, spaced out) ---
+        video_count = random.randint(2, 3)
+        # Spread videos across the week: pick from different thirds
+        video_candidates = list(range(7))
+        random.shuffle(video_candidates)
+        video_days = sorted(video_candidates[:video_count])
+        # Enforce minimum 2-day gap between videos
+        for _pass in range(3):
+            for i in range(1, len(video_days)):
+                if video_days[i] - video_days[i - 1] < 2:
+                    # Push later
+                    video_days[i] = min(video_days[i] + 1, 6)
+            video_days = sorted(set(video_days))
+
+        # --- Assign parable days (3-4, every ~2 days, not on video days) ---
+        parable_count = random.randint(3, 4)
+        parable_candidates = [d for d in range(7) if d not in video_days]
+        random.shuffle(parable_candidates)
+        parable_days = sorted(parable_candidates[:parable_count])
+
+        # --- Assign thread days (1-2, not on video or parable days) ---
+        thread_count = random.randint(1, 2)
+        thread_candidates = [d for d in range(7) if d not in video_days and d not in parable_days]
+        if not thread_candidates:
+            # If all days taken, overlay threads on parable days
+            thread_candidates = parable_days[:2]
+        thread_days = sorted(thread_candidates[:thread_count])
+
+        # Build plan: each day gets a list of content types for its slots
+        # (tweets are the default for any slot not assigned a special type)
+        daily_plan = {}
+        for i, day_str in enumerate(day_labels):
+            content_types = ["tweet"]  # base: at least tweets
+            if i in video_days:
+                content_types.append("video")
+            if i in parable_days:
+                content_types.append("parable")
+            if i in thread_days:
+                content_types.append("thread")
+            daily_plan[day_str] = content_types
+
+        plan = {
+            "week_start": week_start,
+            "daily_plan": daily_plan,
+            "video_days": [day_labels[d] for d in video_days],
+            "parable_days": [day_labels[d] for d in parable_days],
+            "thread_days": [day_labels[d] for d in thread_days],
+        }
+
+        # Store in DB
+        conn = sqlite3.connect(str(GROWTH_DB))
+        conn.execute(
+            """INSERT INTO weekly_content_calendar (week_start, content_plan, created_at)
+               VALUES (?, ?, ?)""",
+            (week_start, json.dumps(plan), datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+        conn.close()
+
+        # Log summary
+        video_strs = ", ".join(plan["video_days"])
+        parable_strs = ", ".join(plan["parable_days"])
+        thread_strs = ", ".join(plan["thread_days"])
+        logger.info(
+            f"Momo: Weekly calendar planned for week of {week_start}\n"
+            f"  Videos ({len(video_days)}): {video_strs}\n"
+            f"  Parables ({len(parable_days)}): {parable_strs}\n"
+            f"  Threads ({len(thread_days)}): {thread_strs}"
+        )
+
+        return plan
+
+    def get_weekly_plan(self, week_start: str = None) -> dict | None:
+        """Read current week's content calendar from DB."""
+        if not week_start:
+            today = datetime.now(timezone.utc).date()
+            monday = today - timedelta(days=today.weekday())
+            week_start = monday.isoformat()
+
+        try:
+            conn = sqlite3.connect(str(GROWTH_DB))
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT * FROM weekly_content_calendar WHERE week_start = ? ORDER BY id DESC LIMIT 1",
+                (week_start,),
+            ).fetchone()
+            conn.close()
+
+            if not row:
+                return None
+
+            return json.loads(row["content_plan"])
+        except Exception as e:
+            logger.error(f"Momo: Failed to read weekly plan: {e}")
+            return None
+
+    def get_todays_content_types(self) -> list[str]:
+        """Get today's content types from the weekly calendar.
+
+        Returns list like ["tweet", "video"] or ["tweet", "parable"].
+        Falls back to ["tweet"] if no weekly plan exists.
+        """
+        plan = self.get_weekly_plan()
+        if not plan:
+            return ["tweet"]
+
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        daily_plan = plan.get("daily_plan", {})
+        return daily_plan.get(today, ["tweet"])
 
     def get_next_planned_slot(self) -> datetime | None:
         """Get the next available planned slot for scheduling an approved tweet.
@@ -1143,7 +1349,9 @@ class GrowthAgent:
             pass
 
         # Find the first planned slot that's still in the future and not taken
-        for slot_str in plan["slot_times"]:
+        for slot_entry in plan["slot_times"]:
+            # Handle both dict format and legacy string format
+            slot_str = slot_entry["time"] if isinstance(slot_entry, dict) else slot_entry
             slot = datetime.fromisoformat(slot_str)
             # Must be at least 5 minutes from now
             if slot <= now + timedelta(minutes=5):
